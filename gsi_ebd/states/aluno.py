@@ -1,6 +1,7 @@
 import json
 from typing import Dict, List, Optional
 
+from sqlmodel import select
 import reflex as rx
 
 from ..models.study import Study, StudyVersion, StudyAssignment
@@ -24,10 +25,40 @@ class AlunoState(AuthState):
     streak: int = 0
     ai_context: str = ""
 
+    @rx.var
+    def has_active_study(self) -> bool:
+        return self.current_study_id is not None
+
+    @rx.var
+    def has_more_questions(self) -> bool:
+        return self.current_question_idx < len(self.study_questions)
+
+    @rx.var
+    def question_label(self) -> str:
+        return f"Pergunta {self.current_question_idx + 1} de {len(self.study_questions)}"
+
+    @rx.var
+    def current_question_text(self) -> str:
+        if not self.study_questions or self.current_question_idx >= len(self.study_questions):
+            return ""
+        return self.study_questions[self.current_question_idx].get("question", "")
+
+    @rx.var
+    def score_label(self) -> str:
+        return f"Pontuacao final: {self.score:.0f}%"
+
+    @rx.var
+    def score_int(self) -> int:
+        return int(self.score)
+
+    @rx.var
+    def feedback_color(self) -> str:
+        return "green" if self.streak > 0 else "red"
+
     def load_assigned_studies(self):
         with rx.session() as session:
             assignments = session.exec(
-                StudyAssignment.select().where(
+                select(StudyAssignment).where(
                     StudyAssignment.user_id == self.current_user_id,
                     StudyAssignment.completed == False,
                 )
@@ -35,10 +66,10 @@ class AlunoState(AuthState):
             self.assigned_studies = []
             for a in assignments:
                 study = session.exec(
-                    Study.select().where(Study.id == a.study_id)
+                    select(Study).where(Study.id == a.study_id)
                 ).first()
                 version = session.exec(
-                    StudyVersion.select().where(StudyVersion.id == a.study_version_id)
+                    select(StudyVersion).where(StudyVersion.id == a.study_version_id)
                 ).first()
                 if study and version:
                     self.assigned_studies.append({
@@ -48,6 +79,7 @@ class AlunoState(AuthState):
                         "study_category": study.category,
                         "version_id": version.id,
                         "version": version.version,
+                        "version_label": f"Versao {version.version}",
                     })
 
     def start_study(self, study_id: int, version_id: int):
@@ -59,7 +91,7 @@ class AlunoState(AuthState):
         self.show_feedback = False
         with rx.session() as session:
             version = session.exec(
-                StudyVersion.select().where(StudyVersion.id == version_id)
+                select(StudyVersion).where(StudyVersion.id == version_id)
             ).first()
             if version:
                 self.study_content = version.content_md
@@ -88,7 +120,7 @@ class AlunoState(AuthState):
             self.answer_feedback = "Correto! Parabens!"
         else:
             self.streak = 0
-            self.answer_feedback = f"Incorreto. A resposta correta é: {correct}"
+            self.answer_feedback = f"Incorreto. A resposta correta e: {correct}"
 
         self.show_feedback = True
         if self.total_answered > 0:
@@ -133,7 +165,7 @@ class AlunoState(AuthState):
             )
             session.add(progress)
             assignment = session.exec(
-                StudyAssignment.select().where(
+                select(StudyAssignment).where(
                     StudyAssignment.user_id == self.current_user_id,
                     StudyAssignment.study_id == self.current_study_id,
                 )

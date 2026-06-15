@@ -1,6 +1,6 @@
 import reflex as rx
-from ..models.user import Role
 from ..states.auth import AuthState
+from ..states.common import CommonState
 
 
 def sidebar() -> rx.Component:
@@ -39,7 +39,7 @@ def _sidebar_item(icon_name: str, label: str, href: str) -> rx.Component:
     return rx.link(
         rx.hstack(
             rx.icon(icon_name, size=18),
-            rx.text(label, display=CommonState.sidebar_open if True else "none"),
+            rx.text(label, display=rx.cond(CommonState.sidebar_open, "block", "none")),
             spacing="2",
             align="center",
             padding="0.5rem",
@@ -55,34 +55,31 @@ def _sidebar_item(icon_name: str, label: str, href: str) -> rx.Component:
 def _admin_items():
     return rx.fragment(
         _sidebar_item("shield", "Admin", "/admin"),
-        _sidebar_item("users", "Gestores", "/admin/gestores"),
-        _sidebar_item("eye", "Supervisores", "/admin/supervisores"),
-        _sidebar_item("bar-chart-2", "Relatorios", "/admin/relatorios"),
+        _sidebar_item("users", "Gestores", "/admin"),
+        _sidebar_item("eye", "Supervisores", "/admin"),
+        _sidebar_item("bar-chart-2", "Relatorios", "/admin"),
     )
 
 
 def _supervisor_items():
     return rx.fragment(
         _sidebar_item("eye", "Visao Geral", "/supervisor"),
-        _sidebar_item("bar-chart-2", "Relatorios", "/supervisor/relatorios"),
+        _sidebar_item("bar-chart-2", "Relatorios", "/supervisor"),
     )
 
 
 def _gestor_items():
     return rx.fragment(
         _sidebar_item("home", "Dashboard", "/gestor"),
-        _sidebar_item("users", "Alunos", "/gestor/alunos"),
-        _sidebar_item("book-open", "Estudos", "/gestor/estudos"),
-        _sidebar_item("bar-chart-2", "Progresso", "/gestor/progresso"),
+        _sidebar_item("users", "Alunos", "/gestor"),
+        _sidebar_item("book-open", "Estudos", "/gestor"),
+        _sidebar_item("bar-chart-2", "Progresso", "/gestor"),
     )
 
 
 def _aluno_items():
     return rx.fragment(
         _sidebar_item("home", "Inicio", "/aluno"),
-        _sidebar_item("book-open", "Estudos", "/aluno/estudos"),
-        _sidebar_item("trophy", "Progresso", "/aluno/progresso"),
+        _sidebar_item("book-open", "Estudos", "/aluno"),
+        _sidebar_item("trophy", "Progresso", "/aluno"),
     )
-
-
-from ..states.common import CommonState

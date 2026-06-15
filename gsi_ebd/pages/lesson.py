@@ -15,7 +15,7 @@ def lesson_page() -> rx.Component:
                 spacing="3",
             ),
             progress_tracker(
-                AlunoState.score,
+                AlunoState.score_int,
                 AlunoState.streak,
                 AlunoState.total_answered,
                 AlunoState.correct_count,
@@ -25,11 +25,11 @@ def lesson_page() -> rx.Component:
                     rx.markdown(AlunoState.study_content),
                     rx.divider(),
                     rx.cond(
-                        AlunoState.current_question_idx < len(AlunoState.study_questions),
+                        AlunoState.has_more_questions,
                         _lesson_question(),
                         rx.vstack(
                             rx.heading("Estudo Concluido!", color="green"),
-                            rx.text(f"Pontuacao: {AlunoState.score:.0f}%"),
+                            rx.text(AlunoState.score_label),
                             rx.button("Voltar", on_click=rx.redirect("/aluno")),
                             spacing="3",
                         ),
@@ -54,15 +54,20 @@ def lesson_page() -> rx.Component:
 def _lesson_question():
     return rx.vstack(
         rx.text(
-            f"Pergunta {AlunoState.current_question_idx + 1}",
+            AlunoState.question_label,
             font_weight="bold",
             color="gray",
+        ),
+        rx.text(
+            AlunoState.current_question_text,
+            size="4",
+            font_weight="bold",
         ),
         rx.input(
             placeholder="Sua resposta",
             value=AlunoState.user_answer,
             on_change=AlunoState.set_user_answer,
-            size="lg",
+            size="3",
         ),
         rx.hstack(
             rx.button("Enviar", on_click=AlunoState.submit_answer, color_scheme="blue"),
@@ -74,7 +79,7 @@ def _lesson_question():
         ),
         rx.cond(
             AlunoState.show_feedback,
-            rx.callout(AlunoState.answer_feedback, variant="soft"),
+            rx.callout(AlunoState.answer_feedback, variant="soft", color_scheme=AlunoState.feedback_color),
         ),
         spacing="3",
         width="100%",

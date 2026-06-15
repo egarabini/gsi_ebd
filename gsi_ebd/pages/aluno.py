@@ -11,13 +11,13 @@ def aluno_page() -> rx.Component:
         rx.vstack(
             rx.heading("Meus Estudos", size="6"),
             progress_tracker(
-                AlunoState.score,
+                AlunoState.score_int,
                 AlunoState.streak,
                 AlunoState.total_answered,
                 AlunoState.correct_count,
             ),
             rx.cond(
-                AlunoState.current_study_id is not None,
+                AlunoState.has_active_study,
                 _study_view(),
                 _study_list(),
             ),
@@ -34,30 +34,31 @@ def aluno_page() -> rx.Component:
     )
 
 
+def _study_card(s):
+    return rx.card(
+        rx.vstack(
+            rx.hstack(
+                rx.text(s["study_title"], font_weight="bold", size="4"),
+                rx.badge(s["study_category"], color_scheme="blue"),
+                justify="between",
+                width="100%",
+            ),
+            rx.text(s["version_label"], color="gray", size="1"),
+            rx.button(
+                "Iniciar Estudo",
+                on_click=lambda: AlunoState.start_study(s["study_id"], s["version_id"]),
+                color_scheme="green",
+            ),
+            spacing="2",
+        ),
+        width="100%",
+    )
+
+
 def _study_list():
     return rx.vstack(
         rx.heading("Estudos Disponiveis", size="4"),
-        rx.foreach(
-            AlunoState.assigned_studies,
-            lambda s: rx.card(
-                rx.vstack(
-                    rx.hstack(
-                        rx.text(s["study_title"], font_weight="bold", size="4"),
-                        rx.badge(s["study_category"], color_scheme="blue"),
-                        justify="between",
-                        width="100%",
-                    ),
-                    rx.text(f"Versao {s['version']}", color="gray", font_size="sm"),
-                    rx.button(
-                        "Iniciar Estudo",
-                        on_click=lambda: AlunoState.start_study(s["study_id"], s["version_id"]),
-                        color_scheme="green",
-                    ),
-                    spacing="2",
-                ),
-                width="100%",
-            ),
-        ),
+        rx.foreach(AlunoState.assigned_studies, _study_card),
         spacing="3",
         width="100%",
     )
@@ -74,12 +75,12 @@ def _study_view():
             width="100%",
         ),
         rx.cond(
-            AlunoState.current_question_idx < len(AlunoState.study_questions),
+            AlunoState.has_more_questions,
             _question_card(),
             rx.card(
                 rx.vstack(
                     rx.heading("Estudo Concluido!", size="4", color="green"),
-                    rx.text(f"Pontuacao final: {AlunoState.score:.0f}%"),
+                    rx.text(AlunoState.score_label),
                     rx.button("Voltar aos Estudos", on_click=AlunoState.load_assigned_studies, color_scheme="blue"),
                     spacing="3",
                 ),
@@ -92,52 +93,36 @@ def _study_view():
 
 
 def _question_card():
-    q_idx = AlunoState.current_question_idx
     return rx.card(
         rx.vstack(
             rx.text(
-                f"Pergunta {q_idx + 1} de {len(AlunoState.study_questions)}",
+                AlunoState.question_label,
                 font_weight="bold",
                 color="gray",
             ),
-            rx.cond(
-                AlunoState.study_questions.length() > 0,
-                rx.text(
-                    AlunoState.study_questions[q_idx]["question"] if AlunoState.study_questions else "",
-                    size="4",
-                    font_weight="bold",
-                ),
-                rx.text(""),
+            rx.text(
+                AlunoState.current_question_text,
+                size="4",
+                font_weight="bold",
             ),
-            rx.cond(
-                AlunoState.study_questions.length() > 0,
-                rx.cond(
-                    AlunoState.study_questions[q_idx].get("type", "") == "multiple_choice",
-                    rx.radio_group(
-                        AlunoState.study_questions[q_idx].get("options", []) if AlunoState.study_questions else [],
-                        on_change=AlunoState.set_user_answer,
-                    ),
-                    rx.input(
-                        placeholder="Sua resposta",
-                        value=AlunoState.user_answer,
-                        on_change=AlunoState.set_user_answer,
-                    ),
-                ),
-                rx.text(""),
+            rx.input(
+                placeholder="Sua resposta",
+                value=AlunoState.user_answer,
+                on_change=AlunoState.set_user_answer,
+                size="3",
             ),
             rx.cond(
                 AlunoState.show_feedback,
                 rx.callout(
                     AlunoState.answer_feedback,
                     variant="soft",
-                    color_scheme="green" if AlunoState.streak > 0 else "red",
+                    color_scheme=AlunoState.feedback_color,
                 ),
             ),
             rx.hstack(
                 rx.button(
                     "Responder",
                     on_click=AlunoState.submit_answer,
-                    disabled=AlunoState.show_feedback,
                     color_scheme="blue",
                 ),
                 rx.cond(

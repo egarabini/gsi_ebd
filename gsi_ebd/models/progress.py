@@ -2,8 +2,7 @@ from datetime import datetime
 from enum import IntEnum
 from typing import Optional
 
-import reflex as rx
-from sqlmodel import Field, Relationship
+from sqlmodel import Field, Relationship, SQLModel
 
 
 class QuestionType(IntEnum):
@@ -13,7 +12,7 @@ class QuestionType(IntEnum):
     OPEN = 4
 
 
-class UserResponse(rx.Model, table=True):
+class UserResponse(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     study_version_id: int = Field(foreign_key="studyversion.id")
@@ -28,7 +27,7 @@ class UserResponse(rx.Model, table=True):
     user: Optional["User"] = Relationship(back_populates="responses")
 
 
-class Progress(rx.Model, table=True):
+class Progress(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     study_id: int = Field(foreign_key="study.id")
@@ -40,3 +39,6 @@ class Progress(rx.Model, table=True):
     last_activity: datetime = Field(default_factory=datetime.utcnow)
 
     user: Optional["User"] = Relationship(back_populates="progress_records")
+
+
+from .user import User

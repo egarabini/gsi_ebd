@@ -32,6 +32,28 @@ def admin_page() -> rx.Component:
     )
 
 
+def _gestor_card(g):
+    return rx.card(
+        rx.hstack(
+            rx.text(g.nome, font_weight="bold"),
+            rx.text(g.email, color="gray"),
+            rx.spacer(),
+            rx.cond(
+                g.is_active,
+                rx.badge("Ativo", color_scheme="green"),
+                rx.badge("Inativo", color_scheme="red"),
+            ),
+            rx.cond(
+                g.is_active,
+                rx.button("Desativar", on_click=lambda: AdminState.deactivate_user(g.id), size="1", variant="outline", color_scheme="red"),
+                rx.text(""),
+            ),
+            justify="between",
+            width="100%",
+        ),
+    )
+
+
 def _gestores_tab():
     return rx.vstack(
         rx.card(
@@ -51,26 +73,26 @@ def _gestores_tab():
         ),
         rx.divider(),
         rx.heading("Gestores Cadastrados", size="4"),
-        rx.foreach(
-            AdminState.gestores,
-            lambda g: rx.card(
-                rx.hstack(
-                    rx.text(g.nome, font_weight="bold"),
-                    rx.text(g.email, color="gray"),
-                    rx.spacer(),
-                    rx.badge("Ativo" if g.is_active else "Inativo", color_scheme="green" if g.is_active else "red"),
-                    rx.cond(
-                        g.is_active,
-                        rx.button("Desativar", on_click=lambda: AdminState.deactivate_user(g.id), size="sm", variant="outline", color_scheme="red"),
-                        rx.text(""),
-                    ),
-                    justify="between",
-                    width="100%",
-                ),
-            ),
-        ),
+        rx.foreach(AdminState.gestores, _gestor_card),
         spacing="3",
         width="100%",
+    )
+
+
+def _supervisor_card(s):
+    return rx.card(
+        rx.hstack(
+            rx.text(s.nome, font_weight="bold"),
+            rx.text(s.email, color="gray"),
+            rx.spacer(),
+            rx.cond(
+                s.is_active,
+                rx.badge("Ativo", color_scheme="green"),
+                rx.badge("Inativo", color_scheme="red"),
+            ),
+            justify="between",
+            width="100%",
+        ),
     )
 
 
@@ -89,19 +111,7 @@ def _supervisores_tab():
         ),
         rx.divider(),
         rx.heading("Supervisores Cadastrados", size="4"),
-        rx.foreach(
-            AdminState.supervisores,
-            lambda s: rx.card(
-                rx.hstack(
-                    rx.text(s.nome, font_weight="bold"),
-                    rx.text(s.email, color="gray"),
-                    rx.spacer(),
-                    rx.badge("Ativo" if s.is_active else "Inativo", color_scheme="green" if s.is_active else "red"),
-                    justify="between",
-                    width="100%",
-                ),
-            ),
-        ),
+        rx.foreach(AdminState.supervisores, _supervisor_card),
         spacing="3",
         width="100%",
     )

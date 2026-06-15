@@ -2,8 +2,7 @@ from datetime import datetime
 from enum import IntEnum
 from typing import Optional
 
-import reflex as rx
-from sqlmodel import Field, Relationship
+from sqlmodel import Field, Relationship, SQLModel
 
 
 class Role(IntEnum):
@@ -13,7 +12,7 @@ class Role(IntEnum):
     ALUNO = 4
 
 
-class User(rx.Model, table=True):
+class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     email: str = Field(unique=True, index=True)
     password_hash: str = Field(exclude=True)

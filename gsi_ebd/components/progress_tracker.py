@@ -1,11 +1,11 @@
 import reflex as rx
 
 
-def progress_tracker(score: float, streak: int, total: int, correct: int) -> rx.Component:
+def progress_tracker(score: int, streak: int, total: int, correct: int) -> rx.Component:
     return rx.vstack(
         rx.hstack(
             rx.text("Pontuacao", font_weight="bold"),
-            rx.text(f"{score:.0f}%", font_size="2xl", color="var(--accent-9)"),
+            rx.text(f"{score}%", size="6", color="var(--accent-9)"),
             justify="between",
             width="100%",
         ),

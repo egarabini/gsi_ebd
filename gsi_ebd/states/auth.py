@@ -1,12 +1,10 @@
 from typing import Optional
 
+from sqlmodel import select
 import reflex as rx
-from passlib.context import CryptContext
+import bcrypt
 
 from ..models.user import User, Role
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 class AuthState(rx.State):
     is_authenticated: bool = False
@@ -54,9 +52,9 @@ class AuthState(rx.State):
         self.login_error = ""
         with rx.session() as session:
             user = session.exec(
-                User.select().where(User.email == self.login_email)
+                select(User).where(User.email == self.login_email)
             ).first()
-            if user and pwd_context.verify(self.login_password, user.password_hash):
+            if user and bcrypt.checkpw(self.login_password.encode(), user.password_hash.encode()):
                 self.is_authenticated = True
                 self.current_user_id = user.id
                 self.current_user_name = user.nome
@@ -68,12 +66,12 @@ class AuthState(rx.State):
         self.register_error = ""
         with rx.session() as session:
             existing = session.exec(
-                User.select().where(User.email == self.register_email)
+                select(User).where(User.email == self.register_email)
             ).first()
             if existing:
                 self.register_error = "Email ja cadastrado"
                 return
-            hashed = pwd_context.hash(self.register_password)
+            hashed = bcrypt.hashpw(self.register_password.encode(), bcrypt.gensalt()).decode()
             user = User(
                 email=self.register_email,
                 password_hash=hashed,

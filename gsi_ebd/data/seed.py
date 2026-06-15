@@ -2,25 +2,24 @@ import json
 from pathlib import Path
 
 import reflex as rx
+from sqlmodel import select
 
-from ..models.user import User, Role
-from ..models.study import Study, StudyVersion
-from passlib.context import CryptContext
+from ..models import User, Role, Study, StudyVersion, StudyAssignment, UserResponse, Progress
+import bcrypt
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-LESSONS_DIR = Path(__file__).parent / "data" / "lessons"
+LESSONS_DIR = Path(__file__).parent / "lessons"
 
 
 def seed_admin():
     with rx.session() as session:
         existing = session.exec(
-            User.select().where(User.email == "admin@gsi.ebd")
+            select(User).where(User.email == "admin@gsi.ebd")
         ).first()
         if not existing:
             admin = User(
                 email="admin@gsi.ebd",
-                password_hash=pwd_context.hash("admin123"),
+                password_hash=bcrypt.hashpw("admin123".encode(), bcrypt.gensalt()).decode(),
                 nome="Administrador",
                 role=Role.ADMIN,
             )
@@ -33,7 +32,7 @@ def seed_lessons():
         for lesson_file in LESSONS_DIR.glob("*.json"):
             data = json.loads(lesson_file.read_text(encoding="utf-8"))
             existing = session.exec(
-                Study.select().where(Study.title == data["title"])
+                select(Study).where(Study.title == data["title"])
             ).first()
             if not existing:
                 study = Study(

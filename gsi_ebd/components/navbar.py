@@ -11,13 +11,13 @@ def navbar() -> rx.Component:
                     on_click=CommonState.toggle_sidebar,
                     variant="ghost",
                 ),
-                rx.heading("GSI-EBD", size="lg", color="white"),
+                rx.heading("GSI-EBD", size="6", color="white"),
                 spacing="2",
             ),
             rx.hstack(
                 rx.badge(
                     AuthState.current_user_name,
-                    variant="subtle",
+                    variant="soft",
                     color_scheme="blue",
                 ),
                 rx.icon_button(

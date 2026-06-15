@@ -1,11 +1,10 @@
 from datetime import datetime
 from typing import Optional
 
-import reflex as rx
-from sqlmodel import Field, Relationship
+from sqlmodel import Field, Relationship, SQLModel
 
 
-class Study(rx.Model, table=True):
+class Study(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str
     description: str = Field(default="")
@@ -17,7 +16,7 @@ class Study(rx.Model, table=True):
     assignments: list["StudyAssignment"] = Relationship(back_populates="study")
 
 
-class StudyVersion(rx.Model, table=True):
+class StudyVersion(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     study_id: int = Field(foreign_key="study.id")
     version: int = Field(default=1)
@@ -32,12 +31,12 @@ class StudyVersion(rx.Model, table=True):
     assignments: list["StudyAssignment"] = Relationship(back_populates="study_version")
 
 
-class StudyAssignment(rx.Model, table=True):
+class StudyAssignment(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id")
     study_id: int = Field(foreign_key="study.id")
     study_version_id: int = Field(foreign_key="studyversion.id")
-    assigned_by: int = Field(foreign_key="user.id")
+    assigned_by: int = 0
     due_date: Optional[datetime] = Field(default=None)
     completed: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -45,3 +44,6 @@ class StudyAssignment(rx.Model, table=True):
     user: Optional["User"] = Relationship(back_populates="assignments")
     study: Optional[Study] = Relationship(back_populates="assignments")
     study_version: Optional[StudyVersion] = Relationship(back_populates="assignments")
+
+
+from .user import User

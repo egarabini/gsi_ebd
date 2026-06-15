@@ -32,6 +32,26 @@ def gestor_page() -> rx.Component:
     )
 
 
+def _aluno_card(a):
+    return rx.card(
+        rx.hstack(
+            rx.text(a.nome, font_weight="bold"),
+            rx.text(a.email, color="gray"),
+            rx.spacer(),
+            rx.badge("Ativo", color_scheme="green"),
+            justify="between",
+            width="100%",
+        ),
+    )
+
+
+def _aluno_checkbox(a):
+    return rx.checkbox(
+        a.nome,
+        on_change=lambda: GestorState.toggle_aluno_selection(a.id),
+    )
+
+
 def _alunos_tab():
     return rx.vstack(
         rx.card(
@@ -51,19 +71,7 @@ def _alunos_tab():
         ),
         rx.divider(),
         rx.heading("Meus Alunos", size="4"),
-        rx.foreach(
-            GestorState.alunos,
-            lambda a: rx.card(
-                rx.hstack(
-                    rx.text(a.nome, font_weight="bold"),
-                    rx.text(a.email, color="gray"),
-                    rx.spacer(),
-                    rx.badge("Ativo", color_scheme="green"),
-                    justify="between",
-                    width="100%",
-                ),
-            ),
-        ),
+        rx.foreach(GestorState.alunos, _aluno_card),
         spacing="3",
         width="100%",
     )
@@ -75,19 +83,13 @@ def _atribuir_tab():
             rx.vstack(
                 rx.heading("Atribuir Estudo", size="4"),
                 rx.select(
-                    [s["title"] for s in []],
+                    GestorState.study_titles,
                     placeholder="Selecione um estudo",
                     on_change=GestorState.set_selected_study_id,
                     width="100%",
                 ),
                 rx.text("Selecione os alunos:"),
-                rx.foreach(
-                    GestorState.alunos,
-                    lambda a: rx.checkbox(
-                        a.nome,
-                        on_change=lambda: GestorState.toggle_aluno_selection(a.id),
-                    ),
-                ),
+                rx.foreach(GestorState.alunos, _aluno_checkbox),
                 rx.button("Atribuir", on_click=GestorState.assign_study, color_scheme="blue"),
                 rx.cond(
                     GestorState.message != "",
