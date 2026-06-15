@@ -1,0 +1,52 @@
+{
+  "id": 1,
+  "title": "Licao 03: O Plano da Salvacao",
+  "category": "salvacao",
+  "content_md": "## O Plano da Salvacao\n\nDeus, em Seu infinito amor, preparou um plano para a salvacao da humanidade. Este plano e revelado desde Genesis ate Apocalipse.\n\n### Textos-Chave\n- **Joao 3:16** - *Porque Deus amou o mundo de tal maneira que deu o seu Filho unigenito...*\n- **Isaias 53** - O Servo Sofredor\n- **Efesios 2:8-9** - *Pela graca sois salvos, por meio da fe...*\n\n### Preencha as Lacunas\n1. Deus amou o mundo de tal maneira que deu o seu ________.\n2. Pela _______ sois salvos, por meio da ______.\n3. O _________ de Deus e que todos se ________.\n\n### Verdadeiro ou Falso\n1. A salvacao pode ser conquistada por obras. (V / F)\n2. Jesus morreu por todos os pecadores. (V / F)\n3. A fe vem pelo ouvir a Palavra de Deus. (V / F)\n",
+  "questions": [
+    {
+      "key": "fill_1",
+      "type": "fill_blank",
+      "question": "Deus amou o mundo de tal maneira que deu o seu ________.",
+      "answer": "Filho unigenito"
+    },
+    {
+      "key": "fill_2",
+      "type": "fill_blank",
+      "question": "Pela _______ sois salvos, por meio da ______.",
+      "answer": "graca, fe"
+    },
+    {
+      "key": "tf_1",
+      "type": "true_false",
+      "question": "A salvacao pode ser conquistada por obras.",
+      "answer": "f"
+    },
+    {
+      "key": "tf_2",
+      "type": "true_false",
+      "question": "Jesus morreu por todos os pecadores.",
+      "answer": "v"
+    },
+    {
+      "key": "tf_3",
+      "type": "true_false",
+      "question": "A fe vem pelo ouvir a Palavra de Deus.",
+      "answer": "v"
+    },
+    {
+      "key": "mc_1",
+      "type": "multiple_choice",
+      "question": "Qual texto descreve o Servo Sofredor?",
+      "options": ["Isaias 53", "Salmo 23", "Joao 3:16", "Romanos 8"],
+      "answer": "Isaias 53"
+    },
+    {
+      "key": "mc_2",
+      "type": "multiple_choice",
+      "question": "Segundo Efesios 2:8-9, somos salvos por:",
+      "options": ["Obras", "Graca", "Tradicao", "Merito proprio"],
+      "answer": "Graca"
+    }
+  ]
+}

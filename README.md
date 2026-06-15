@@ -1,0 +1,1 @@
+Nesta pasta vamos desenvolver um aplicativo de Estudos Bíblicos Dirigidos.
