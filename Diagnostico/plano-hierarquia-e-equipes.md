@@ -1,3 +1,20 @@
+> **Nota de status (verificada em 2026-10-05, commit `bb69a00`).**
+> A Fase 0 (hierarquia) e a Fase 1 (Turma/Equipe) estao efetivamente aplicadas no
+> codigo e verificadas: `Role` = ADMIN=1, GESTOR=2, COORDENADOR=3, ALUNO=4;
+> `User.coordenador_id` e `User.meta_coordenadores`; `states/coordenador.py` e
+> `pages/coordenador.py`; rota `/coordenador` registrada em `gsi_ebd.py`.
+> O rename `Supervisor` -> `Coordenador` alcancou models, states, pages,
+> components, services, utils, seed, testes, migracoes e esta documentacao.
+> A suite `pytest tests/` passa com 8 testes.
+>
+> Correcoes adicionais aplicadas nesta mesma rodada, que a versao anterior deste
+> documento nao registrava:
+> - `data/seed.py` passava `is_active=True` a `User` (property somente leitura)
+>   e quebrava com TypeError — removido.
+> - `models/__init__.py` agora exporta `Turma` e `TurmaMembro`.
+> - A migracao `cf5b71f0e3bc` derrubava as tabelas `turma`/`turmamembro` dentro do
+>   `upgrade()` — removido (era destrutivo num `alembic upgrade head`).
+> - `README.md` informava a senha `admin123`; o seed usa `senha123`.
 # Plano de Acao - Hierarquia, Equipes e Modulo Coordenador
 
 ## Objetivo
@@ -7,11 +24,11 @@ Fechar a lacuna entre o fundamento de negocio (4 niveis de acesso x 5 modulos) e
 ## Fase 0 - Correcao de Hierarquia (CONCLUIDA nesta rodada)
 
 - [x] `Role` reordenado para `ADMIN=1, GESTOR=2, COORDENADOR=3, ALUNO=4`.
-- [x] Renomeacao completa `Coordenador` -> `Coordenador` em models, states, pages, components, services, utils, seed e testes.
+- [x] Renomeacao completa `Supervisor` -> `Coordenador` em models, states, pages, components, services, utils, seed e testes.
 - [x] `User.coordenador_id` -> `User.coordenador_id`; `meta_coordenadores` -> `meta_coordenadores`.
 - [x] Corrigido bug pre-existente `User(nome=...)` -> `User(nome_completo=...)` em `states/admin.py`, `states/gestor.py`, `states/auth.py`, e usos de leitura em `pages/admin.py`, `pages/gestor.py`, `states/auth.py` (o model usa `nome_completo`/`nome_base`, nao `nome`).
 - [x] Suite de testes (`pytest`) validada: 5 passed.
-- Pendente (nao critico agora): atualizar referencias textuais a "Coordenador" em `README.md`, `plano-de-acao.md`, `arquitetura-atual.md`, `MCP-VOICE-FRAMEWORK.md`, `Evolução.md` (apenas documentacao).
+- Pendente (nao critico agora): atualizar referencias textuais a "Supervisor" em `README.md`, `plano-de-acao.md`, `arquitetura-atual.md`, `MCP-VOICE-FRAMEWORK.md`, `Evolução.md` (apenas documentacao).
 - Observacao tecnica: nao existe migracao Alembic a ser feita para o rename de coluna, pois o banco e criado via `SQLModel.metadata.create_all()` em `data/seed.py` (unica migracao existente, `b55ed43e2631_.py`, esta desatualizada em relacao ao model atual). Recomenda-se, em fase futura, regenerar as migracoes Alembic a partir do model corrente antes de ir para producao com dados reais.
 
 ## Fase 1 - Entidade Turma/Equipe [CONCLUIDA]
