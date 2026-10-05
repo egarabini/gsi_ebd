@@ -21,7 +21,7 @@ class AdminState(AuthState):
 
     # Listas carregadas (como dict para compatibilidade com foreach)
     gestores: list[dict] = []
-    supervisores: list[dict] = []
+    coordenadores: list[dict] = []
     leads: list[dict] = []
     estudos_pendentes: list[dict] = []
 
@@ -43,12 +43,12 @@ class AdminState(AuthState):
                 for u in users
             ]
 
-    def load_supervisores(self):
+    def load_coordenadores(self):
         with rx.session() as session:
             users = session.exec(
-                select(User).where(User.role == Role.SUPERVISOR)
+                select(User).where(User.role == Role.COORDENADOR)
             ).all()
-            self.supervisores = [
+            self.coordenadores = [
                 {"id": u.id or 0, "nome": u.nome_completo, "email": u.email,
                  "status": u.status.value if hasattr(u.status, 'value') else str(u.status)}
                 for u in users
@@ -161,7 +161,7 @@ class AdminState(AuthState):
 
     def _reload_all(self):
         self.load_gestores()
-        self.load_supervisores()
+        self.load_coordenadores()
 
     # ── Leads ─────────────────────────────────────────────────────
 

@@ -2,11 +2,11 @@
 GestorState — gerencia o painel completo do Gestor.
 
 Hierarquia gerenciada pelo Gestor:
-  Gestor → Supervisores → Alunos
+  Gestor → Coordenadores → Alunos
 
 O Gestor pode:
-  - Criar/listar seus Supervisores
-  - Criar/listar seus Alunos (diretos ou via supervisores)
+  - Criar/listar seus Coordenadores
+  - Criar/listar seus Alunos (diretos ou via coordenadores)
   - Propor estudos ao Admin
   - Ver estudos aprovados e atribuí-los
   - Ver progresso geral da equipe
@@ -34,8 +34,8 @@ def _hash(pw: str) -> str:
 
 class GestorState(AuthState):
     # ── Formulários de criação ────────────────────────────────────
-    new_supervisor_nome: str = ""
-    new_supervisor_email: str = ""
+    new_coordenador_nome: str = ""
+    new_coordenador_email: str = ""
 
     new_aluno_nome: str = ""
     new_aluno_email: str = ""
@@ -47,7 +47,7 @@ class GestorState(AuthState):
     new_study_content_md: str = ""
 
     # ── Listas (list[dict] para rx.foreach) ──────────────────────
-    supervisores: list[dict] = []
+    coordenadores: list[dict] = []
     alunos: list[dict] = []
     estudos_aprovados: list[dict] = []
     estudos_propostos: list[dict] = []
@@ -57,7 +57,7 @@ class GestorState(AuthState):
     selected_aluno_ids: list[int] = []
 
     # ── Métricas ─────────────────────────────────────────────────
-    total_supervisores: int = 0
+    total_coordenadores: int = 0
     total_alunos: int = 0
     total_estudos_ativos: int = 0
     total_pendentes: int = 0
@@ -88,8 +88,8 @@ class GestorState(AuthState):
         return opts
 
     @rx.var
-    def has_supervisores(self) -> bool:
-        return self.total_supervisores > 0
+    def has_coordenadores(self) -> bool:
+        return self.total_coordenadores > 0
 
     @rx.var
     def has_alunos(self) -> bool:
@@ -103,21 +103,21 @@ class GestorState(AuthState):
 
     def load_all(self):
         """Carrega todos os dados do gestor de uma vez."""
-        self.load_supervisores()
+        self.load_coordenadores()
         self.load_alunos()
         self.load_estudos_aprovados()
         self.load_estudos_propostos()
 
-    def load_supervisores(self):
-        """Carrega supervisores vinculados a este gestor."""
+    def load_coordenadores(self):
+        """Carrega coordenadores vinculados a este gestor."""
         with rx.session() as session:
             users = session.exec(
                 select(User).where(
-                    User.role == Role.SUPERVISOR,
+                    User.role == Role.COORDENADOR,
                     User.gestor_id == self.current_user_id,
                 )
             ).all()
-            self.supervisores = [
+            self.coordenadores = [
                 {
                     "id": str(u.id),
                     "nome": u.nome_completo or u.nome_base or "",
@@ -127,12 +127,12 @@ class GestorState(AuthState):
                 }
                 for u in users
             ]
-            self.total_supervisores = len(self.supervisores)
+            self.total_coordenadores = len(self.coordenadores)
 
     def load_alunos(self):
         """
         Carrega alunos do gestor.
-        Inclui alunos diretos (gestor_id) e alunos dos supervisores do gestor.
+        Inclui alunos diretos (gestor_id) e alunos dos coordenadores do gestor.
         """
         with rx.session() as session:
             # Alunos diretos do gestor
@@ -143,21 +143,21 @@ class GestorState(AuthState):
                 )
             ).all()
 
-            # IDs dos supervisores deste gestor
+            # IDs dos coordenadores deste gestor
             sup_ids = [u.id for u in session.exec(
                 select(User).where(
-                    User.role == Role.SUPERVISOR,
+                    User.role == Role.COORDENADOR,
                     User.gestor_id == self.current_user_id,
                 )
             ).all()]
 
-            # Alunos vinculados a esses supervisores
+            # Alunos vinculados a esses coordenadores
             alunos_via_sup = []
             if sup_ids:
                 alunos_via_sup = session.exec(
                     select(User).where(
                         User.role == Role.ALUNO,
-                        User.supervisor_id.in_(sup_ids),
+                        User.coordenador_id.in_(sup_ids),
                     )
                 ).all()
 
@@ -172,7 +172,7 @@ class GestorState(AuthState):
                     "nome_base": u.nome_base or (u.nome_completo or "?")[0],
                     "email": u.email,
                     "status": str(u.status),
-                    "supervisor_id": str(u.supervisor_id or ""),
+                    "coordenador_id": str(u.coordenador_id or ""),
                 }
                 for u in alunos_list
             ]
@@ -219,30 +219,30 @@ class GestorState(AuthState):
                 if e.get("status") in ("StudyStatus.PROPOSTO", "proposto", "em_revisao", "StudyStatus.EM_REVISAO")
             )
 
-    # ── Criação de Supervisor ────────────────────────────────────
+    # ── Criação de Coordenador ────────────────────────────────────
 
-    def create_supervisor(self):
-        """Cria um novo Supervisor vinculado a este Gestor."""
+    def create_coordenador(self):
+        """Cria um novo Coordenador vinculado a este Gestor."""
         self.message = ""
-        if not self.new_supervisor_nome.strip() or not self.new_supervisor_email.strip():
-            self.message = "Preencha nome e email do supervisor."
+        if not self.new_coordenador_nome.strip() or not self.new_coordenador_email.strip():
+            self.message = "Preencha nome e email do coordenador."
             self.message_type = "error"
             return
 
         with rx.session() as session:
             if session.exec(
-                select(User).where(User.email == self.new_supervisor_email)
+                select(User).where(User.email == self.new_coordenador_email)
             ).first():
                 self.message = "Email já cadastrado na plataforma."
                 self.message_type = "error"
                 return
 
             user = User(
-                email=self.new_supervisor_email,
+                email=self.new_coordenador_email,
                 password_hash=_hash(DEFAULT_PASSWORD),
-                nome_completo=self.new_supervisor_nome,
-                nome_base=self.new_supervisor_nome.split()[0] if self.new_supervisor_nome else "",
-                role=Role.SUPERVISOR,
+                nome_completo=self.new_coordenador_nome,
+                nome_base=self.new_coordenador_nome.split()[0] if self.new_coordenador_nome else "",
+                role=Role.COORDENADOR,
                 gestor_id=self.current_user_id,
                 must_change_password=True,
                 status=UserStatus.SUSPENSO,
@@ -254,14 +254,14 @@ class GestorState(AuthState):
             UserStatusService.on_user_created(session, user)
             session.commit()
 
-        self.message = f"Supervisor '{self.new_supervisor_nome}' criado! Email de confirmação enviado."
+        self.message = f"Coordenador '{self.new_coordenador_nome}' criado! Email de confirmação enviado."
         self.message_type = "success"
-        self.new_supervisor_nome = ""
-        self.new_supervisor_email = ""
-        self.load_supervisores()
+        self.new_coordenador_nome = ""
+        self.new_coordenador_email = ""
+        self.load_coordenadores()
 
-    def activate_supervisor(self, sup_id: str):
-        """Ativa um supervisor manualmente."""
+    def activate_coordenador(self, sup_id: str):
+        """Ativa um coordenador manualmente."""
         with rx.session() as session:
             user = session.exec(select(User).where(User.id == int(sup_id))).first()
             if user and str(user.gestor_id) == str(self.current_user_id):
@@ -272,7 +272,7 @@ class GestorState(AuthState):
                 user.failed_login_attempts = 0
                 session.add(user)
                 session.commit()
-        self.load_supervisores()
+        self.load_coordenadores()
 
     # ── Criação de Aluno ─────────────────────────────────────────
 

@@ -160,7 +160,6 @@ def seed_admin(session: Session) -> User:
         password_hash=hash_password(DEFAULT_PASSWORD),
         must_change_password=False,  # Admin não precisa trocar
         role=Role.ADMIN,
-        is_active=True,
         status=UserStatus.ATIVO,  # Admin sempre ATIVO
         assinatura_ativa=True,  # Admin não paga, mas flag ativa para não bloquear acesso
     )
@@ -267,7 +266,7 @@ def seed_users(session: Session, admin: User):
             telefone="(31) 99999-0003",
             password_hash=hash_password(DEFAULT_PASSWORD),
             must_change_password=False,   # usuário de teste — sem troca obrigatória
-            role=Role.SUPERVISOR,
+            role=Role.COORDENADOR,
             gestor_id=gestor.id,
             meta_alunos=10,
             status="ativo",               # usuário de teste — já ATIVO
@@ -312,7 +311,7 @@ def seed_users(session: Session, admin: User):
                 must_change_password=False,   # usuário de teste — sem troca obrigatória
                 role=Role.ALUNO,
                 gestor_id=gestor.id,
-                supervisor_id=coordenador.id,  # vinculo correto: supervisor_id
+                coordenador_id=coordenador.id,  # vinculo correto: coordenador_id
                 is_active=True,
                 status="ativo",               # usuário de teste — já ATIVO
                 status_reason="Usuário de demonstração criado pelo seed",
@@ -562,7 +561,7 @@ def run_seed():
     print("Credenciais de acesso:")
     print(f"  Admin:      {ADMIN_EMAIL} / {DEFAULT_PASSWORD}")
     print("  Gestor:     gestor@gsi.ebd / senha123")
-    print("  Supervisor: coordenador@gsi.ebd / senha123  (role=SUPERVISOR)")
+    print("  Coordenador: coordenador@gsi.ebd / senha123  (role=COORDENADOR)")
     print("  Aluno 1:    aluno1@gsi.ebd / senha123")
     print("  Aluno 2:    aluno2@gsi.ebd / senha123")
 

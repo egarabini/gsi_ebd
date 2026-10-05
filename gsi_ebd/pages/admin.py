@@ -1,4 +1,4 @@
-"""Página do Administrador — Gestores, Supervisores, Leads, Estudos."""
+"""Página do Administrador — Gestores, Coordenadores, Leads, Estudos."""
 import reflex as rx
 from ..states.admin import AdminState
 from ..components.navbar import navbar
@@ -15,12 +15,12 @@ def admin_page() -> rx.Component:
                 rx.tabs.root(
                     rx.tabs.list(
                         rx.tabs.trigger("Gestores", value="gestores"),
-                        rx.tabs.trigger("Supervisores", value="supervisores"),
+                        rx.tabs.trigger("Coordenadores", value="coordenadores"),
                         rx.tabs.trigger("Aprovação de Estudos", value="estudos"),
                         rx.tabs.trigger("Leads", value="leads"),
                     ),
                     rx.tabs.content(_gestores_tab(), value="gestores"),
-                    rx.tabs.content(_supervisores_tab(), value="supervisores"),
+                    rx.tabs.content(_coordenadores_tab(), value="coordenadores"),
                     rx.tabs.content(_estudos_tab(), value="estudos"),
                     rx.tabs.content(_leads_tab(), value="leads"),
                     default_value="gestores",
@@ -45,7 +45,7 @@ def admin_page() -> rx.Component:
 # ── Cards ─────────────────────────────────────────────────────────────────────
 
 def _user_card(u: dict) -> rx.Component:
-    """Card genérico para usuários (Gestor ou Supervisor)."""
+    """Card genérico para usuários (Gestor ou Coordenador)."""
     return rx.card(
         rx.hstack(
             rx.vstack(
@@ -195,14 +195,14 @@ def _gestores_tab() -> rx.Component:
     )
 
 
-def _supervisores_tab() -> rx.Component:
+def _coordenadores_tab() -> rx.Component:
     return rx.vstack(
-        rx.heading("Supervisores Cadastrados", size="4"),
+        rx.heading("Coordenadores Cadastrados", size="4"),
         rx.foreach(
-            AdminState.supervisores.to(list[dict[str, str]]),
+            AdminState.coordenadores.to(list[dict[str, str]]),
             _user_card,
         ),
-        on_mount=AdminState.load_supervisores,
+        on_mount=AdminState.load_coordenadores,
         spacing="3",
         width="100%",
     )

@@ -8,7 +8,7 @@ from sqlmodel import Field, Relationship, SQLModel
 class Role(IntEnum):
     ADMIN = 1
     GESTOR = 2
-    SUPERVISOR = 3
+    COORDENADOR = 3
     ALUNO = 4
 
 
@@ -89,17 +89,17 @@ class User(SQLModel, table=True):
     last_activity_at: Optional[datetime] = Field(default=None)  # para detectar inatividade
 
     # --- Hierarquia (RBAC) ---
-    # ADMIN:      sem gestor_id nem supervisor_id
-    # GESTOR:     sem gestor_id nem supervisor_id (criado pelo Admin)
-    # SUPERVISOR: gestor_id = ID do Gestor ao qual pertence
-    # ALUNO:      supervisor_id = ID do Supervisor ao qual pertence
+    # ADMIN:      sem gestor_id nem coordenador_id
+    # GESTOR:     sem gestor_id nem coordenador_id (criado pelo Admin)
+    # COORDENADOR: gestor_id = ID do Gestor ao qual pertence
+    # ALUNO:      coordenador_id = ID do Coordenador ao qual pertence
     role: int = Field(default=Role.ALUNO)
     gestor_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    supervisor_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    coordenador_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
     # --- Metas (não limites rígidos — tracking de desempenho) ---
-    meta_supervisores: int = Field(default=0)   # meta do Gestor
-    meta_alunos: int = Field(default=0)         # meta do Supervisor
+    meta_coordenadores: int = Field(default=0)   # meta do Gestor
+    meta_alunos: int = Field(default=0)         # meta do Coordenador
 
     # --- Financeiro ---
     assinatura_ativa: bool = Field(default=False)

@@ -8,7 +8,7 @@ Documentar a estratégia para adicionar voz ao `GSI_EBD` sem alterar a base atua
 
 O sistema atual já aponta para:
 
-- autenticação com papéis (`ADMIN`, `SUPERVISOR`, `GESTOR`, `ALUNO`)
+- autenticação com papéis (`ADMIN`, `COORDENADOR`, `GESTOR`, `ALUNO`)
 - estudos dirigidos com progresso e trilha de aprendizado
 - serviços de IA para explicação, apoio pedagógico e adaptação
 

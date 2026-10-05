@@ -1,13 +1,26 @@
-from gsi_ebd.models.user import User, Role
+"""Testes de modelo do GSI-EBD.
+
+Observacoes de contrato (verificadas no codigo):
+- User.status inicia como "suspenso" (novo usuario so acessa apos confirmar
+  o email) e User.is_active e uma @property derivada de status, NAO uma coluna.
+- Study.is_active e uma coluna real, com default True.
+"""
+from gsi_ebd.models.user import User, Role, UserStatus
 from gsi_ebd.models.study import Study, StudyVersion, StudyAssignment
 from gsi_ebd.models.progress import UserResponse, Progress
 
 
 def test_user_role_enum():
+    """Hierarquia: Admin > Gestor > Coordenador > Aluno."""
     assert Role.ADMIN == 1
     assert Role.GESTOR == 2
     assert Role.COORDENADOR == 3
     assert Role.ALUNO == 4
+
+
+def test_user_role_has_no_supervisor():
+    """O papel 'Supervisor' nao existe mais — foi unificado em Coordenador."""
+    assert not hasattr(Role, "SUPERVISOR")
 
 
 def test_user_model_fields():
@@ -15,13 +28,33 @@ def test_user_model_fields():
     assert user.email == "test@test.com"
     assert user.nome_completo == "Teste"
     assert user.role == Role.ALUNO
+
+
+def test_new_user_starts_suspended():
+    """Novo usuario comeca suspenso e sem acesso ate confirmar o email."""
+    user = User(email="novo@test.com", password_hash="hash", nome_completo="Novo")
+    assert user.status == "suspenso"
+    assert user.is_active is False
+    assert user.can_access is False
+
+
+def test_active_user_can_access():
+    user = User(
+        email="ativo@test.com",
+        password_hash="hash",
+        nome_completo="Ativo",
+        role=Role.ALUNO,
+        status=UserStatus.ATIVO,
+    )
     assert user.is_active is True
+    assert user.can_access is True
 
 
 def test_study_model_fields():
     study = Study(title="Teste", description="Desc", category="geral")
     assert study.title == "Teste"
     assert study.is_active is True
+    assert study.status == "rascunho"
 
 
 def test_study_version_fields():

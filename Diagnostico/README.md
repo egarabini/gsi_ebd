@@ -12,7 +12,7 @@ O estado atual é de um MVP funcional em estrutura, mas ainda com pontos importa
 
 - App Reflex com rotas por perfil.
 - Login, registro e redirecionamento por role.
-- RBAC básico com `ADMIN`, `SUPERVISOR`, `GESTOR` e `ALUNO`.
+- RBAC básico com `ADMIN`, `COORDENADOR`, `GESTOR` e `ALUNO`.
 - Cadastro de gestores e alunos pelo painel administrativo e do gestor.
 - Modelo de estudos com `Study`, `StudyVersion` e `StudyAssignment`.
 - Modelo de progresso com `UserResponse` e `Progress`.
@@ -49,7 +49,7 @@ As roles estão modeladas, porém a proteção de acesso ainda é majoritariamen
 Pontos a observar:
 
 - `check_auth` protege login, mas não há uma política centralizada por role
-- supervisor está previsto na rota, mas ainda não tem painel real
+- coordenador está previsto na rota, mas ainda não tem painel real
 - há pouca validação de contexto ao usar `current_user_id` em queries
 
 ### 4. Persistência e seed existem, mas faltam contratos mais explícitos
@@ -78,7 +78,7 @@ Os documentos `Visão.md`, `Evolução.md` e `MCP-VOICE-FRAMEWORK.md` são útei
 - Continuar armazenando lógica de domínio em `states` sem uma camada de serviço.
 - Crescer o sistema sem padronizar o formato das lições e respostas.
 - Não definir logging e auditoria desde o início para interações por voz.
-- Deixar o supervisor como papel “decorativo” sem uso real.
+- Deixar o coordenador como papel “decorativo” sem uso real.
 
 ## Conclusao Tecnica
 

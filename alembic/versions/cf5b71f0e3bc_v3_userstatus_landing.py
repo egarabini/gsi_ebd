@@ -125,8 +125,6 @@ def upgrade() -> None:
         batch_op.create_index(batch_op.f('ix_paymenthistory_subscription_id'), ['subscription_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_paymenthistory_user_id'), ['user_id'], unique=False)
 
-    op.drop_table('turmamembro')
-    op.drop_table('turma')
     with op.batch_alter_table('progress', schema=None) as batch_op:
         batch_op.alter_column('last_activity',
                nullable=True)
@@ -177,8 +175,8 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column('failed_login_attempts', sa.Integer(), server_default=sa.text('0'), nullable=False))
         batch_op.add_column(sa.Column('last_login_at', sa.DateTime(), nullable=True))
         batch_op.add_column(sa.Column('last_activity_at', sa.DateTime(), nullable=True))
-        batch_op.add_column(sa.Column('supervisor_id', sa.Integer(), nullable=True))
-        batch_op.add_column(sa.Column('meta_supervisores', sa.Integer(), server_default=sa.text('0'), nullable=False))
+        batch_op.add_column(sa.Column('coordenador_id', sa.Integer(), nullable=True))
+        batch_op.add_column(sa.Column('meta_coordenadores', sa.Integer(), server_default=sa.text('0'), nullable=False))
         batch_op.add_column(sa.Column('meta_alunos', sa.Integer(), server_default=sa.text('0'), nullable=False))
         batch_op.add_column(sa.Column('assinatura_ativa', sa.Boolean(), server_default=sa.text('false'), nullable=False))
         batch_op.add_column(sa.Column('data_vencimento', sa.Date(), nullable=True))
@@ -187,7 +185,7 @@ def upgrade() -> None:
         batch_op.alter_column('updated_at',
                nullable=True)
         batch_op.create_index(batch_op.f('ix_user_cpf'), ['cpf'], unique=False)
-        batch_op.create_foreign_key(None, 'user', ['supervisor_id'], ['id'])
+        batch_op.create_foreign_key(None, 'user', ['coordenador_id'], ['id'])
         batch_op.drop_column('nome')
         batch_op.drop_column('is_active')
 
@@ -217,8 +215,8 @@ def downgrade() -> None:
         batch_op.drop_column('data_vencimento')
         batch_op.drop_column('assinatura_ativa')
         batch_op.drop_column('meta_alunos')
-        batch_op.drop_column('meta_supervisores')
-        batch_op.drop_column('supervisor_id')
+        batch_op.drop_column('meta_coordenadores')
+        batch_op.drop_column('coordenador_id')
         batch_op.drop_column('last_activity_at')
         batch_op.drop_column('last_login_at')
         batch_op.drop_column('failed_login_attempts')

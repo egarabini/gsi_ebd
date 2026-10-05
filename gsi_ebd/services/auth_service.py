@@ -13,7 +13,7 @@ class AuthService:
         role_paths = {
             Role.ADMIN: "/admin",
             Role.GESTOR: "/gestor",
-            Role.SUPERVISOR: "/supervisor",
+            Role.COORDENADOR: "/coordenador",
             Role.ALUNO: "/aluno",
         }
         return role_paths.get(current_role, "/login")

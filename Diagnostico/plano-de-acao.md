@@ -21,7 +21,7 @@ Preparar o `GSI_EBD` para receber voz com MCP de forma sustentável, sem perder 
 
 - Implementar checks centrais por role.
 - Garantir que cada página respeite seu papel.
-- Tornar o supervisor funcional.
+- Tornar o coordenador funcional.
 
 ## Fase 2 - Preparacao para Voz
 

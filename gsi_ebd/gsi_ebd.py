@@ -6,13 +6,13 @@ from .pages.admin import admin_page
 from .pages.gestor import gestor_page
 from .pages.aluno import aluno_page
 from .pages.lesson import lesson_page
-from .pages.supervisor import supervisor_page
+from .pages.coordenador import coordenador_page
 from .pages.perfil import alterar_senha_page
 from .states.auth import AuthState
 from .states.admin import AdminState
 from .states.gestor import GestorState
 from .states.aluno import AlunoState
-from .states.supervisor import SupervisorState
+from .states.coordenador import CoordenadorState
 from .states.perfil import PerfilState
 from .states.common import CommonState
 from .models.user import User, UserStatus
@@ -66,7 +66,7 @@ app.add_page(
     admin_page,
     route="/admin",
     title="GSI-EBD — Admin",
-    on_load=[AuthState.check_auth, AdminState.load_gestores, AdminState.load_supervisores],
+    on_load=[AuthState.check_auth, AdminState.load_gestores, AdminState.load_coordenadores],
 )
 
 # ── Gestor ────────────────────────────────────────────────────────────────────
@@ -92,12 +92,12 @@ app.add_page(
     on_load=[AuthState.check_auth],
 )
 
-# ── Supervisor ────────────────────────────────────────────────────────────────────────────────
+# ── Coordenador ────────────────────────────────────────────────────────────────────────────────
 app.add_page(
-    supervisor_page,
-    route="/supervisor",
-    title="GSI-EBD — Supervisor",
-    on_load=[AuthState.check_auth, SupervisorState.load_all],
+    coordenador_page,
+    route="/coordenador",
+    title="GSI-EBD — Coordenador",
+    on_load=[AuthState.check_auth, CoordenadorState.load_all],
 )
 
 # ── Perfil / Alterar Senha ────────────────────────────────────────────────────────────────────

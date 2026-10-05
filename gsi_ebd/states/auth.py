@@ -23,7 +23,7 @@ class AuthState(rx.State):
     login_error: str = ""
     login_warning: str = ""   # avisos não-bloqueantes (ex: tentativas restantes)
 
-    # --- Formulário de registro (desabilitado — criação via Admin/Supervisor) ---
+    # --- Formulário de registro (desabilitado — criação via Admin/Coordenador) ---
     register_nome: str = ""
     register_email: str = ""
     register_password: str = ""
@@ -44,8 +44,8 @@ class AuthState(rx.State):
         return self.current_user_role == Role.GESTOR
 
     @rx.var
-    def is_supervisor(self) -> bool:
-        return self.current_user_role == Role.SUPERVISOR
+    def is_coordenador(self) -> bool:
+        return self.current_user_role == Role.COORDENADOR
 
     @rx.var
     def is_aluno(self) -> bool:

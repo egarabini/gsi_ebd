@@ -16,7 +16,7 @@
 
 1. Usuário faz login.
 2. `AuthState` define role e redireciona.
-3. Admin cadastra supervisores e gestores.
+3. Admin cadastra coordenadores e gestores.
 4. Gestor cadastra alunos e atribui estudos.
 5. Aluno visualiza estudos atribuídos.
 6. Lição é aberta, respondida e salva em `UserResponse`.
@@ -33,7 +33,7 @@
 
 - Falta camada de serviço para regras de negócio.
 - Estados concentram acesso ao banco e decisões de domínio.
-- Supervisor ainda não está funcional.
+- Coordenador ainda não está funcional.
 - Não há contrato forte para conteúdo de lição.
 - Não há telemetria de uso nem logging de interações.
 

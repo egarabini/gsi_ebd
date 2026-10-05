@@ -312,7 +312,7 @@ def send_estudo_aprovado(gestor_nome: str, gestor_email: str, estudo_titulo: str
         pelo Administrador da plataforma. 🎉
     </p>
     <p style="color:#374151;line-height:1.7;">
-        Agora ele está disponível para ser atribuído aos alunos pelos Supervisores.
+        Agora ele está disponível para ser atribuído aos alunos pelos Coordenadores.
     </p>"""
     return send_email(
         to_email=gestor_email,

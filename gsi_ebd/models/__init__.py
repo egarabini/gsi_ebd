@@ -5,6 +5,7 @@ from .subscription import Subscription, PaymentHistory, SubscriptionStatus, Paym
 from .lead import Lead, LeadStatus
 from .site_content import Testemunho, SiteConfig
 from .notification import Notification, NotificationType
+from .turma import Turma, TurmaMembro
 
 __all__ = [
     # Usuário
@@ -20,4 +21,6 @@ __all__ = [
     "Testemunho", "SiteConfig",
     # Sistema
     "Notification", "NotificationType",
+    # Turmas (equipes)
+    "Turma", "TurmaMembro",
 ]

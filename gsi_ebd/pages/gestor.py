@@ -1,4 +1,4 @@
-"""Painel do Gestor — Supervisores, Alunos, Estudos Aprovados, Proposta, Meus Estudos."""
+"""Painel do Gestor — Coordenadores, Alunos, Estudos Aprovados, Proposta, Meus Estudos."""
 import reflex as rx
 from ..states.gestor import GestorState
 from ..components.navbar import navbar
@@ -77,9 +77,9 @@ def _message_callout() -> rx.Component:
     )
 
 
-# ── Tab 1: Supervisores ───────────────────────────────────────────────────────
+# ── Tab 1: Coordenadores ───────────────────────────────────────────────────────
 
-def _supervisor_row(s: dict) -> rx.Component:
+def _coordenador_row(s: dict) -> rx.Component:
     return rx.card(
         rx.hstack(
             _avatar(s["nome_base"], "linear-gradient(135deg,#059669,#10b981)"),
@@ -97,7 +97,7 @@ def _supervisor_row(s: dict) -> rx.Component:
                 rx.button(
                     rx.icon("user-check", size=13),
                     "Ativar",
-                    on_click=GestorState.activate_supervisor(s["id"]),
+                    on_click=GestorState.activate_coordenador(s["id"]),
                     size="1",
                     color_scheme="green",
                     variant="soft",
@@ -113,27 +113,27 @@ def _supervisor_row(s: dict) -> rx.Component:
     )
 
 
-def _supervisores_tab() -> rx.Component:
+def _coordenadores_tab() -> rx.Component:
     return rx.vstack(
         # Formulário de criação
         rx.card(
             rx.vstack(
                 rx.hstack(
                     rx.icon("user-plus", size=18, color="#7c3aed"),
-                    rx.heading("Adicionar Supervisor", size="4", color="#1e1b4b"),
+                    rx.heading("Adicionar Coordenador", size="4", color="#1e1b4b"),
                     spacing="2", align="center",
                 ),
                 rx.grid(
                     rx.input(
                         placeholder="Nome completo",
-                        value=GestorState.new_supervisor_nome,
-                        on_change=GestorState.set_new_supervisor_nome,
+                        value=GestorState.new_coordenador_nome,
+                        on_change=GestorState.set_new_coordenador_nome,
                         size="3", width="100%",
                     ),
                     rx.input(
                         placeholder="Email",
-                        value=GestorState.new_supervisor_email,
-                        on_change=GestorState.set_new_supervisor_email,
+                        value=GestorState.new_coordenador_email,
+                        on_change=GestorState.set_new_coordenador_email,
                         type="email",
                         size="3", width="100%",
                     ),
@@ -143,14 +143,14 @@ def _supervisores_tab() -> rx.Component:
                 ),
                 rx.hstack(
                     rx.icon("info", size=14, color="gray"),
-                    rx.text("Senha inicial: senha123 — supervisor deverá alterar no 1º acesso",
+                    rx.text("Senha inicial: senha123 — coordenador deverá alterar no 1º acesso",
                             color="gray", size="1"),
                     spacing="1", align="center",
                 ),
                 rx.button(
                     rx.icon("user-plus", size=15),
-                    "Criar Supervisor",
-                    on_click=GestorState.create_supervisor,
+                    "Criar Coordenador",
+                    on_click=GestorState.create_coordenador,
                     color_scheme="green",
                     size="2",
                 ),
@@ -162,31 +162,31 @@ def _supervisores_tab() -> rx.Component:
 
         rx.divider(),
         rx.hstack(
-            rx.heading("Supervisores Cadastrados", size="4", color="#1e1b4b"),
+            rx.heading("Coordenadores Cadastrados", size="4", color="#1e1b4b"),
             rx.spacer(),
-            rx.text(GestorState.total_supervisores.to(str) + " supervisor(es)",
+            rx.text(GestorState.total_coordenadores.to(str) + " coordenador(es)",
                     color="gray", size="2"),
             align="center", width="100%",
         ),
         rx.cond(
-            GestorState.has_supervisores,
+            GestorState.has_coordenadores,
             rx.vstack(
                 rx.foreach(
-                    GestorState.supervisores.to(list[dict[str, str]]),
-                    _supervisor_row,
+                    GestorState.coordenadores.to(list[dict[str, str]]),
+                    _coordenador_row,
                 ),
                 spacing="2", width="100%",
             ),
             rx.center(
                 rx.vstack(
                     rx.icon("users", size=40, color="var(--gray-5)"),
-                    rx.text("Nenhum supervisor cadastrado ainda.", color="gray", size="2"),
+                    rx.text("Nenhum coordenador cadastrado ainda.", color="gray", size="2"),
                     spacing="2", align="center",
                 ),
                 padding="2rem",
             ),
         ),
-        on_mount=GestorState.load_supervisores,
+        on_mount=GestorState.load_coordenadores,
         spacing="3", width="100%",
     )
 
@@ -544,7 +544,7 @@ def gestor_page() -> rx.Component:
                 rx.hstack(
                     rx.vstack(
                         rx.heading("Painel do Gestor", size="7", weight="bold", color="#1e1b4b"),
-                        rx.text("Gerencie sua equipe de supervisores e alunos.",
+                        rx.text("Gerencie sua equipe de coordenadores e alunos.",
                                 color="gray", size="2"),
                         spacing="0", align="start",
                     ),
@@ -560,8 +560,8 @@ def gestor_page() -> rx.Component:
 
                 # Métricas
                 rx.grid(
-                    _metric_card("users", "Supervisores",
-                                 GestorState.total_supervisores.to(str),
+                    _metric_card("users", "Coordenadores",
+                                 GestorState.total_coordenadores.to(str),
                                  "linear-gradient(135deg,#059669,#10b981)"),
                     _metric_card("graduation-cap", "Alunos",
                                  GestorState.total_alunos.to(str),
@@ -579,8 +579,8 @@ def gestor_page() -> rx.Component:
                 rx.tabs.root(
                     rx.tabs.list(
                         rx.tabs.trigger(
-                            rx.hstack(rx.icon("eye", size=14), rx.text("Supervisores"), spacing="1"),
-                            value="supervisores",
+                            rx.hstack(rx.icon("eye", size=14), rx.text("Coordenadores"), spacing="1"),
+                            value="coordenadores",
                         ),
                         rx.tabs.trigger(
                             rx.hstack(rx.icon("graduation-cap", size=14), rx.text("Alunos"), spacing="1"),
@@ -595,7 +595,7 @@ def gestor_page() -> rx.Component:
                             value="propor",
                         ),
                     ),
-                    rx.tabs.content(_supervisores_tab(), value="supervisores"),
+                    rx.tabs.content(_coordenadores_tab(), value="coordenadores"),
                     rx.tabs.content(_alunos_tab(), value="alunos"),
                     rx.tabs.content(_estudos_tab(), value="estudos"),
                     rx.tabs.content(_propor_tab(), value="propor"),
