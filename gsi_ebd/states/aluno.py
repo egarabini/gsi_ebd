@@ -1,11 +1,10 @@
-import json
 from typing import Dict, List, Optional
 
-from sqlmodel import select
 import reflex as rx
 
-from ..models.study import Study, StudyVersion, StudyAssignment
-from ..models.progress import UserResponse, Progress
+from ..models.progress import QuestionType
+from ..services.study_service import StudyService
+from ..services.progress_service import ProgressService
 from .auth import AuthState
 
 
@@ -56,31 +55,27 @@ class AlunoState(AuthState):
         return "green" if self.streak > 0 else "red"
 
     def load_assigned_studies(self):
-        with rx.session() as session:
-            assignments = session.exec(
-                select(StudyAssignment).where(
-                    StudyAssignment.user_id == self.current_user_id,
-                    StudyAssignment.completed == False,
-                )
-            ).all()
-            self.assigned_studies = []
-            for a in assignments:
-                study = session.exec(
-                    select(Study).where(Study.id == a.study_id)
-                ).first()
-                version = session.exec(
-                    select(StudyVersion).where(StudyVersion.id == a.study_version_id)
-                ).first()
-                if study and version:
-                    self.assigned_studies.append({
-                        "assignment_id": a.id,
-                        "study_id": study.id,
-                        "study_title": study.title,
-                        "study_category": study.category,
-                        "version_id": version.id,
-                        "version": version.version,
-                        "version_label": f"Versao {version.version}",
-                    })
+        self.assigned_studies = [snapshot.__dict__ for snapshot in StudyService.list_assigned_studies(self.current_user_id)]
+
+    def select_study(self, study_id: str):
+        """Inicia estudo a partir de study_id (string do foreach)."""
+        try:
+            sid = int(study_id)
+        except (ValueError, TypeError):
+            return
+        self.current_study_id = sid
+        self.current_question_idx = 0
+        self.user_answer = ""
+        self.answer_feedback = ""
+        self.show_feedback = False
+        # Encontra a primeira versão ativa do estudo
+        study_snap = next((s for s in self.assigned_studies if s.get("study_id") == sid), None)
+        if study_snap:
+            vid = study_snap.get("version_id")
+            if vid:
+                payload = StudyService.load_version_payload(int(vid))
+                self.study_content = payload.get("content_md", "")
+                self.study_questions = payload.get("questions", [])
 
     def start_study(self, study_id: int, version_id: int):
         self.current_study_id = study_id
@@ -89,13 +84,9 @@ class AlunoState(AuthState):
         self.user_answer = ""
         self.answer_feedback = ""
         self.show_feedback = False
-        with rx.session() as session:
-            version = session.exec(
-                select(StudyVersion).where(StudyVersion.id == version_id)
-            ).first()
-            if version:
-                self.study_content = version.content_md
-                self.study_questions = json.loads(version.questions_json)
+        payload = StudyService.load_version_payload(version_id)
+        self.study_content = payload["content_md"]
+        self.study_questions = payload["questions"]
 
     def submit_answer(self):
         if not self.study_questions:
@@ -126,24 +117,20 @@ class AlunoState(AuthState):
         if self.total_answered > 0:
             self.score = (self.correct_count / self.total_answered) * 100
 
-        with rx.session() as session:
-            from ..models.progress import QuestionType
-            type_map = {
-                "fill_blank": QuestionType.FILL_BLANK,
-                "true_false": QuestionType.TRUE_FALSE,
-                "multiple_choice": QuestionType.MULTIPLE_CHOICE,
-                "open": QuestionType.OPEN,
-            }
-            response = UserResponse(
-                user_id=self.current_user_id,
-                study_version_id=self.current_version_id,
-                question_key=question.get("key", f"q{self.current_question_idx}"),
-                question_type=type_map.get(q_type, QuestionType.MULTIPLE_CHOICE),
-                answer=self.user_answer,
-                is_correct=is_correct,
-            )
-            session.add(response)
-            session.commit()
+        type_map = {
+            "fill_blank": QuestionType.FILL_BLANK,
+            "true_false": QuestionType.TRUE_FALSE,
+            "multiple_choice": QuestionType.MULTIPLE_CHOICE,
+            "open": QuestionType.OPEN,
+        }
+        ProgressService.save_response(
+            user_id=self.current_user_id,
+            study_version_id=self.current_version_id,
+            question_key=question.get("key", f"q{self.current_question_idx}"),
+            question_type=type_map.get(q_type, QuestionType.MULTIPLE_CHOICE),
+            answer=self.user_answer,
+            is_correct=is_correct,
+        )
 
     def next_question(self):
         self.show_feedback = False
@@ -154,25 +141,13 @@ class AlunoState(AuthState):
             self._finish_study()
 
     def _finish_study(self):
-        with rx.session() as session:
-            progress = Progress(
-                user_id=self.current_user_id,
-                study_id=self.current_study_id,
-                score=self.score,
-                total_questions=self.total_answered,
-                correct_answers=self.correct_count,
-                streak=self.streak,
-            )
-            session.add(progress)
-            assignment = session.exec(
-                select(StudyAssignment).where(
-                    StudyAssignment.user_id == self.current_user_id,
-                    StudyAssignment.study_id == self.current_study_id,
-                )
-            ).first()
-            if assignment:
-                assignment.completed = True
-                session.add(assignment)
-            session.commit()
+        ProgressService.finish_study(
+            user_id=self.current_user_id,
+            study_id=self.current_study_id,
+            score=self.score,
+            total_questions=self.total_answered,
+            correct_answers=self.correct_count,
+            streak=self.streak,
+        )
         self.current_study_id = None
         self.current_version_id = None

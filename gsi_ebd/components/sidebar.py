@@ -8,11 +8,11 @@ def sidebar() -> rx.Component:
         AuthState.is_admin,
         _admin_items(),
         rx.cond(
-            AuthState.is_supervisor,
-            _supervisor_items(),
+            AuthState.is_gestor,
+            _gestor_items(),
             rx.cond(
-                AuthState.is_gestor,
-                _gestor_items(),
+                AuthState.is_supervisor,
+                _supervisor_items(),
                 _aluno_items(),
             ),
         ),
@@ -57,14 +57,15 @@ def _admin_items():
         _sidebar_item("shield", "Admin", "/admin"),
         _sidebar_item("users", "Gestores", "/admin"),
         _sidebar_item("eye", "Supervisores", "/admin"),
-        _sidebar_item("bar-chart-2", "Relatorios", "/admin"),
+        _sidebar_item("bar-chart-2", "Relatórios", "/admin"),
     )
 
 
 def _supervisor_items():
     return rx.fragment(
         _sidebar_item("eye", "Visao Geral", "/supervisor"),
-        _sidebar_item("bar-chart-2", "Relatorios", "/supervisor"),
+        _sidebar_item("users", "Meus Alunos", "/supervisor"),
+        _sidebar_item("bar-chart-2", "Progresso", "/supervisor"),
     )
 
 

@@ -1,5 +1,6 @@
 import reflex as rx
 from ..states.auth import AuthState
+from ..states.common import CommonState
 
 
 def navbar() -> rx.Component:
@@ -39,6 +40,3 @@ def navbar() -> rx.Component:
         top="0",
         z_index="50",
     )
-
-
-from ..states.common import CommonState

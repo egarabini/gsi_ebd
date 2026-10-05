@@ -2,49 +2,51 @@ import reflex as rx
 from ..states.aluno import AlunoState
 from ..components.navbar import navbar
 from ..components.sidebar import sidebar
-from ..components.progress_tracker import progress_tracker
 
 
 def lesson_page() -> rx.Component:
-    return rx.hstack(
-        sidebar(),
-        rx.vstack(
-            rx.hstack(
-                rx.button("< Voltar", on_click=rx.redirect("/aluno"), variant="ghost"),
-                rx.heading("Estudo em Andamento", size="5"),
-                spacing="3",
-            ),
-            progress_tracker(
-                AlunoState.score_int,
-                AlunoState.streak,
-                AlunoState.total_answered,
-                AlunoState.correct_count,
-            ),
-            rx.card(
-                rx.vstack(
-                    rx.markdown(AlunoState.study_content),
-                    rx.divider(),
-                    rx.cond(
-                        AlunoState.has_more_questions,
-                        _lesson_question(),
-                        rx.vstack(
-                            rx.heading("Estudo Concluido!", color="green"),
-                            rx.text(AlunoState.score_label),
-                            rx.button("Voltar", on_click=rx.redirect("/aluno")),
-                            spacing="3",
-                        ),
-                    ),
+    return rx.vstack(
+        navbar(),
+        rx.hstack(
+            sidebar(),
+            rx.vstack(
+                rx.hstack(
+                    rx.button("< Voltar", on_click=rx.redirect("/aluno"), variant="ghost"),
+                    rx.heading("Estudo em Andamento", size="5"),
                     spacing="3",
                 ),
+                rx.hstack(
+                    rx.badge(AlunoState.score_label, color_scheme="blue", variant="soft"),
+                    rx.badge(AlunoState.question_label, color_scheme="gray", variant="soft"),
+                    spacing="2",
+                ),
+                rx.card(
+                    rx.vstack(
+                        rx.markdown(AlunoState.study_content),
+                        rx.divider(),
+                        rx.cond(
+                            AlunoState.has_more_questions,
+                            _lesson_question(),
+                            rx.vstack(
+                                rx.heading("Estudo Concluido!", color="green"),
+                                rx.text(AlunoState.score_label),
+                                rx.button("Voltar", on_click=rx.redirect("/aluno")),
+                                spacing="3",
+                            ),
+                        ),
+                        spacing="3",
+                    ),
+                    width="100%",
+                ),
+                spacing="4",
+                padding="2rem",
                 width="100%",
+                overflow_y="auto",
+                height="calc(100vh - 52px)",
             ),
-            spacing="4",
-            padding="2rem",
+            spacing="0",
             width="100%",
-            overflow_y="auto",
-            height="calc(100vh - 52px)",
         ),
-        navbar(),
         spacing="0",
         width="100%",
         height="100vh",

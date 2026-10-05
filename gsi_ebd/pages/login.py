@@ -3,93 +3,113 @@ from ..states.auth import AuthState
 
 
 def login_page() -> rx.Component:
-    return rx.center(
-        rx.card(
-            rx.vstack(
-                rx.heading("GSI-EBD", size="8", text_align="center"),
-                rx.text("Estudos Biblicos Dirigidos", text_align="center", color="gray"),
-                rx.divider(margin_y="0.5rem"),
-                rx.tabs.root(
-                    rx.tabs.list(
-                        rx.tabs.trigger("Entrar", value="login"),
-                        rx.tabs.trigger("Criar Conta", value="register"),
+    """
+    Página de login da plataforma GSI-EBD.
+    Registro de novos usuários é feito via Landing Page → Admin aprovação.
+    """
+    return rx.box(
+        # Fundo gradiente
+        rx.center(
+            rx.card(
+                rx.vstack(
+                    # Logo e título
+                    rx.vstack(
+                        rx.text("✝", font_size="3rem", color="#7c3aed", text_align="center"),
+                        rx.heading("GSI-EBD", size="7", color="#1e1b4b", text_align="center"),
+                        rx.text(
+                            "Estudos Bíblicos Dirigidos",
+                            color="#6b7280",
+                            size="3",
+                            text_align="center",
+                        ),
+                        spacing="2",
+                        align="center",
                     ),
-                    rx.tabs.content(
+                    rx.divider(),
+                    # Formulário de login
+                    rx.vstack(
                         rx.vstack(
+                            rx.text("Email", size="2", font_weight="500", color="#374151"),
                             rx.input(
-                                placeholder="Email",
+                                placeholder="seuemail@exemplo.com",
                                 value=AuthState.login_email,
                                 on_change=AuthState.set_login_email,
                                 type="email",
                                 size="3",
+                                width="100%",
                             ),
+                            spacing="1",
+                            width="100%",
+                        ),
+                        rx.vstack(
+                            rx.text("Senha", size="2", font_weight="500", color="#374151"),
                             rx.input(
-                                placeholder="Senha",
+                                placeholder="Sua senha",
                                 value=AuthState.login_password,
                                 on_change=AuthState.set_login_password,
                                 type="password",
                                 size="3",
-                            ),
-                            rx.cond(
-                                AuthState.login_error != "",
-                                rx.text(AuthState.login_error, color="red", size="2"),
-                            ),
-                            rx.button(
-                                "Entrar",
-                                on_click=AuthState.login,
                                 width="100%",
-                                size="3",
                             ),
-                            spacing="3",
+                            spacing="1",
                             width="100%",
                         ),
-                        value="login",
+                        # Mensagem de erro
+                        rx.cond(
+                            AuthState.login_error != "",
+                            rx.callout(
+                                AuthState.login_error,
+                                icon="triangle-alert",
+                                color_scheme="red",
+                                variant="soft",
+                                size="2",
+                            ),
+                        ),
+                        # Botão entrar
+                        rx.button(
+                            "Entrar na Plataforma",
+                            on_click=AuthState.login,
+                            width="100%",
+                            size="3",
+                            style={
+                                "background": "linear-gradient(135deg, #4f46e5, #7c3aed)",
+                                "color": "white",
+                                "font_weight": "700",
+                            },
+                        ),
+                        spacing="4",
+                        width="100%",
                     ),
-                    rx.tabs.content(
+                    # Link para landing page
+                    rx.center(
                         rx.vstack(
-                            rx.input(
-                                placeholder="Nome",
-                                value=AuthState.register_nome,
-                                on_change=AuthState.set_register_nome,
-                                size="3",
-                            ),
-                            rx.input(
-                                placeholder="Email",
-                                value=AuthState.register_email,
-                                on_change=AuthState.set_register_email,
-                                type="email",
-                                size="3",
-                            ),
-                            rx.input(
-                                placeholder="Senha",
-                                value=AuthState.register_password,
-                                on_change=AuthState.set_register_password,
-                                type="password",
-                                size="3",
-                            ),
-                            rx.cond(
-                                AuthState.register_error != "",
-                                rx.text(AuthState.register_error, color="red", size="2"),
-                            ),
-                            rx.button(
-                                "Criar Conta",
-                                on_click=AuthState.register,
-                                width="100%",
-                                size="3",
+                            rx.divider(),
+                            rx.text("Não tem acesso?", color="#9ca3af", size="2"),
+                            rx.link(
+                                rx.button(
+                                    "Solicitar Participação",
+                                    variant="outline",
+                                    size="2",
+                                    color_scheme="violet",
+                                    width="100%",
+                                ),
+                                href="/#formulario",
                             ),
                             spacing="3",
+                            align="center",
                             width="100%",
                         ),
-                        value="register",
+                        width="100%",
                     ),
-                    default_value="login",
-                    width="100%",
+                    spacing="5",
+                    min_width="380px",
+                    padding="1rem",
                 ),
-                spacing="3",
-                min_width="350px",
+                style={"box_shadow": "0 20px 60px rgba(79,70,229,0.15)"},
             ),
-            size="3",
+            height="100vh",
+            style={
+                "background": "linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #ede9fe 100%)",
+            },
         ),
-        height="100vh",
-        bg="var(--accent-1)",
     )

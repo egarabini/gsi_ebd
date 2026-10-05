@@ -1,18 +1,27 @@
 import reflex as rx
 
+from .landing_content.controller import landing_page_full, LandingState
 from .pages.login import login_page
 from .pages.admin import admin_page
 from .pages.gestor import gestor_page
 from .pages.aluno import aluno_page
 from .pages.lesson import lesson_page
+from .pages.supervisor import supervisor_page
+from .pages.perfil import alterar_senha_page
 from .states.auth import AuthState
 from .states.admin import AdminState
 from .states.gestor import GestorState
 from .states.aluno import AlunoState
+from .states.supervisor import SupervisorState
+from .states.perfil import PerfilState
 from .states.common import CommonState
-from .models.user import User
+from .models.user import User, UserStatus
 from .models.study import Study, StudyVersion
 from .models.progress import UserResponse, Progress
+from .models.subscription import Subscription, PaymentHistory
+from .models.lead import Lead
+from .models.site_content import Testemunho, SiteConfig
+from .models.notification import Notification
 
 
 app = rx.App(
@@ -21,38 +30,80 @@ app = rx.App(
     },
 )
 
-app.add_page(login_page, route="/login", title="GSI-EBD - Login")
 
+# ── Rota raiz: Landing Page Pública ─────────────────────────────────────────
+app.add_page(
+    landing_page_full,
+    route="/",
+    title="GSI-EBD — Estudos Bíblicos Dirigidos",
+    on_load=LandingState.load_content,
+)
+
+# ── Autenticação ──────────────────────────────────────────────────────────────
+app.add_page(login_page, route="/login", title="GSI-EBD — Login")
+
+# ── Confirmação de conta via token (email) ────────────────────────────────────
+app.add_page(
+    lambda: rx.center(
+        rx.card(
+            rx.vstack(
+                rx.spinner(size="3"),
+                rx.text("Confirmando sua conta...", color="gray"),
+                spacing="3",
+                align="center",
+                padding="2rem",
+            )
+        ),
+        height="100vh",
+    ),
+    route="/confirmar/[token]",
+    title="GSI-EBD — Confirmação",
+    on_load=AuthState.confirm_account_token,
+)
+
+# ── Admin ─────────────────────────────────────────────────────────────────────
 app.add_page(
     admin_page,
     route="/admin",
-    title="GSI-EBD - Admin",
+    title="GSI-EBD — Admin",
     on_load=[AuthState.check_auth, AdminState.load_gestores, AdminState.load_supervisores],
 )
 
+# ── Gestor ────────────────────────────────────────────────────────────────────
 app.add_page(
     gestor_page,
     route="/gestor",
-    title="GSI-EBD - Gestor",
-    on_load=[AuthState.check_auth, GestorState.load_alunos, GestorState.load_studies],
+    title="GSI-EBD — Gestor",
+    on_load=[AuthState.check_auth, GestorState.load_all],
 )
 
+# ── Aluno ─────────────────────────────────────────────────────────────────────
 app.add_page(
     aluno_page,
     route="/aluno",
-    title="GSI-EBD - Aluno",
+    title="GSI-EBD — Meus Estudos",
     on_load=[AuthState.check_auth, AlunoState.load_assigned_studies],
 )
 
 app.add_page(
     lesson_page,
     route="/aluno/licao",
-    title="GSI-EBD - Licao",
+    title="GSI-EBD — Lição",
     on_load=[AuthState.check_auth],
 )
 
+# ── Supervisor ────────────────────────────────────────────────────────────────────────────────
 app.add_page(
-    lambda: rx.center(rx.heading("Supervisor - Em breve", size="6")),
+    supervisor_page,
     route="/supervisor",
-    title="GSI-EBD - Supervisor",
+    title="GSI-EBD — Supervisor",
+    on_load=[AuthState.check_auth, SupervisorState.load_all],
+)
+
+# ── Perfil / Alterar Senha ────────────────────────────────────────────────────────────────────
+app.add_page(
+    alterar_senha_page,
+    route="/perfil/alterar-senha",
+    title="GSI-EBD — Alterar Senha",
+    on_load=[PerfilState.check_perfil_auth],
 )

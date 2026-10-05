@@ -5,15 +5,15 @@ from gsi_ebd.models.progress import UserResponse, Progress
 
 def test_user_role_enum():
     assert Role.ADMIN == 1
-    assert Role.SUPERVISOR == 2
-    assert Role.GESTOR == 3
+    assert Role.GESTOR == 2
+    assert Role.COORDENADOR == 3
     assert Role.ALUNO == 4
 
 
 def test_user_model_fields():
-    user = User(email="test@test.com", password_hash="hash", nome="Teste", role=Role.ALUNO)
+    user = User(email="test@test.com", password_hash="hash", nome_completo="Teste", role=Role.ALUNO)
     assert user.email == "test@test.com"
-    assert user.nome == "Teste"
+    assert user.nome_completo == "Teste"
     assert user.role == Role.ALUNO
     assert user.is_active is True
 

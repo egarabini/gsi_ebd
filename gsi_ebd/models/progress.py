@@ -22,7 +22,7 @@ class UserResponse(SQLModel, table=True):
     is_correct: Optional[bool] = Field(default=None)
     ai_feedback: str = Field(default="")
     time_spent_seconds: int = Field(default=0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: Optional[datetime] = Field(default=None)
 
     user: Optional["User"] = Relationship(back_populates="responses")
 
@@ -36,7 +36,7 @@ class Progress(SQLModel, table=True):
     correct_answers: int = Field(default=0)
     streak: int = Field(default=0)
     difficulties_json: str = Field(default="{}")
-    last_activity: datetime = Field(default_factory=datetime.utcnow)
+    last_activity: Optional[datetime] = Field(default=None)
 
     user: Optional["User"] = Relationship(back_populates="progress_records")
 
