@@ -23,6 +23,8 @@ class PaymentMethod(str, Enum):
 class Subscription(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
+    # --- Isolamento por tenant: o ambiente (coordenador) dono deste registro ---
+    ambiente_id: Optional[int] = Field(default=None, foreign_key="ambiente.id", index=True)
 
     # --- Valores ---
     valor: float = Field(default=0.0)
@@ -52,6 +54,8 @@ class PaymentHistory(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     subscription_id: int = Field(foreign_key="subscription.id", index=True)
     user_id: int = Field(foreign_key="user.id", index=True)
+    # --- Isolamento por tenant: o ambiente (coordenador) dono deste registro ---
+    ambiente_id: Optional[int] = Field(default=None, foreign_key="ambiente.id", index=True)
 
     valor_pago: float
     data_pagamento: date

@@ -30,7 +30,9 @@ class Notification(SQLModel, table=True):
     """Notificações in-app (sino no navbar) + gatilho para envio de email."""
     id: Optional[int] = Field(default=None, primary_key=True)
 
-    user_id: int = Field(foreign_key="user.id", index=True)   # destinatário
+    user_id: int = Field(foreign_key="user.id", index=True)   # destinatario
+    # --- Isolamento por tenant: o ambiente (coordenador) dono deste registro ---
+    ambiente_id: Optional[int] = Field(default=None, foreign_key="ambiente.id", index=True)
     tipo: str = Field(default=NotificationType.GERAL)
     titulo: str
     mensagem: str

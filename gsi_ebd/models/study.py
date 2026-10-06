@@ -66,6 +66,8 @@ class StudyVersion(SQLModel, table=True):
 class StudyAssignment(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id")
+    # --- Isolamento por tenant: o ambiente (coordenador) dono deste registro ---
+    ambiente_id: Optional[int] = Field(default=None, foreign_key="ambiente.id", index=True)
     study_id: int = Field(foreign_key="study.id")
     study_version_id: int = Field(foreign_key="studyversion.id")
     assigned_by: int = Field(default=0)

@@ -303,7 +303,7 @@ def send_assinatura_vencendo(nome: str, email: str, dias: int, valor: float) -> 
 
 def send_estudo_aprovado(gestor_nome: str, gestor_email: str, estudo_titulo: str) -> bool:
     """Notifica Gestor que seu estudo proposto foi aprovado pelo Admin."""
-    url = f"{APP_BASE_URL}/gestor"
+    url = f"{APP_BASE_URL}/coordenador"
     corpo = f"""
     <p style="color:#374151;line-height:1.7;">Olá, <strong>{gestor_nome}</strong>!</p>
     <p style="color:#374151;line-height:1.7;">
@@ -325,7 +325,7 @@ def send_estudo_rejeitado(
     gestor_nome: str, gestor_email: str, estudo_titulo: str, feedback: str
 ) -> bool:
     """Notifica Gestor que seu estudo foi rejeitado, com feedback do Admin."""
-    url = f"{APP_BASE_URL}/gestor"
+    url = f"{APP_BASE_URL}/coordenador"
     corpo = f"""
     <p style="color:#374151;line-height:1.7;">Olá, <strong>{gestor_nome}</strong>!</p>
     <p style="color:#374151;line-height:1.7;">

@@ -67,7 +67,7 @@ app.add_page(
     admin_page,
     route="/admin",
     title="GSI-EBD — Admin",
-    on_load=[AuthState.check_auth, AdminState.load_gestores, AdminState.load_coordenadores],
+    on_load=[AuthState.check_auth, AdminState.load_coordenadores],
 )
 
 

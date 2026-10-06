@@ -16,6 +16,8 @@ class UserResponse(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     study_version_id: int = Field(foreign_key="studyversion.id")
+    # --- Isolamento por tenant: o ambiente (coordenador) dono deste registro ---
+    ambiente_id: Optional[int] = Field(default=None, foreign_key="ambiente.id", index=True)
     question_key: str = Field(index=True)
     question_type: int
     answer: str
@@ -41,6 +43,8 @@ class Progress(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     study_id: int = Field(foreign_key="study.id")
+    # --- Isolamento por tenant: o ambiente (coordenador) dono deste registro ---
+    ambiente_id: Optional[int] = Field(default=None, foreign_key="ambiente.id", index=True)
     score: float = Field(default=0.0)
     total_questions: int = Field(default=0)
     correct_answers: int = Field(default=0)

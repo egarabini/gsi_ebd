@@ -195,7 +195,7 @@ class AdminState(AuthState):
                     tipo=NotificationType.ESTUDO_APROVADO,
                     titulo="Estudo aprovado!",
                     mensagem=f"Seu estudo '{study.title}' foi aprovado e já pode ser atribuído.",
-                    link="/gestor",
+                    link="/coordenador",
                 ))
             session.commit()
         self.message = "Estudo aprovado com sucesso"
@@ -223,7 +223,7 @@ class AdminState(AuthState):
                     tipo=NotificationType.ESTUDO_REJEITADO,
                     titulo="Estudo precisa de revisão",
                     mensagem=f"Seu estudo '{study.title}' foi rejeitado. Motivo: {self.reject_motivo}",
-                    link="/gestor",
+                    link="/coordenador",
                 ))
             session.commit()
         self.reject_motivo = ""
