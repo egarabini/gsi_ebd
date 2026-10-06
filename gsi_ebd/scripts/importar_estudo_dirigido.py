@@ -108,6 +108,23 @@ def _questoes_abertas(secao: str, prefixo: str, tipo: str = "open") -> list[dict
     return out
 
 
+def _contexto_entre_questoes(secao: str, chave: str) -> str:
+    """Recorta o texto que vem DEPOIS da questao e antes da proxima.
+
+    E o mesmo padrao do estudo que originou o GSI-EBD (SGI7): a pergunta vem
+    amarrada a uma passagem e seguida da explicacao. Sem isso a licao vira prova.
+    """
+    partes = re.split(r"(?m)^\*\*q(\d+)\.(\d+)\*\*", secao)
+    for i in range(1, len(partes) - 2, 3):
+        if f"{chave.split('_')[1]}_{chave.split('_')[2]}" == f"{partes[i]}_{partes[i+1]}":
+            resto = partes[i + 2]
+            linhas = resto.split("\n")[1:]              # descarta o enunciado
+            linhas = [l for l in linhas
+                      if l.strip() and not l.lstrip().startswith(("- [ ]", "---", ">"))
+                      and not l.lstrip().startswith("###")]
+            return re.sub(r"\s+", " ", " ".join(linhas)).strip()
+    return ""
+
 def _blocos(secao: str) -> list[tuple[str, str, str, list[tuple[str, str]]]]:
     """Divide a secao em blocos por marcador **qN.N**; detecta alternativas no bloco."""
     partes = re.split(r"(?m)^\*\*q(\d+)\.(\d+)\*\*", secao)
@@ -152,6 +169,18 @@ def _parse_gabarito(texto: str) -> dict:
 
 
 # ── Parser do capitulo ──────────────────────────────────────────────────────
+def _sanitizar_conteudo(texto: str) -> str:
+    """Remove do conteudo o que NAO pode ser visto pelo aluno antes de responder.
+
+    O content_md e exibido antes das questoes na tela da licao. O gabarito do
+    plano de estudo expoe a resposta da questao objetiva, entao precisa sair.
+    """
+    # 1. remove a secao de gabarito inteira (heading + conteudo)
+    texto = re.sub(r"(?ms)^##+[^\n]*Gabarito[^\n]*\n.*?(?=^##\s|\Z)", "", texto)
+    # 2. respostas embutidas em blockquote
+    texto = re.sub(r"(?m)^>\s*_Resposta correta:_.*$", "", texto)
+    return texto
+
 def parse_plano(cap: int) -> dict | None:
     arq = PLANOS_DIR / f"capitulo_{cap:02d}" / "plano-de-estudo.md"
     if not arq.exists():
@@ -177,14 +206,14 @@ def parse_plano(cap: int) -> dict | None:
         + _questoes_abertas(parte_b, "diss")
         + _questoes_abertas(reflex, "refl")
     )
-    if sintese and re.search(r"(?m)^\s*1\.\s*_+", sintese):
-        questoes.append({
-            "key": "sint_6_1",
-            "type": "open",
-            "question": "Sintese do capitulo em 3 frases suas.",
-            "answer": "",
-        })
 
+    # NOTA: o plano de estudo NAO traz prosa explicativa entre as questoes
+    # (contem apenas placeholders, checkboxes e o gabarito). O campo "context"
+    # fica reservado para quando a explicacao for produzida — a fonte natural
+    # e o texto do capitulo em Grudem_Doutrina_Biblica (que nao entra no banco
+    # por ser traducao protegida) ou o DICIONARIO_PAULO_CARTAS.
+    for q in questoes:
+        q.setdefault("context", "")
     # Conceitos: apenas a Etapa 3, ANTES da subsecao de passagens
     sec_conceitos = _secao(t, "Etapa 3", ["Passagens", "Etapa 4"])
     sec_passagens = _secao(t, "Passagens biblicas", ["Etapa 4"]) or _secao(t, "Passagens", ["Etapa 4"])
@@ -198,7 +227,7 @@ def parse_plano(cap: int) -> dict | None:
         "parte": parte,
         "categoria": CATEGORIAS.get(parte, "geral"),
         "nivel": NIVEIS.get(cap, "basico"),
-        "content_md": t,
+        "content_md": _sanitizar_conteudo(t),
         "questions": questoes,
         "conceitos": conceitos,
         "passagens": passagens,
