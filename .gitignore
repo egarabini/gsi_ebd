@@ -3,7 +3,10 @@ assets/external/
 .states
 *.py[cod]
 *.db
+# --- Segredos: qualquer variante (o padrao ".env" exato nao pega " - Copia.env") ---
 .env
+*.env
+!.env.example
 __pycache__/
 *.pyc
 .venv/
