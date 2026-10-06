@@ -16,6 +16,7 @@ class AuthState(rx.State):
     current_user_name: str = ""
     current_user_role: int = Role.ALUNO
     current_user_status: str = UserStatus.SUSPENSO
+    current_user_ambiente: int = 0   # 0 = sem fronteira (ADMIN)
 
     # --- Formulário de login ---
     login_email: str = ""
@@ -42,6 +43,7 @@ class AuthState(rx.State):
     @rx.var
     def is_instrutor(self) -> bool:
         return self.current_user_role == Role.INSTRUTOR
+
 
     @rx.var
     def is_coordenador(self) -> bool:
@@ -129,6 +131,7 @@ class AuthState(rx.State):
             self.current_user_id = user.id
             self.current_user_name = user.nome_base or user.nome_completo
             self.current_user_role = user.role
+            self.current_user_ambiente = user.ambiente_id or 0
             self.current_user_status = user.status
             self.must_change_password = user.must_change_password
             self.login_email = ""
@@ -177,6 +180,7 @@ class AuthState(rx.State):
     def logout(self):
         self.is_authenticated = False
         self.current_user_id = None
+        self.current_user_ambiente = 0
         self.current_user_name = ""
         self.current_user_role = Role.ALUNO
         self.current_user_status = UserStatus.SUSPENSO

@@ -76,22 +76,32 @@ class CoordenadorState(AuthState):
         self.load_turmas()
 
     def load_alunos(self):
-        """
-        Carrega alunos supervisionados.
-        Estratégia dupla:
-          1. Alunos com User.coordenador_id == self.current_user_id
-          2. Alunos membros de Turmas onde coordenador_id == self.current_user_id
-        """
-        with rx.session() as session:
-            # Estratégia 1: vínculo direto
-            alunos_diretos = session.exec(
-                select(User).where(
-                    User.coordenador_id == self.current_user_id,
-                    User.role == Role.ALUNO,
-                )
-            ).all()
+        """Carrega os alunos do ambiente do Coordenador.
 
-            # Estratégia 2: via turmas
+        Hierarquia: Coordenador -> Instrutor -> Aluno. O Coordenador NAO tem
+        alunos vinculados diretamente (o antigo filtro por User.coordenador_id
+        trazia os INSTRUTORES dele, nao alunos). Os alunos chegam por:
+          1. alunos cujo instrutor responde a este coordenador
+          2. alunos membros de turmas deste coordenador
+        Sempre dentro da fronteira do ambiente (tenant).
+        """
+        amb = self.current_user_ambiente or None
+        with rx.session() as session:
+            # Estrategia 1: alunos dos instrutores deste coordenador
+            instrutor_ids = [u.id for u in session.exec(
+                select(User).where(User.role == Role.INSTRUTOR,
+                                   User.coordenador_id == self.current_user_id)
+            ).all()]
+            alunos_diretos = []
+            if instrutor_ids:
+                alunos_diretos = session.exec(
+                    select(User).where(
+                        User.role == Role.ALUNO,
+                        User.instrutor_id.in_(instrutor_ids),
+                    )
+                ).all()
+
+            # Estrategia 2: via turmas do coordenador
             turma_ids_raw = session.exec(
                 select(Turma.id).where(
                     Turma.coordenador_id == self.current_user_id,
@@ -119,23 +129,24 @@ class CoordenadorState(AuthState):
             todos = {u.id: u for u in alunos_diretos + alunos_turma}
             alunos_list = list(todos.values())
 
-            # Busca progresso de cada aluno
+            # Busca progresso de cada aluno (dentro do ambiente)
             aluno_ids_final = [u.id for u in alunos_list]
             progressos_raw = {}
             atribuicoes_raw = {}
             if aluno_ids_final:
-                progs = session.exec(
-                    select(Progress).where(Progress.user_id.in_(aluno_ids_final))
-                ).all()
-                for p in progs:
+                prog_stmt = select(Progress).where(Progress.user_id.in_(aluno_ids_final))
+                if amb is not None:
+                    prog_stmt = prog_stmt.where(Progress.ambiente_id == amb)
+                for p in session.exec(prog_stmt).all():
                     if p.user_id not in progressos_raw or p.score > progressos_raw[p.user_id]:
                         progressos_raw[p.user_id] = p.score
 
-                assigns = session.exec(
-                    select(StudyAssignment).where(
-                        StudyAssignment.user_id.in_(aluno_ids_final),
-                    )
-                ).all()
+                asg_stmt = select(StudyAssignment).where(
+                    StudyAssignment.user_id.in_(aluno_ids_final),
+                )
+                if amb is not None:
+                    asg_stmt = asg_stmt.where(StudyAssignment.ambiente_id == amb)
+                assigns = session.exec(asg_stmt).all()
                 for a in assigns:
                     atribuicoes_raw.setdefault(a.user_id, {"total": 0, "concluidos": 0})
                     atribuicoes_raw[a.user_id]["total"] += 1

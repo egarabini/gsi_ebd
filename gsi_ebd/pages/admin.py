@@ -38,7 +38,7 @@ def admin_page() -> rx.Component:
         spacing="0",
         width="100%",
         height="100vh",
-        on_mount=AdminState.load_gestores,
+        on_mount=AdminState.load_coordenadores,
     )
 
 
@@ -166,7 +166,7 @@ def _gestores_tab() -> rx.Component:
                     "Criar Gestor",
                     on_click=AdminState.create_gestor,
                     color_scheme="violet",
-                    on_mount=AdminState.load_gestores,
+                    on_mount=AdminState.load_coordenadores,
                 ),
                 rx.cond(
                     AdminState.message != "",

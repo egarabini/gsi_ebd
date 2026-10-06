@@ -32,16 +32,6 @@ class AdminState(AuthState):
 
     # ── Carregamento ────────────────────────────────────────────
 
-    def load_gestores(self):
-        with rx.session() as session:
-            users = session.exec(
-                select(User).where(User.role == Role.COORDENADOR)
-            ).all()
-            self.gestores = [
-                {"id": u.id or 0, "nome": u.nome_completo, "email": u.email,
-                 "status": u.status.value if hasattr(u.status, 'value') else str(u.status)}
-                for u in users
-            ]
 
     def load_coordenadores(self):
         with rx.session() as session:
@@ -113,7 +103,7 @@ class AdminState(AuthState):
             self.message_type = "success"
             self.new_gestor_nome = ""
             self.new_gestor_email = ""
-            self.load_gestores()
+            self.load_coordenadores()
 
     # ── Gestão de Status ──────────────────────────────────────────
 
@@ -160,7 +150,7 @@ class AdminState(AuthState):
         self._reload_all()
 
     def _reload_all(self):
-        self.load_gestores()
+        self.load_coordenadores()
         self.load_coordenadores()
 
     # ── Leads ─────────────────────────────────────────────────────
