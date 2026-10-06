@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from gsi_ebd.models.user import User, Role, UserStatus
 from gsi_ebd.models.study import Study, StudyVersion, StudyAssignment, StudyLevel, StudyStatus
-from gsi_ebd.models.turma import Equipe, EquipeInstrutor, Turma, TurmaMembro
+from gsi_ebd.models.turma import (Ambiente, Equipe, EquipeInstrutor, Turma, TurmaMembro)
 from gsi_ebd.models.subscription import Subscription, PaymentHistory, SubscriptionStatus, PaymentMethod
 from gsi_ebd.models.lead import Lead, LeadStatus
 from gsi_ebd.models.site_content import Testemunho, SiteConfig
@@ -244,6 +244,31 @@ def seed_users(session: Session, admin: User):
         print("⏭️  Coordenador já existe — pulando")
         coordenador = session.exec(select(User).where(User.email == coordenador_email)).first()
 
+    # --- AMBIENTE (tenant do Coordenador: isolamento + identidade visual) ---
+    ambiente = session.exec(select(Ambiente).where(
+        Ambiente.coordenador_id == coordenador.id)).first()
+    if not ambiente:
+        ambiente = Ambiente(
+            nome="Ambiente Demonstracao",
+            slug="demo",
+            coordenador_id=coordenador.id,
+            logo_url="",
+            cor_primaria="#7c3aed",
+            cor_secundaria="#4f46e5",
+            tipografia="Inter",
+            landing_titulo="Estudos Biblicos Dirigidos",
+            landing_subtitulo="Aprenda a Palavra com acompanhamento de verdade.",
+            landing_ativa=False,
+            is_active=True,
+            created_at=datetime.utcnow(),
+        )
+        session.add(ambiente)
+        session.flush()
+        print(f"[ok] Ambiente criado: {ambiente.nome} (id={ambiente.id})")
+        coordenador.ambiente_id = ambiente.id
+        session.add(coordenador)
+        session.flush()
+
     # --- INSTRUTOR (acompanha e corrige os alunos) ---
     instrutor_email = "instrutor@gsi.ebd"
     instrutor = session.exec(select(User).where(User.email == instrutor_email)).first()
@@ -270,7 +295,7 @@ def seed_users(session: Session, admin: User):
             must_change_password=False,
             role=Role.INSTRUTOR,
             coordenador_id=coordenador.id,   # responde ao Coordenador
-            ambiente_id=None,                # definido ao criar o ambiente
+            ambiente_id=ambiente.id,
             meta_alunos=15,
             status="ativo",
             status_reason="Usuario de demonstracao criado pelo seed",
@@ -291,6 +316,7 @@ def seed_users(session: Session, admin: User):
             nome="Equipe Basico",
             descricao="Instrutores que acompanham os alunos do nivel Basico.",
             coordenador_id=coordenador.id,
+            ambiente_id=ambiente.id,
             nivel="basico",
             is_active=True,
             created_at=datetime.utcnow(),
@@ -337,7 +363,8 @@ def seed_users(session: Session, admin: User):
                 must_change_password=False,   # usuário de teste — sem troca obrigatória
                 role=Role.ALUNO,
                 instrutor_id=instrutor.id,       # quem o acompanha e corrige
-                coordenador_id=coordenador.id,   # ambiente a que pertence
+                coordenador_id=coordenador.id,
+                ambiente_id=ambiente.id,         # fronteira do tenant
                 is_active=True,
                 status="ativo",               # usuário de teste — já ATIVO
                 status_reason="Usuário de demonstração criado pelo seed",
@@ -521,13 +548,15 @@ def seed_notification(session: Session, user: User, titulo: str, mensagem: str, 
 
 
 def seed_turmas(session: Session):
-    """Cria a Turma de exemplo, vinculando Coordenador, Coordenador, estudo e alunos."""
+    """Cria a Turma de exemplo, vinculando Coordenador, INSTRUTOR, equipe e alunos."""
     if session.exec(select(Turma)).first():
-        print("⏭️  Turmas já existem — pulando")
+        print("[..] Turmas ja existem - pulando")
         return
 
     coordenador = session.exec(select(User).where(User.email == "coordenador@gsi.ebd")).first()
-    coordenador = session.exec(select(User).where(User.email == "coordenador@gsi.ebd")).first()
+    instrutor = session.exec(select(User).where(User.email == "instrutor@gsi.ebd")).first()
+    equipe = session.exec(select(Equipe).where(Equipe.coordenador_id == coordenador.id)).first() \
+        if coordenador else None
     estudo = session.exec(select(Study).where(Study.title == "O Plano da Salvação")).first()
     alunos = session.exec(
         select(User).where(User.email.in_(["aluno1@gsi.ebd", "aluno2@gsi.ebd"]))
@@ -543,6 +572,7 @@ def seed_turmas(session: Session):
         instrutor_id=instrutor.id,
         coordenador_id=coordenador.id,
         equipe_id=equipe.id if equipe else None,
+        ambiente_id=coordenador.ambiente_id,
         study_id=estudo.id if estudo else None,
         data_inicio=date.today(),
         is_active=True,

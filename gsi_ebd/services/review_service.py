@@ -11,6 +11,7 @@ from typing import Dict, List, Optional
 import reflex as rx
 from sqlmodel import or_, select
 
+from .escopo_service import EscopoService
 from ..models import (
     Ambiente, Progress, Role, Study, StudyAssignment, StudyVersion, Turma, TurmaMembro,
     User, UserResponse, UserStatus,
@@ -28,10 +29,25 @@ class ReviewService:
         - COORDENADOR: todos os alunos do seu ambiente (visao de supervisao).
         - ADMIN      : todos.
         """
+        amb = EscopoService.ambiente_do_ator(user_id, role)
         with rx.session() as session:
             if role == Role.ADMIN:
                 return [u.id for u in session.exec(
                     select(User).where(User.role == Role.ALUNO)).all()]
+            if amb is not None:
+                # fronteira do tenant: so alunos do mesmo ambiente
+                return [u.id for u in session.exec(
+                    select(User).where(User.role == Role.ALUNO,
+                                       User.ambiente_id == amb,
+                                       User.instrutor_id == user_id)).all()] or \
+                       [u.id for u in session.exec(
+                    select(User).where(User.role == Role.ALUNO,
+                                       User.ambiente_id == amb)).all()] \
+                       if role == Role.COORDENADOR else \
+                       [u.id for u in session.exec(
+                    select(User).where(User.role == Role.ALUNO,
+                                       User.ambiente_id == amb,
+                                       User.instrutor_id == user_id)).all()]
 
             if role == Role.COORDENADOR:
                 diretos = [u.id for u in session.exec(
@@ -153,10 +169,12 @@ class ReviewService:
             StudyVersion.id == versao_id)).first()
         if not versao:
             return
+        ambiente_id = EscopoService.ambiente_do_usuario(aluno_id)
         progresso = session.exec(
             select(Progress).where(Progress.user_id == aluno_id,
                                    Progress.study_id == versao.study_id)).first()
         if progresso:
+            progresso.ambiente_id = progresso.ambiente_id or ambiente_id
             progresso.score = novo_score
             progresso.total_questions = len(avaliadas)
             progresso.correct_answers = acertos

@@ -5,6 +5,7 @@ import reflex as rx
 from sqlmodel import select
 
 from ..models import Progress, StudyAssignment, UserResponse, QuestionType
+from .escopo_service import EscopoService
 
 
 class ProgressService:
@@ -19,9 +20,11 @@ class ProgressService:
         ai_feedback: str = "",
         time_spent_seconds: int = 0,
     ) -> None:
+        ambiente_id = EscopoService.ambiente_do_usuario(user_id)
         with rx.session() as session:
             response = UserResponse(
                 user_id=user_id,
+                ambiente_id=ambiente_id,
                 study_version_id=study_version_id,
                 question_key=question_key,
                 question_type=question_type,
@@ -42,9 +45,11 @@ class ProgressService:
         correct_answers: int,
         streak: int,
     ) -> None:
+        ambiente_id = EscopoService.ambiente_do_usuario(user_id)
         with rx.session() as session:
             progress = Progress(
                 user_id=user_id,
+                ambiente_id=ambiente_id,
                 study_id=study_id,
                 score=score,
                 total_questions=total_questions,
