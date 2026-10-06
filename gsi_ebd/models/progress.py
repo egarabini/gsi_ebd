@@ -19,12 +19,22 @@ class UserResponse(SQLModel, table=True):
     question_key: str = Field(index=True)
     question_type: int
     answer: str
-    is_correct: Optional[bool] = Field(default=None)
+    is_correct: Optional[bool] = Field(default=None)   # None = aguardando avaliacao
     ai_feedback: str = Field(default="")
+    # --- Avaliacao humana (o "instrutor" do modelo SGI7) ---
+    # Questoes abertas nascem com is_correct=None e so sao resolvidas aqui.
+    instructor_feedback: str = Field(default="")
+    reviewed_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    reviewed_at: Optional[datetime] = Field(default=None)
     time_spent_seconds: int = Field(default=0)
     created_at: Optional[datetime] = Field(default=None)
 
-    user: Optional["User"] = Relationship(back_populates="responses")
+    # Duas FKs para user (dono da resposta e instrutor que avaliou), entao a
+    # relationship precisa dizer explicitamente qual delas usar.
+    user: Optional["User"] = Relationship(
+        back_populates="responses",
+        sa_relationship_kwargs={"foreign_keys": "[UserResponse.user_id]"},
+    )
 
 
 class Progress(SQLModel, table=True):

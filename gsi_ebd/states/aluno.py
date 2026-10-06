@@ -5,6 +5,7 @@ import reflex as rx
 from ..models.progress import QuestionType
 from ..services.study_service import StudyService
 from ..services.progress_service import ProgressService
+from ..services.review_service import ReviewService
 from .auth import AuthState
 
 
@@ -70,6 +71,15 @@ class AlunoState(AuthState):
         if self.answer_pending_review:
             return "blue"
         return "green" if self.streak > 0 else "red"
+
+    pareceres: List[Dict] = []
+
+    def load_pareceres(self):
+        self.pareceres = ReviewService.pareceres_do_aluno(self.current_user_id)
+
+    @rx.var
+    def tem_pareceres(self) -> bool:
+        return len(self.pareceres) > 0
 
     def load_assigned_studies(self):
         self.assigned_studies = [snapshot.__dict__ for snapshot in StudyService.list_assigned_studies(self.current_user_id)]

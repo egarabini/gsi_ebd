@@ -111,7 +111,10 @@ class User(SQLModel, table=True):
 
     # --- Relationships ---
     assignments: list["StudyAssignment"] = Relationship(back_populates="user")
-    responses: list["UserResponse"] = Relationship(back_populates="user")
+    responses: list["UserResponse"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"foreign_keys": "[UserResponse.user_id]"},
+    )
     progress_records: list["Progress"] = Relationship(back_populates="user")
 
     # --- Helpers de conveniência ---

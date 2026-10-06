@@ -8,12 +8,15 @@ from .pages.aluno import aluno_page
 from .pages.lesson import lesson_page
 from .pages.coordenador import coordenador_page
 from .pages.perfil import alterar_senha_page
+from .pages.revisao import revisao_page
+from .pages.pareceres import pareceres_page
 from .states.auth import AuthState
 from .states.admin import AdminState
 from .states.gestor import GestorState
 from .states.aluno import AlunoState
 from .states.coordenador import CoordenadorState
 from .states.perfil import PerfilState
+from .states.revisao import RevisaoState
 from .states.common import CommonState
 from .models.user import User, UserStatus
 from .models.study import Study, StudyVersion
@@ -106,4 +109,20 @@ app.add_page(
     route="/perfil/alterar-senha",
     title="GSI-EBD — Alterar Senha",
     on_load=[PerfilState.check_perfil_auth],
+)
+
+# ── Correcao de respostas (instrutor) ────────────────────────────────────────
+app.add_page(
+    revisao_page,
+    route="/revisao",
+    title="GSI-EBD — Correcao de Respostas",
+    on_load=[AuthState.check_auth, RevisaoState.load_fila],
+)
+
+# ── Pareceres do instrutor (aluno) ───────────────────────────────────────────
+app.add_page(
+    pareceres_page,
+    route="/aluno/pareceres",
+    title="GSI-EBD — Meus Pareceres",
+    on_load=[AuthState.check_auth, AlunoState.load_pareceres],
 )
