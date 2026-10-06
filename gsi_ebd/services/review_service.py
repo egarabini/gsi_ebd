@@ -9,10 +9,10 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 import reflex as rx
-from sqlmodel import select
+from sqlmodel import or_, select
 
 from ..models import (
-    Progress, Role, Study, StudyAssignment, StudyVersion, Turma, TurmaMembro,
+    Ambiente, Progress, Role, Study, StudyAssignment, StudyVersion, Turma, TurmaMembro,
     User, UserResponse, UserStatus,
 )
 
@@ -21,39 +21,43 @@ class ReviewService:
     # ── Escopo: quem este instrutor pode avaliar ────────────────────────────
     @staticmethod
     def _alunos_do_avaliador(user_id: int, role: int) -> List[int]:
-        """Ids dos alunos sob responsabilidade de quem esta avaliando."""
+        """Ids dos alunos que este avaliador pode corrigir.
+
+        Hierarquia: ADMIN > COORDENADOR > INSTRUTOR > ALUNO.
+        - INSTRUTOR  : apenas os SEUS alunos (instrutor_id) e membros das suas turmas.
+        - COORDENADOR: todos os alunos do seu ambiente (visao de supervisao).
+        - ADMIN      : todos.
+        """
         with rx.session() as session:
             if role == Role.ADMIN:
                 return [u.id for u in session.exec(
                     select(User).where(User.role == Role.ALUNO)).all()]
 
-            if role == Role.GESTOR:
-                coordenadores = [u.id for u in session.exec(
-                    select(User).where(User.role == Role.COORDENADOR,
-                                       User.gestor_id == user_id)).all()]
+            if role == Role.COORDENADOR:
                 diretos = [u.id for u in session.exec(
                     select(User).where(User.role == Role.ALUNO,
-                                       User.gestor_id == user_id)).all()]
+                                       User.coordenador_id == user_id)).all()]
+                via_ambiente = [u.id for u in session.exec(
+                    select(User).where(User.role == Role.ALUNO,
+                                       User.ambiente_id.in_(
+                                           select(Ambiente.id).where(
+                                               Ambiente.coordenador_id == user_id)))).all()]
                 via_turma = ReviewService._alunos_das_turmas(user_id, session)
-                # alunos dos coordenadores desse gestor
-                dos_coord = []
-                if coordenadores:
-                    dos_coord = [u.id for u in session.exec(
-                        select(User).where(User.role == Role.ALUNO,
-                                           User.coordenador_id.in_(coordenadores))).all()]
-                return sorted(set(diretos + via_turma + dos_coord))
+                return sorted(set(diretos + via_ambiente + via_turma))
 
-            # COORDENADOR: alunos vinculados direto + membros das suas turmas
+            # INSTRUTOR (e qualquer outro): apenas os seus alunos
             diretos = [u.id for u in session.exec(
                 select(User).where(User.role == Role.ALUNO,
-                                   User.coordenador_id == user_id)).all()]
+                                   User.instrutor_id == user_id)).all()]
             via_turma = ReviewService._alunos_das_turmas(user_id, session)
             return sorted(set(diretos + via_turma))
 
     @staticmethod
     def _alunos_das_turmas(user_id: int, session) -> List[int]:
+        """Alunos das turmas conduzidas por este usuario (como instrutor)."""
         turma_ids = [t.id for t in session.exec(
-            select(Turma).where(Turma.coordenador_id == user_id,
+            select(Turma).where(or_(Turma.instrutor_id == user_id,
+                                    Turma.coordenador_id == user_id),
                                 Turma.is_active == True)).all()]
         if not turma_ids:
             return []

@@ -8,8 +8,8 @@ def sidebar() -> rx.Component:
         AuthState.is_admin,
         _admin_items(),
         rx.cond(
-            AuthState.is_gestor,
-            _gestor_items(),
+            AuthState.is_coordenador,
+            _coordenador_items(),
             rx.cond(
                 AuthState.is_coordenador,
                 _coordenador_items(),
@@ -55,7 +55,7 @@ def _sidebar_item(icon_name: str, label: str, href: str) -> rx.Component:
 def _admin_items():
     return rx.fragment(
         _sidebar_item("shield", "Admin", "/admin"),
-        _sidebar_item("users", "Gestores", "/admin"),
+        _sidebar_item("users", "Coordenadores", "/admin"),
         _sidebar_item("eye", "Coordenadores", "/admin"),
         _sidebar_item("bar-chart-2", "Relatórios", "/admin"),
     )
@@ -69,12 +69,12 @@ def _coordenador_items():
     )
 
 
-def _gestor_items():
+def _coordenador_items():
     return rx.fragment(
-        _sidebar_item("home", "Dashboard", "/gestor"),
-        _sidebar_item("users", "Alunos", "/gestor"),
-        _sidebar_item("book-open", "Estudos", "/gestor"),
-        _sidebar_item("bar-chart-2", "Progresso", "/gestor"),
+        _sidebar_item("home", "Ambiente", "/coordenador"),
+        _sidebar_item("users", "Instrutores", "/coordenador"),
+        _sidebar_item("book-open", "Catalogo", "/coordenador"),
+        _sidebar_item("bar-chart-2", "Progresso", "/coordenador"),
     )
 
 

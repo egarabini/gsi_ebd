@@ -3,7 +3,6 @@ import reflex as rx
 from .landing_content.controller import landing_page_full, LandingState
 from .pages.login import login_page
 from .pages.admin import admin_page
-from .pages.gestor import gestor_page
 from .pages.aluno import aluno_page
 from .pages.lesson import lesson_page
 from .pages.coordenador import coordenador_page
@@ -12,7 +11,6 @@ from .pages.revisao import revisao_page
 from .pages.pareceres import pareceres_page
 from .states.auth import AuthState
 from .states.admin import AdminState
-from .states.gestor import GestorState
 from .states.aluno import AlunoState
 from .states.coordenador import CoordenadorState
 from .states.perfil import PerfilState
@@ -72,13 +70,6 @@ app.add_page(
     on_load=[AuthState.check_auth, AdminState.load_gestores, AdminState.load_coordenadores],
 )
 
-# ── Gestor ────────────────────────────────────────────────────────────────────
-app.add_page(
-    gestor_page,
-    route="/gestor",
-    title="GSI-EBD — Gestor",
-    on_load=[AuthState.check_auth, GestorState.load_all],
-)
 
 # ── Aluno ─────────────────────────────────────────────────────────────────────
 app.add_page(

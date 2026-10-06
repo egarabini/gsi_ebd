@@ -35,7 +35,7 @@ class AdminState(AuthState):
     def load_gestores(self):
         with rx.session() as session:
             users = session.exec(
-                select(User).where(User.role == Role.GESTOR)
+                select(User).where(User.role == Role.COORDENADOR)
             ).all()
             self.gestores = [
                 {"id": u.id or 0, "nome": u.nome_completo, "email": u.email,
@@ -99,7 +99,7 @@ class AdminState(AuthState):
                 password_hash=hashed,
                 nome_completo=self.new_gestor_nome,
                 nome_base=self.new_gestor_nome.split()[0] if self.new_gestor_nome else "",
-                role=Role.GESTOR,
+                role=Role.COORDENADOR,
                 must_change_password=True,
                 status=UserStatus.SUSPENSO,
                 status_reason="Conta criada pelo Admin — aguardando confirmação por email",

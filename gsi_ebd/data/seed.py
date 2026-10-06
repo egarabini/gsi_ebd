@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from gsi_ebd.models.user import User, Role, UserStatus
 from gsi_ebd.models.study import Study, StudyVersion, StudyAssignment, StudyLevel, StudyStatus
-from gsi_ebd.models.turma import Turma, TurmaMembro
+from gsi_ebd.models.turma import Equipe, EquipeInstrutor, Turma, TurmaMembro
 from gsi_ebd.models.subscription import Subscription, PaymentHistory, SubscriptionStatus, PaymentMethod
 from gsi_ebd.models.lead import Lead, LeadStatus
 from gsi_ebd.models.site_content import Testemunho, SiteConfig
@@ -56,7 +56,7 @@ def seed_site_config(session: Session):
         ("niveis_basico_desc", "Fundamentos da fé — ideal para quem está iniciando a jornada bíblica.", "Descrição nível Básico"),
         ("niveis_medio_desc", "Aprofundamento doutrinário — para quem já domina os fundamentos.", "Descrição nível Médio"),
         ("niveis_avancado_desc", "Hermenêutica e teologia — para estudo avançado e contextualização.", "Descrição nível Avançado"),
-        ("niveis_master_desc", "Especialização e liderança — para formação de líderes e gestores de fé.", "Descrição nível Master"),
+        ("niveis_master_desc", "Especialização e liderança — para formação de líderes e coordenadores de fé.", "Descrição nível Master"),
         ("rodape_email", "contato@gsi-ebd.com.br", "Email de contato no rodapé"),
         ("rodape_telefone", "(00) 00000-0000", "Telefone de contato no rodapé"),
         ("redes_instagram", "", "URL Instagram"),
@@ -125,7 +125,7 @@ def seed_leads(session: Session):
         membro_igreja=True,
         nome_igreja="Igreja Adventista do 7º Dia",
         denominacao="Adventista",
-        mensagem="Tenho interesse em participar da plataforma como Gestor de estudos para minha comunidade.",
+        mensagem="Tenho interesse em participar da plataforma como Coordenador de estudos para minha comunidade.",
         status=LeadStatus.PENDENTE,
     ))
     session.commit()
@@ -204,43 +204,6 @@ def create_subscription(session: Session, user: User, admin_id: int) -> Subscrip
 def seed_users(session: Session, admin: User):
     """Cria usuários de exemplo para cada role."""
 
-    # --- GESTOR ---
-    gestor_email = "gestor@gsi.ebd"
-    gestor = session.exec(select(User).where(User.email == gestor_email)).first()
-    if not gestor:
-        gestor = User(
-            nome_completo="Carlos Gestor Oliveira",
-            nome_base="Carlos",
-            cpf="111.111.111-11",
-            data_nascimento=date(1985, 3, 15),
-            sexo="M",
-            profissao_fe="Adventista",
-            auto_descricao="Gestor de estudos bíblicos com 10 anos de experiência ministerial.",
-            escolaridade="superior",
-            cep="01310-100",
-            logradouro="Avenida Paulista",
-            numero="1000",
-            complemento="Apto 10",
-            bairro="Bela Vista",
-            cidade="São Paulo",
-            estado="SP",
-            email=gestor_email,
-            telefone="(11) 99999-0002",
-            password_hash=hash_password(DEFAULT_PASSWORD),
-            must_change_password=False,   # usuário de teste — sem troca obrigatória
-            role=Role.GESTOR,
-            meta_coordenadores=5,
-            is_active=True,
-            status="ativo",               # usuário de teste — já ATIVO
-            status_reason="Usuário de demonstração criado pelo seed",
-            assinatura_ativa=True,
-        )
-        session.add(gestor)
-        session.flush()
-        create_subscription(session, gestor, admin.id)
-        print(f"✅ Gestor criado: {gestor_email} / {DEFAULT_PASSWORD}")
-    else:
-        print("⏭️  Gestor já existe — pulando")
 
     # --- COORDENADOR ---
     coordenador_email = "coordenador@gsi.ebd"
@@ -267,8 +230,8 @@ def seed_users(session: Session, admin: User):
             password_hash=hash_password(DEFAULT_PASSWORD),
             must_change_password=False,   # usuário de teste — sem troca obrigatória
             role=Role.COORDENADOR,
-            gestor_id=gestor.id,
-            meta_alunos=10,
+            meta_instrutores=5,
+            meta_alunos=50,
             status="ativo",               # usuário de teste — já ATIVO
             status_reason="Usuário de demonstração criado pelo seed",
             assinatura_ativa=True,
@@ -280,6 +243,69 @@ def seed_users(session: Session, admin: User):
     else:
         print("⏭️  Coordenador já existe — pulando")
         coordenador = session.exec(select(User).where(User.email == coordenador_email)).first()
+
+    # --- INSTRUTOR (acompanha e corrige os alunos) ---
+    instrutor_email = "instrutor@gsi.ebd"
+    instrutor = session.exec(select(User).where(User.email == instrutor_email)).first()
+    if not instrutor:
+        instrutor = User(
+            nome_completo="Paulo Instrutor Mendes",
+            nome_base="Paulo",
+            cpf="555.555.555-55",
+            data_nascimento=date(1985, 3, 12),
+            sexo="M",
+            profissao_fe="Presbiteriana",
+            auto_descricao="Instrutor dedicado a acompanhar cada aluno de perto.",
+            escolaridade="pos_graduacao",
+            cep="30130-010",
+            logradouro="Avenida Afonso Pena",
+            numero="500",
+            complemento="",
+            bairro="Centro",
+            cidade="Belo Horizonte",
+            estado="MG",
+            email=instrutor_email,
+            telefone="(31) 99999-0004",
+            password_hash=hash_password(DEFAULT_PASSWORD),
+            must_change_password=False,
+            role=Role.INSTRUTOR,
+            coordenador_id=coordenador.id,   # responde ao Coordenador
+            ambiente_id=None,                # definido ao criar o ambiente
+            meta_alunos=15,
+            status="ativo",
+            status_reason="Usuario de demonstracao criado pelo seed",
+            assinatura_ativa=True,
+        )
+        session.add(instrutor)
+        session.flush()
+        create_subscription(session, instrutor, admin.id)
+        print(f"[ok] Instrutor criado: {instrutor_email} / {DEFAULT_PASSWORD}")
+    else:
+        print("[..] Instrutor ja existe - pulando")
+
+    # --- EQUIPE (entre o Coordenador e o Instrutor: separa por nivel de estudo) ---
+    equipe = session.exec(select(Equipe).where(
+        Equipe.coordenador_id == coordenador.id)).first()
+    if not equipe:
+        equipe = Equipe(
+            nome="Equipe Basico",
+            descricao="Instrutores que acompanham os alunos do nivel Basico.",
+            coordenador_id=coordenador.id,
+            nivel="basico",
+            is_active=True,
+            created_at=datetime.utcnow(),
+        )
+        session.add(equipe)
+        session.flush()
+        print("[ok] Equipe criada: Equipe Basico (nivel basico)")
+    if instrutor and equipe:
+        vinculo = session.exec(select(EquipeInstrutor).where(
+            EquipeInstrutor.equipe_id == equipe.id,
+            EquipeInstrutor.instrutor_id == instrutor.id)).first()
+        if not vinculo:
+            session.add(EquipeInstrutor(equipe_id=equipe.id, instrutor_id=instrutor.id))
+            session.flush()
+            print("[ok] Instrutor vinculado a Equipe Basico")
 
     # --- ALUNOS ---
     alunos_data = [
@@ -310,8 +336,8 @@ def seed_users(session: Session, admin: User):
                 password_hash=hash_password(DEFAULT_PASSWORD),
                 must_change_password=False,   # usuário de teste — sem troca obrigatória
                 role=Role.ALUNO,
-                gestor_id=gestor.id,
-                coordenador_id=coordenador.id,  # vinculo correto: coordenador_id
+                instrutor_id=instrutor.id,       # quem o acompanha e corrige
+                coordenador_id=coordenador.id,   # ambiente a que pertence
                 is_active=True,
                 status="ativo",               # usuário de teste — já ATIVO
                 status_reason="Usuário de demonstração criado pelo seed",
@@ -327,14 +353,14 @@ def seed_users(session: Session, admin: User):
     session.commit()
 
 
-def seed_studies(session: Session, admin: User, gestor_email: str = "gestor@gsi.ebd"):
+def seed_studies(session: Session, admin: User, coordenador_email: str = "coordenador@gsi.ebd"):
     """Cria estudos de exemplo para cada nível."""
     if session.exec(select(Study)).first():
         print("⏭️  Estudos já existem — pulando")
         return
 
-    gestor = session.exec(select(User).where(User.email == gestor_email)).first()
-    gestor_id = gestor.id if gestor else None
+    coordenador = session.exec(select(User).where(User.email == coordenador_email)).first()
+    coordenador_id = coordenador.id if coordenador else None
 
     estudos = [
         {
@@ -462,7 +488,7 @@ Escatologia é o estudo das últimas coisas: a volta de Cristo, o juízo final e
             category=estudo_data["category"],
             level=estudo_data["level"],
             status=status,
-            proposto_por=gestor_id,
+            proposto_por=coordenador_id,
             aprovado_por=admin.id if status == StudyStatus.APROVADO else None,
             approved_at=datetime.utcnow() if status == StudyStatus.APROVADO else None,
             is_active=True,
@@ -495,27 +521,28 @@ def seed_notification(session: Session, user: User, titulo: str, mensagem: str, 
 
 
 def seed_turmas(session: Session):
-    """Cria a Turma de exemplo, vinculando Gestor, Coordenador, estudo e alunos."""
+    """Cria a Turma de exemplo, vinculando Coordenador, Coordenador, estudo e alunos."""
     if session.exec(select(Turma)).first():
         print("⏭️  Turmas já existem — pulando")
         return
 
-    gestor = session.exec(select(User).where(User.email == "gestor@gsi.ebd")).first()
+    coordenador = session.exec(select(User).where(User.email == "coordenador@gsi.ebd")).first()
     coordenador = session.exec(select(User).where(User.email == "coordenador@gsi.ebd")).first()
     estudo = session.exec(select(Study).where(Study.title == "O Plano da Salvação")).first()
     alunos = session.exec(
         select(User).where(User.email.in_(["aluno1@gsi.ebd", "aluno2@gsi.ebd"]))
     ).all()
 
-    if not gestor or not coordenador:
-        print("⏭️  Gestor/Coordenador não encontrados — pulando seed de Turma")
+    if not coordenador or not instrutor:
+        print("[..] Coordenador/Instrutor nao encontrados - pulando seed de Turma")
         return
 
     turma = Turma(
         nome="Turma Fundamentos da Fé — 2026",
         descricao="Turma piloto de estudos bíblicos dirigidos, nível Básico.",
-        gestor_id=gestor.id,
+        instrutor_id=instrutor.id,
         coordenador_id=coordenador.id,
+        equipe_id=equipe.id if equipe else None,
         study_id=estudo.id if estudo else None,
         data_inicio=date.today(),
         is_active=True,
@@ -560,7 +587,7 @@ def run_seed():
     print("\n🎉 Seed concluído!\n")
     print("Credenciais de acesso:")
     print(f"  Admin:      {ADMIN_EMAIL} / {DEFAULT_PASSWORD}")
-    print("  Gestor:     gestor@gsi.ebd / senha123")
+    print("  Coordenador:     coordenador@gsi.ebd / senha123")
     print("  Coordenador: coordenador@gsi.ebd / senha123  (role=COORDENADOR)")
     print("  Aluno 1:    aluno1@gsi.ebd / senha123")
     print("  Aluno 2:    aluno2@gsi.ebd / senha123")

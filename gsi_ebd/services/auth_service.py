@@ -12,8 +12,8 @@ class AuthService:
     def redirect_for_role(current_role: int) -> str:
         role_paths = {
             Role.ADMIN: "/admin",
-            Role.GESTOR: "/gestor",
             Role.COORDENADOR: "/coordenador",
+            Role.INSTRUTOR: "/revisao",
             Role.ALUNO: "/aluno",
         }
         return role_paths.get(current_role, "/login")

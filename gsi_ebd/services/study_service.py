@@ -76,9 +76,9 @@ class StudyService:
             return {"content_md": version.content_md or "", "questions": questions}
 
     @staticmethod
-    def is_gestor_of_user(gestor_id: Optional[int], aluno_id: int) -> bool:
-        if gestor_id is None:
+    def is_instrutor_of_user(instrutor_id: Optional[int], aluno_id: int) -> bool:
+        if instrutor_id is None:
             return False
         with rx.session() as session:
             aluno = session.exec(select(User).where(User.id == aluno_id)).first()
-            return bool(aluno and aluno.gestor_id == gestor_id)
+            return bool(aluno and aluno.instrutor_id == instrutor_id)

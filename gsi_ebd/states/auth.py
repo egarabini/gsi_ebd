@@ -40,8 +40,8 @@ class AuthState(rx.State):
         return self.current_user_role == Role.ADMIN
 
     @rx.var
-    def is_gestor(self) -> bool:
-        return self.current_user_role == Role.GESTOR
+    def is_instrutor(self) -> bool:
+        return self.current_user_role == Role.INSTRUTOR
 
     @rx.var
     def is_coordenador(self) -> bool:

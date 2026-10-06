@@ -17,7 +17,7 @@ def require_role(*roles: Role):
 def can_manage(target_role: int, actor_role: int) -> bool:
     """
     Retorna True se actor_role tem permissão de gerenciar target_role.
-    Hierarquia: ADMIN(1) > GESTOR(2) > COORDENADOR(3) > ALUNO(4)
+    Hierarquia: ADMIN(1) > COORDENADOR(2) > INSTRUTOR(3) > ALUNO(4)
     """
-    hierarchy = {Role.ADMIN: 0, Role.GESTOR: 1, Role.COORDENADOR: 2, Role.ALUNO: 3}
+    hierarchy = {Role.ADMIN: 0, Role.COORDENADOR: 1, Role.INSTRUTOR: 2, Role.ALUNO: 3}
     return hierarchy.get(actor_role, 99) < hierarchy.get(target_role, 99)

@@ -13,8 +13,8 @@ from gsi_ebd.models.progress import UserResponse, Progress
 def test_user_role_enum():
     """Hierarquia: Admin > Gestor > Coordenador > Aluno."""
     assert Role.ADMIN == 1
-    assert Role.GESTOR == 2
-    assert Role.COORDENADOR == 3
+    assert Role.COORDENADOR == 2
+    assert Role.INSTRUTOR == 3
     assert Role.ALUNO == 4
 
 

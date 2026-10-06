@@ -6,9 +6,17 @@ from sqlmodel import Field, Relationship, SQLModel
 
 
 class Role(IntEnum):
+    """Hierarquia do produto: Administrador > Coordenador > Instrutor > Aluno.
+
+    - ADMIN       administra a plataforma e cadastra Coordenadores; cria o
+                  catalogo de estudos.
+    - COORDENADOR gerencia seus Instrutores e seu ambiente (tenant).
+    - INSTRUTOR   acompanha, ensina e CORRIGE os seus alunos.
+    - ALUNO       estuda as licoes atribuidas.
+    """
     ADMIN = 1
-    GESTOR = 2
-    COORDENADOR = 3
+    COORDENADOR = 2
+    INSTRUTOR = 3
     ALUNO = 4
 
 
@@ -89,17 +97,20 @@ class User(SQLModel, table=True):
     last_activity_at: Optional[datetime] = Field(default=None)  # para detectar inatividade
 
     # --- Hierarquia (RBAC) ---
-    # ADMIN:      sem gestor_id nem coordenador_id
-    # GESTOR:     sem gestor_id nem coordenador_id (criado pelo Admin)
-    # COORDENADOR: gestor_id = ID do Gestor ao qual pertence
-    # ALUNO:      coordenador_id = ID do Coordenador ao qual pertence
+    # ADMIN:       sem vinculo acima
+    # COORDENADOR: sem vinculo acima (cadastrado pelo Admin); dono de um Ambiente
+    # INSTRUTOR:   coordenador_id = Coordenador a quem responde
+    # ALUNO:       instrutor_id = Instrutor que o acompanha
+    #              coordenador_id = Coordenador do ambiente (para isolamento)
     role: int = Field(default=Role.ALUNO)
-    gestor_id: Optional[int] = Field(default=None, foreign_key="user.id")
     coordenador_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    instrutor_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    equipe_id: Optional[int] = Field(default=None, foreign_key="equipe.id", index=True)
+    ambiente_id: Optional[int] = Field(default=None, foreign_key="ambiente.id", index=True)
 
-    # --- Metas (não limites rígidos — tracking de desempenho) ---
-    meta_coordenadores: int = Field(default=0)   # meta do Gestor
-    meta_alunos: int = Field(default=0)         # meta do Coordenador
+    # --- Metas (nao limites rigidos - tracking de desempenho) ---
+    meta_instrutores: int = Field(default=0)   # meta do Coordenador
+    meta_alunos: int = Field(default=0)        # meta do Instrutor
 
     # --- Financeiro ---
     assinatura_ativa: bool = Field(default=False)
