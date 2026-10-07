@@ -60,7 +60,9 @@ services:
         condition: service_started
     environment:
       # o app fala com o banco pelo nome do servico, na rede interna
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # +psycopg2 explicito: sem o driver na URL, o SQLAlchemy escolhe sozinho e pode
+# tentar o psycopg (v3) que nao esta instalado. Explicitar elimina a duvida.
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       APP_BASE_URL: https://didasko.app.br
       SECRET_KEY: ${SECRET_KEY}
       SMTP_HOST: ${SMTP_HOST:-}

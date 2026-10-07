@@ -18,6 +18,11 @@ sqlmodel>=0.0.22
 # o extra [asyncio] garante o greenlet, exigido pelo SQLAlchemy async (o Reflex
 # usa). Sem ele: ImportError no import do reflex.
 sqlalchemy[asyncio]>=2.0.30
+# PostgreSQL: declaramos OS DOIS drivers.
+# O SQLAlchemy 2.x procura primeiro o psycopg (v3); se so houver psycopg2, ele
+# usa o psycopg2. Sem pelo menos um deles o app nao sobe:
+#   ModuleNotFoundError: No module named 'psycopg'
+psycopg[binary]>=3.1
 psycopg2-binary>=2.9.9
 
 # --- Configuracao ---
