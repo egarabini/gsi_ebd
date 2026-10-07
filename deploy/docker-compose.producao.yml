@@ -89,6 +89,10 @@ services:
       CHROMA_HOST: chromadb
       CHROMA_PORT: 8000
       BIBLIA_COLLECTION: biblia_pt_br
+      # Arvore de conteudo (planos de estudo). Montada como volume SOMENTE LEITURA
+      # em /conteudo. O importador localiza via ESTUDOS_ROOT, porque dentro do
+      # container a estrutura de diretorios nao permite a busca por pais.
+      ESTUDOS_ROOT: /conteudo/ESTUDOS_BIBLICOS
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3}
     labels:

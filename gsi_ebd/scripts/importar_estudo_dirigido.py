@@ -36,10 +36,39 @@ from pathlib import Path
 
 # ── Caminhos ────────────────────────────────────────────────────────────────
 def _achar_estudos_biblicos(inicio: Path) -> Path:
+    """Localiza a arvore de conteudo (o "ESTUDOS_BIBLICOS").
+
+    Ordem de busca:
+    1. A variavel de ambiente ESTUDOS_ROOT, se definida. Isso existe porque
+       dentro do container a estrutura de diretorios e OUTRA: o app e copiado
+       para /app, e a arvore de conteudo e montada como volume em
+       /conteudo/ESTUDOS_BIBLICOS. A busca por diretorios pais (abaixo) nunca
+       funcionaria la.
+    2. Busca subindo os diretorios pais, para uso local no PC do desenvolvedor.
+    """
+    import os
+    raiz = os.getenv("ESTUDOS_ROOT")
+    if raiz:
+        p = Path(raiz)
+        if not p.is_dir():
+            raise RuntimeError(
+                f"ESTUDOS_ROOT aponta para um diretorio inexistente: {p}"
+            )
+        if not (p / "DOUTRINAS_CRISTAS").is_dir():
+            raise RuntimeError(
+                f"ESTUDOS_ROOT={p} nao contem DOUTRINAS_CRISTAS/. "
+                f"Conteudo encontrado: {[x.name for x in p.iterdir()][:8]}"
+            )
+        return p
+
     for p in [inicio, *inicio.parents]:
         if (p / "GSI_EBD").is_dir() and (p / "DOUTRINAS_CRISTAS").is_dir():
             return p
-    raise RuntimeError(f"Nao encontrei ESTUDOS_BIBLICOS a partir de {inicio}")
+    raise RuntimeError(
+        f"Nao encontrei ESTUDOS_BIBLICOS a partir de {inicio}. "
+        f"Defina a variavel de ambiente ESTUDOS_ROOT apontando para a arvore "
+        f"de conteudo (a pasta que contem DOUTRINAS_CRISTAS/)."
+    )
 
 
 ROOT = Path(__file__).resolve().parents[2]            # .../GSI_EBD
