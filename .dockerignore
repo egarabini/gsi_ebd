@@ -1,0 +1,27 @@
+# Segredos — NUNCA entram na imagem
+.env
+.env.*
+!.env.example
+*.env
+
+# Ambientes e caches (reconstruidos no build)
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.web/
+.states/
+*.db
+
+# Git e editor
+.git/
+.gitignore
+.github/
+.vscode/
+.idea/
+
+# Backups e temporarios
+*backup*
+*.zip
+*.bundle
+_*.py

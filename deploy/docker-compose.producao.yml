@@ -1,0 +1,97 @@
+# Didasko — producao (VPS Contabo)
+#
+# Sobe tres servicos:
+#   traefik  -> proxy reverso + HTTPS automatico (Let's Encrypt) para didasko.app.br
+#   app      -> a aplicacao Reflex (interna, sem porta exposta no host)
+#   postgres -> banco, com volume persistente
+#
+# Uso na VPS (dentro de ~/didasko):
+#   cp deploy/.env.producao.example .env      # e preencha os valores
+#   docker compose -f deploy/docker-compose.producao.yml up -d --build
+#
+# Requisitos: DNS de didasko.app.br apontando para o IP desta VPS, e as portas
+# 80 e 443 liberadas.
+
+services:
+  traefik:
+    image: traefik:v3.1
+    container_name: didasko_traefik
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      # redireciona todo HTTP para HTTPS
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      # Let's Encrypt
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+    networks:
+      - didasko
+
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: didasko_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # o app fala com o banco pelo nome do servico, na rede interna
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      APP_BASE_URL: https://didasko.app.br
+      SECRET_KEY: ${SECRET_KEY}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Didasko}
+      MAX_FAILED_LOGIN_ATTEMPTS: ${MAX_FAILED_LOGIN_ATTEMPTS:-5}
+      TOKEN_EXPIRY_HOURS: ${TOKEN_EXPIRY_HOURS:-24}
+      INACTIVITY_DAYS: ${INACTIVITY_DAYS:-60}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.didasko.rule=Host(`didasko.app.br`) || Host(`www.didasko.app.br`)
+      - traefik.http.routers.didasko.entrypoints=websecure
+      - traefik.http.routers.didasko.tls.certresolver=le
+      - traefik.http.services.didasko.loadbalancer.server.port=3000
+    networks:
+      - didasko
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: didasko_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-didasko}
+      POSTGRES_USER: ${POSTGRES_USER:-didasko}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-didasko}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - didasko
+
+volumes:
+  pgdata:
+  letsencrypt:
+
+networks:
+  didasko:
+    driver: bridge
