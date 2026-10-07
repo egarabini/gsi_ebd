@@ -1,0 +1,23 @@
+fix(deploy): o compose nao lia o .env e subia com senha em branco
+
+PROBLEMA RELATADO EM PRODUCAO (pelo Eduardo, ao subir a VPS):
+  WARN The ACME_EMAIL variable is not set. Defaulting to a blank string.
+  WARN The POSTGRES_USER variable is not set. Defaulting to a blank string.
+  WARN The POSTGRES_PASSWORD variable is not set. Defaulting to a blank string.
+
+CAUSA: o Docker Compose procura o arquivo .env NA PASTA DO ARQUIVO COMPOSE
+(deploy/), nao na raiz do projeto. Como o .env fica na raiz, ele nao era lido.
+Consequencia: POSTGRES_PASSWORD vazio, sem ACME_EMAIL para o Let's Encrypt — e o
+Docker emitindo apenas WARN, o que e facil de nao perceber.
+
+CORRECAO:
+- subir.sh: COMPOSE passou a incluir --env-file .env
+- DEPLOY.md: 20 comandos atualizados, com aviso destacado no passo 4
+- docker-compose.producao.yml: comentario no cabecalho explicando a armadilha e
+  a alternativa (copiar o .env para deploy/.env)
+
+DEFESA ADICIONADA: antes de subir, o subir.sh roda 'compose config' e verifica se
+POSTGRES_PASSWORD chegou vazio; se chegou, ABORTA em vez de subir um banco com
+senha em branco.
+
+Validado: YAML do compose parseia com 5 servicos.

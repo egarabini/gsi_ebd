@@ -55,15 +55,21 @@ email funcionando.
 
 ## 4. Subir
 
+> **Atenção ao `.env`:** o Docker Compose procura o `.env` **na pasta do arquivo
+> compose** (`deploy/`), não na raiz. Como ele fica na raiz, **o `--env-file .env`
+> é obrigatório** em todos os comandos. Sem ele as variáveis chegam vazias e o
+> Docker só emite um `WARN` — fácil de não perceber, e o banco sobe com senha em
+> branco.
+
 ```bash
-docker compose -f deploy/docker-compose.producao.yml up -d --build
+docker compose --env-file .env -f deploy/docker-compose.producao.yml up -d --build
 ```
 
 O primeiro build demora (instala dependencias Python e Node). Acompanhe:
 
 ```bash
-docker compose -f deploy/docker-compose.producao.yml logs -f app
-docker compose -f deploy/docker-compose.producao.yml ps
+docker compose --env-file .env -f deploy/docker-compose.producao.yml logs -f app
+docker compose --env-file .env -f deploy/docker-compose.producao.yml ps
 ```
 
 ---
@@ -73,7 +79,7 @@ docker compose -f deploy/docker-compose.producao.yml ps
 O seed cria admin, coordenador, instrutor, equipe, ambiente, alunos e o catalogo:
 
 ```bash
-docker compose -f deploy/docker-compose.producao.yml exec app \
+docker compose --env-file .env -f deploy/docker-compose.producao.yml exec app \
   python -m gsi_ebd.data.seed
 ```
 
@@ -90,19 +96,19 @@ questões — vem do importador:
 
 ```bash
 # 1. primeiro confira o que sera importado (NAO grava nada)
-docker compose -f deploy/docker-compose.producao.yml exec app \
+docker compose --env-file .env -f deploy/docker-compose.producao.yml exec app \
   python -m gsi_ebd.scripts.importar_estudo_dirigido --dry-run
 
 # 2. veja as questoes de um capitulo, para conferir a qualidade
-docker compose -f deploy/docker-compose.producao.yml exec app \
+docker compose --env-file .env -f deploy/docker-compose.producao.yml exec app \
   python -m gsi_ebd.scripts.importar_estudo_dirigido --capitulo 1 --json
 
 # 3. importar de verdade (grava no banco)
-docker compose -f deploy/docker-compose.producao.yml exec app \
+docker compose --env-file .env -f deploy/docker-compose.producao.yml exec app \
   python -m gsi_ebd.scripts.importar_estudo_dirigido --apply
 
 # 4. ou importar para UM ambiente especifico
-docker compose -f deploy/docker-compose.producao.yml exec app \
+docker compose --env-file .env -f deploy/docker-compose.producao.yml exec app \
   python -m gsi_ebd.scripts.importar_estudo_dirigido --apply --ambiente 1
 ```
 
@@ -148,10 +154,10 @@ scp -r ESTUDOS_BIBLICOS/PASTOR_IA/rag/biblia \
 #   o BibleMarkdown vem de github.com/ameisehaufen/BibleMarkdown
 
 # 2. instalar as dependencias de embeddings e carregar (na VPS)
-docker compose -f deploy/docker-compose.producao.yml exec app \
+docker compose --env-file .env -f deploy/docker-compose.producao.yml exec app \
   pip install -q chromadb sentence-transformers
 
-docker compose -f deploy/docker-compose.producao.yml exec app \
+docker compose --env-file .env -f deploy/docker-compose.producao.yml exec app \
   python /app/corpus/biblia/load_biblia.py --benchmark
 ```
 
@@ -189,14 +195,14 @@ O Ollama aparece em dois lugares do produto:
 ### Baixar o modelo (uma vez, depois de subir)
 
 ```bash
-docker compose -f deploy/docker-compose.producao.yml exec ollama \
+docker compose --env-file .env -f deploy/docker-compose.producao.yml exec ollama \
   ollama pull llama3
 ```
 
 Confira que baixou:
 
 ```bash
-docker compose -f deploy/docker-compose.producao.yml exec ollama ollama list
+docker compose --env-file .env -f deploy/docker-compose.producao.yml exec ollama ollama list
 ```
 
 ### Sobre o tamanho do modelo
@@ -245,7 +251,7 @@ pg_dump "postgresql://USUARIO:SENHA@localhost:5432/gsi_ebd" -f /tmp/gsi_ebd.sql
 scp /tmp/gsi_ebd.sql eduardo@IP_NOVO:/tmp/
 
 # na VPS nova: restaurar
-docker compose -f deploy/docker-compose.producao.yml exec -T postgres \
+docker compose --env-file .env -f deploy/docker-compose.producao.yml exec -T postgres \
   psql -U didasko -d didasko < /tmp/gsi_ebd.sql
 ```
 
@@ -259,23 +265,23 @@ docker compose -f deploy/docker-compose.producao.yml exec -T postgres \
 
 ```bash
 # ver logs
-docker compose -f deploy/docker-compose.producao.yml logs -f app
+docker compose --env-file .env -f deploy/docker-compose.producao.yml logs -f app
 
 # reiniciar so o app
-docker compose -f deploy/docker-compose.producao.yml restart app
+docker compose --env-file .env -f deploy/docker-compose.producao.yml restart app
 
 # atualizar o codigo
-git pull && docker compose -f deploy/docker-compose.producao.yml up -d --build app
+git pull && docker compose --env-file .env -f deploy/docker-compose.producao.yml up -d --build app
 
 # backup do banco (recomendado agendar)
-docker compose -f deploy/docker-compose.producao.yml exec -T postgres \
+docker compose --env-file .env -f deploy/docker-compose.producao.yml exec -T postgres \
   pg_dump -U didasko didasko | gzip > ~/backup-didasko-$(date +%F).sql.gz
 
 # parar tudo (sem apagar dados)
-docker compose -f deploy/docker-compose.producao.yml down
+docker compose --env-file .env -f deploy/docker-compose.producao.yml down
 
 # parar E APAGAR os dados (cuidado)
-docker compose -f deploy/docker-compose.producao.yml down -v
+docker compose --env-file .env -f deploy/docker-compose.producao.yml down -v
 ```
 
 ---

@@ -16,7 +16,11 @@ erro() { echo -e "${VERM}[ERRO]${NC} $1"; }
 aviso(){ echo -e "${AMAR}[..]${NC} $1"; }
 morrer(){ erro "$1"; exit 1; }
 
-COMPOSE="docker compose -f deploy/docker-compose.producao.yml"
+# O compose procura o .env NA PASTA DO ARQUIVO COMPOSE (deploy/), nao na raiz.
+# Como o .env fica na raiz, e obrigatorio passar --env-file explicitamente —
+# sem isso as variaveis chegam VAZIAS (POSTGRES_PASSWORD em branco, sem ACME_EMAIL)
+# e o Docker so emite um WARN, o que e facil de nao perceber.
+COMPOSE="docker compose --env-file .env -f deploy/docker-compose.producao.yml"
 
 echo "=============================================="
 echo " Didasko — deploy"
@@ -42,6 +46,13 @@ if grep -q 'troque-por' .env; then
 fi
 [ ${#faltando[@]} -eq 0 ] || morrer "faltam no .env: ${faltando[*]}"
 ok "ACME_EMAIL, POSTGRES_PASSWORD e SECRET_KEY definidos"
+
+# confirma que o COMPOSE (nao so o shell) esta enxergando as variaveis
+CONFIG_TESTE=$($COMPOSE config 2>/dev/null | grep -c 'POSTGRES_PASSWORD: ""' || true)
+if [ "${CONFIG_TESTE:-0}" != "0" ]; then
+  morrer "o compose nao esta lendo o .env (POSTGRES_PASSWORD chegou vazio)"
+fi
+ok "o compose esta lendo o .env corretamente"
 
 # ── 3. DNS ──────────────────────────────────────────────────────────────────
 echo; echo "3. DNS do dominio"

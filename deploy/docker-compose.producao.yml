@@ -7,7 +7,14 @@
 #
 # Uso na VPS (dentro de ~/didasko):
 #   cp deploy/.env.producao.example .env      # e preencha os valores
-#   docker compose -f deploy/docker-compose.producao.yml up -d --build
+#   docker compose --env-file .env -f deploy/docker-compose.producao.yml up -d --build
+#
+# IMPORTANTE: o Docker Compose procura o .env NA PASTA DESTE ARQUIVO (deploy/),
+# nao na raiz do projeto. Como o .env fica na raiz, o `--env-file .env` e
+# OBRIGATORIO. Sem ele, ${POSTGRES_PASSWORD} e ${ACME_EMAIL} chegam VAZIOS e o
+# Docker apenas emite um aviso (WARN), subindo o banco com senha em branco.
+#
+# Alternativa: em vez de --env-file, copie o .env para deploy/.env.
 #
 # Requisitos: DNS de didasko.app.br apontando para o IP desta VPS, e as portas
 # 80 e 443 liberadas.
