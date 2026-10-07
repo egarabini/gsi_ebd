@@ -98,13 +98,14 @@ services:
     volumes:
       # Arvore de conteudo dos estudos, montada SOMENTE LEITURA.
       #
-      # Origem: clone do repo EVANGELICOS em ~/conteudo (o deploy usa o repo
-      # gsi_ebd, que tem apenas o codigo — o conteudo vive no outro repo).
+      # Origem: clone do repo EVANGELICOS em <projeto>/conteudo (o deploy usa o
+      # repo gsi_ebd, que tem apenas o codigo — o conteudo vive no outro repo).
+      # O caminho e relativo a ESTE arquivo (deploy/), por isso ./conteudo/.
       #
       # :ro e deliberado. O importador apenas LE os planos. E sao ~15 MB de
       # traducao de obra protegida por direitos autorais: nao devem ser
       # embutidos na imagem (evita redistribuicao via registry) nem gravados.
-      - ../conteudo/ESTUDOS_BIBLICOS:/conteudo/ESTUDOS_BIBLICOS:ro
+      - ./conteudo/ESTUDOS_BIBLICOS:/conteudo/ESTUDOS_BIBLICOS:ro
     labels:
       - traefik.enable=true
       - traefik.http.routers.didasko.rule=Host(`didasko.app.br`) || Host(`www.didasko.app.br`)

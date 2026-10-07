@@ -16,3 +16,7 @@ assets/uploaded/
 
 # temporarios de mensagem de commit
 _msg.txt
+
+# clone do repo EVANGELICOS com a arvore de conteudo (nao versionar aqui:
+# e outro repositorio, e o texto e obra protegida por direitos autorais)
+conteudo/
