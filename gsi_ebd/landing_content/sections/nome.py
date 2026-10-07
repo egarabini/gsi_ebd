@@ -27,16 +27,13 @@ def _bloco(icone: str, titulo: str, texto: str, citacao: str = "") -> rx.Compone
 
 
 def nome_section(titulo: str = "Por que Didasko?", texto: str = "") -> rx.Component:
-    """Explica o nome: do verbo grego ao Didaskaleion de Alexandria."""
+    """Explica o nome: do verbo grego ao Didaskaleion de Alexandria.
+
+    NOTA: nao repetimos o cabecalho "Sobre" aqui. O `titulo` que chega e o valor
+    de `sobre_titulo` do SiteConfig, que ja aparece na secao Sobre logo acima —
+    repetir criava DOIS titulos iguais na mesma pagina (visivel no site).
+    """
     return rx.vstack(
-        rx.vstack(
-            rx.heading(titulo, size="7", weight="bold", color="#1e1b4b", text_align="center"),
-            rx.text(
-                "O nome nasce de uma palavra grega e de uma escola antiga.",
-                size="3", color="gray", text_align="center",
-            ),
-            spacing="2", align="center", width="100%",
-        ),
         rx.cond(
             texto != "",
             rx.text(texto, size="3", color="gray", text_align="center",

@@ -3,8 +3,8 @@ import reflex as rx
 
 
 def sobre_section(
-    titulo: str = "Sobre a Plataforma GSI-EBD",
-    texto: str = "O GSI-EBD é uma plataforma criada para facilitar o crescimento espiritual de forma estruturada, guiada e progressiva.",
+    titulo: str = "Por que Didasko?",
+    texto: str = "A Didasko é uma plataforma criada para facilitar o crescimento espiritual de forma estruturada, guiada e progressiva.",
     missao: str = "Conectar pessoas à Palavra de Deus por meio de estudos estruturados e acompanhamento personalizado.",
     visao: str = "Ser a referência em estudos bíblicos digitais no Brasil, formando discípulos comprometidos com a Escritura.",
 ) -> rx.Component:

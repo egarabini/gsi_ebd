@@ -169,12 +169,24 @@ def seed_site_config(session: Session):
         ("redes_whatsapp", "", "URL ou número WhatsApp"),
         ("redes_facebook", "", "URL Facebook"),
     ]
+    # ATUALIZA o valor das chaves que ja existem (upsert).
+    # Antes isso era "if not existing: add" — ou seja, se a chave existisse, o
+    # valor NUNCA era atualizado. Num banco ja populado, rodar o seed nao mudava
+    # nada: a landing continuava com os textos antigos ("GSI-EBD") e os campos
+    # novos ficavam vazios. Foi exatamente o que aconteceu no deploy.
+    criados, atualizados = 0, 0
     for chave, valor, descricao in configs:
         existing = session.exec(select(SiteConfig).where(SiteConfig.chave == chave)).first()
-        if not existing:
+        if existing:
+            if existing.valor != valor:
+                existing.valor = valor
+                existing.descricao = descricao
+                atualizados += 1
+        else:
             session.add(SiteConfig(chave=chave, valor=valor, descricao=descricao))
+            criados += 1
     session.commit()
-    print("✅ SiteConfig populado")
+    print(f"✅ SiteConfig: {criados} criado(s), {atualizados} atualizado(s)")
 
 
 def seed_testemunhos(session: Session):

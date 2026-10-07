@@ -16,7 +16,7 @@ def rodape_section(
                 rx.vstack(
                     rx.hstack(
                         rx.text("✝", font_size="1.8rem", color="#c7d2fe"),
-                        rx.heading("GSI-EBD", size="5", color="white"),
+                        rx.heading("Didasko", size="5", color="white"),
                         spacing="2",
                         align="center",
                     ),
@@ -87,7 +87,7 @@ def rodape_section(
             rx.divider(opacity="0.2"),
             rx.hstack(
                 rx.text(
-                    "© 2025 GSI-EBD — Todos os direitos reservados.",
+                    "© 2026 Didasko — Todos os direitos reservados.",
                     color="#64748b",
                     size="2",
                 ),

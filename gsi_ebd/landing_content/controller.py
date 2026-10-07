@@ -42,7 +42,7 @@ class LandingState(rx.State):
     hero_titulo: str = "Cresça na Palavra — A qualquer hora, em qualquer lugar"
     hero_subtitulo: str = "Uma plataforma de estudos bíblicos dirigidos, com acompanhamento personalizado."
     hero_cta: str = "Quero Participar"
-    sobre_titulo: str = "Sobre a Plataforma GSI-EBD"
+    sobre_titulo: str = "Por que Didasko?"
     sobre_texto: str = ""
     missao: str = ""
     visao: str = ""
@@ -195,7 +195,7 @@ def _landing_navbar() -> rx.Component:
             # Logo
             rx.hstack(
                 rx.text("✝", font_size="1.4rem", color="#c7d2fe"),
-                rx.heading("GSI-EBD", size="4", color="white"),
+                rx.heading("Didasko", size="4", color="white"),
                 spacing="2",
                 align="center",
             ),
