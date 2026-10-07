@@ -15,7 +15,7 @@ def login_page() -> rx.Component:
                     # Logo e título
                     rx.vstack(
                         rx.text("✝", font_size="3rem", color="#7c3aed", text_align="center"),
-                        rx.heading("GSI-EBD", size="7", color="#1e1b4b", text_align="center"),
+                        rx.heading("Didasko", size="7", color="#1e1b4b", text_align="center"),
                         rx.text(
                             "Estudos Bíblicos Dirigidos",
                             color="#6b7280",

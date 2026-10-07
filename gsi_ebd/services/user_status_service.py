@@ -106,7 +106,7 @@ class UserStatusService:
         _notify_inapp(
             session, user.id,
             NotificationType.BOAS_VINDAS,
-            "Bem-vindo ao GSI-EBD!",
+            "Bem-vindo ao Didasko!",
             "Sua conta foi criada. Verifique seu email para ativar o acesso.",
         )
 

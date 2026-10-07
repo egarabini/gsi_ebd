@@ -38,9 +38,17 @@ from .sections import (
 class LandingState(rx.State):
     """Gerencia dados dinâmicos e formulário de interesse da landing page."""
 
-    # Textos do banco (SiteConfig)
-    hero_titulo: str = "Cresça na Palavra — A qualquer hora, em qualquer lugar"
-    hero_subtitulo: str = "Uma plataforma de estudos bíblicos dirigidos, com acompanhamento personalizado."
+    # Textos do banco (SiteConfig), carregados por load_content.
+    #
+    # ATENCAO: estes defaults sao o que o SERVIDOR renderiza na primeira pintura,
+    # antes de load_content rodar (que so acontece por evento, no navegador). Com
+    # defaults antigos, o HTML inicial e o `curl` mostravam "Cresça na Palavra" e
+    # "GSI-EBD" mesmo com o banco ja correto. Mantenha-os iguais ao seed.
+    hero_titulo: str = "Didasko — Estudos Bíblicos Dirigidos"
+    hero_subtitulo: str = (
+        "Uma plataforma onde cada pessoa estuda a Palavra acompanhada de perto — "
+        "com instrutores de verdade corrigindo, incentivando e caminhando junto."
+    )
     hero_cta: str = "Quero Participar"
     sobre_titulo: str = "Por que Didasko?"
     sobre_texto: str = ""

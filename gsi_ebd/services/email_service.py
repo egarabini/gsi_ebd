@@ -1,5 +1,5 @@
 """
-Serviço de Email do GSI-EBD.
+Serviço de Email do Didasko.
 
 Envia emails transacionais usando SMTP (configurável via .env).
 Para produção, trocar SMTP_HOST por SendGrid, Amazon SES, etc.
@@ -10,7 +10,7 @@ Variáveis de ambiente necessárias (.env):
     SMTP_USER=seuemail@gmail.com
     SMTP_PASSWORD=sua_senha_de_app
     EMAIL_FROM=noreply@gsi-ebd.com.br
-    EMAIL_FROM_NAME=GSI-EBD
+    EMAIL_FROM_NAME=Didasko
     APP_BASE_URL=http://localhost:3000
 """
 import os
@@ -26,7 +26,7 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 EMAIL_FROM = os.getenv("EMAIL_FROM", "noreply@gsi-ebd.com.br")
-EMAIL_FROM_NAME = os.getenv("EMAIL_FROM_NAME", "GSI-EBD Estudos Bíblicos")
+EMAIL_FROM_NAME = os.getenv("EMAIL_FROM_NAME", "Didasko Estudos Bíblicos")
 APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:3000")
 
 # Desabilitar email em dev se credenciais não configuradas
@@ -123,7 +123,7 @@ def _base_template(titulo: str, corpo: str, cta_url: str = "", cta_texto: str = 
           <td style="background:linear-gradient(135deg,#4f46e5,#7c3aed);
                      padding:32px;text-align:center;">
             <h1 style="color:#fff;margin:0;font-size:24px;letter-spacing:1px;">
-              ✝ GSI-EBD
+              ✝ Didasko
             </h1>
             <p style="color:#c7d2fe;margin:8px 0 0;font-size:13px;">
               Estudos Bíblicos Dirigidos
@@ -142,7 +142,7 @@ def _base_template(titulo: str, corpo: str, cta_url: str = "", cta_texto: str = 
         <tr>
           <td style="background:#f8fafc;padding:24px 48px;text-align:center;
                      color:#94a3b8;font-size:12px;border-top:1px solid #e2e8f0;">
-            <p style="margin:0;">GSI-EBD — Estudos Bíblicos Dirigidos</p>
+            <p style="margin:0;">Didasko — Estudos Bíblicos Dirigidos</p>
             <p style="margin:4px 0 0;">Este é um email automático, não responda diretamente.</p>
           </td>
         </tr>
@@ -159,7 +159,7 @@ def send_confirmacao_conta(nome: str, email: str, token: str) -> bool:
     corpo = f"""
     <p style="color:#374151;line-height:1.7;">Olá, <strong>{nome}</strong>!</p>
     <p style="color:#374151;line-height:1.7;">
-        Sua conta na plataforma GSI-EBD foi criada com sucesso.<br>
+        Sua conta na plataforma Didasko foi criada com sucesso.<br>
         Para ativar seu acesso, clique no botão abaixo e confirme seu email.
     </p>
     <p style="color:#6b7280;font-size:13px;">
@@ -167,7 +167,7 @@ def send_confirmacao_conta(nome: str, email: str, token: str) -> bool:
     </p>"""
     return send_email(
         to_email=email,
-        subject="✅ Confirme sua conta — GSI-EBD",
+        subject="✅ Confirme sua conta — Didasko",
         html_body=_base_template("Confirmação de Conta", corpo, url, "Confirmar Minha Conta"),
     )
 
@@ -187,7 +187,7 @@ def send_troca_senha(nome: str, email: str, token: str) -> bool:
     </p>"""
     return send_email(
         to_email=email,
-        subject="🔐 Confirme a alteração de senha — GSI-EBD",
+        subject="🔐 Confirme a alteração de senha — Didasko",
         html_body=_base_template("Alteração de Senha", corpo, url, "Confirmar e Reativar Acesso"),
     )
 
@@ -199,7 +199,7 @@ def send_conta_suspensa_tentativas(nome: str, email: str, token: str) -> bool:
     <p style="color:#374151;line-height:1.7;">Olá, <strong>{nome}</strong>!</p>
     <p style="color:#374151;line-height:1.7;">
         Detectamos <strong>múltiplas tentativas de login com senha incorreta</strong>
-        na sua conta GSI-EBD.<br>
+        na sua conta Didasko.<br>
         Por segurança, sua conta foi <strong>suspensa</strong> temporariamente.
     </p>
     <p style="color:#374151;line-height:1.7;">
@@ -210,7 +210,7 @@ def send_conta_suspensa_tentativas(nome: str, email: str, token: str) -> bool:
     </p>"""
     return send_email(
         to_email=email,
-        subject="⚠️ Conta suspensa por segurança — GSI-EBD",
+        subject="⚠️ Conta suspensa por segurança — Didasko",
         html_body=_base_template("Conta Suspensa", corpo, url, "Confirmar e Reativar"),
     )
 
@@ -229,7 +229,7 @@ def send_reativacao_inativo(nome: str, email: str, token: str) -> bool:
     </p>"""
     return send_email(
         to_email=email,
-        subject="🙏 Reative sua conta — GSI-EBD",
+        subject="🙏 Reative sua conta — Didasko",
         html_body=_base_template("Bem-vindo de Volta!", corpo, url, "Reativar Minha Conta"),
     )
 
@@ -239,7 +239,7 @@ def send_conta_cancelada(nome: str, email: str) -> bool:
     corpo = f"""
     <p style="color:#374151;line-height:1.7;">Olá, <strong>{nome}</strong>!</p>
     <p style="color:#374151;line-height:1.7;">
-        Informamos que sua conta na plataforma GSI-EBD foi
+        Informamos que sua conta na plataforma Didasko foi
         <strong>cancelada</strong>.
     </p>
     <p style="color:#374151;line-height:1.7;">
@@ -249,7 +249,7 @@ def send_conta_cancelada(nome: str, email: str) -> bool:
     </p>"""
     return send_email(
         to_email=email,
-        subject="ℹ️ Conta cancelada — GSI-EBD",
+        subject="ℹ️ Conta cancelada — Didasko",
         html_body=_base_template("Conta Cancelada", corpo),
     )
 
@@ -276,7 +276,7 @@ def send_novo_lead_admin(admin_email: str, lead_nome: str, lead_email: str) -> b
     </p>"""
     return send_email(
         to_email=admin_email,
-        subject=f"📩 Novo interesse: {lead_nome} — GSI-EBD",
+        subject=f"📩 Novo interesse: {lead_nome} — Didasko",
         html_body=_base_template("Novo Formulário de Interesse", corpo, url, "Ver no Painel"),
     )
 
@@ -286,7 +286,7 @@ def send_assinatura_vencendo(nome: str, email: str, dias: int, valor: float) -> 
     corpo = f"""
     <p style="color:#374151;line-height:1.7;">Olá, <strong>{nome}</strong>!</p>
     <p style="color:#374151;line-height:1.7;">
-        Sua assinatura da plataforma GSI-EBD vence em
+        Sua assinatura da plataforma Didasko vence em
         <strong>{dias} dia(s)</strong>.
     </p>
     <p style="color:#374151;line-height:1.7;">
@@ -296,7 +296,7 @@ def send_assinatura_vencendo(nome: str, email: str, dias: int, valor: float) -> 
     </p>"""
     return send_email(
         to_email=email,
-        subject=f"⏰ Assinatura vence em {dias} dia(s) — GSI-EBD",
+        subject=f"⏰ Assinatura vence em {dias} dia(s) — Didasko",
         html_body=_base_template("Aviso de Vencimento", corpo),
     )
 
@@ -316,7 +316,7 @@ def send_estudo_aprovado(gestor_nome: str, gestor_email: str, estudo_titulo: str
     </p>"""
     return send_email(
         to_email=gestor_email,
-        subject=f"✅ Estudo aprovado: {estudo_titulo} — GSI-EBD",
+        subject=f"✅ Estudo aprovado: {estudo_titulo} — Didasko",
         html_body=_base_template("Estudo Aprovado!", corpo, url, "Ver no Painel"),
     )
 
@@ -342,6 +342,6 @@ def send_estudo_rejeitado(
     </p>"""
     return send_email(
         to_email=gestor_email,
-        subject=f"📝 Estudo para revisão: {estudo_titulo} — GSI-EBD",
+        subject=f"📝 Estudo para revisão: {estudo_titulo} — Didasko",
         html_body=_base_template("Estudo para Revisão", corpo, url, "Ver no Painel"),
     )

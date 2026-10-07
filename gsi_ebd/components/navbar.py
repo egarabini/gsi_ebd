@@ -12,7 +12,7 @@ def navbar() -> rx.Component:
                     on_click=CommonState.toggle_sidebar,
                     variant="ghost",
                 ),
-                rx.heading("GSI-EBD", size="6", color="white"),
+                rx.heading("Didasko", size="6", color="white"),
                 spacing="2",
             ),
             rx.hstack(

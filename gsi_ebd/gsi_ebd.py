@@ -37,12 +37,12 @@ app = rx.App(
 app.add_page(
     landing_page_full,
     route="/",
-    title="GSI-EBD — Estudos Bíblicos Dirigidos",
+    title="Didasko — Estudos Bíblicos Dirigidos",
     on_load=LandingState.load_content,
 )
 
 # ── Autenticação ──────────────────────────────────────────────────────────────
-app.add_page(login_page, route="/login", title="GSI-EBD — Login")
+app.add_page(login_page, route="/login", title="Didasko — Login")
 
 # ── Confirmação de conta via token (email) ────────────────────────────────────
 app.add_page(
@@ -59,7 +59,7 @@ app.add_page(
         height="100vh",
     ),
     route="/confirmar/[token]",
-    title="GSI-EBD — Confirmação",
+    title="Didasko — Confirmação",
     on_load=AuthState.confirm_account_token,
 )
 
@@ -67,7 +67,7 @@ app.add_page(
 app.add_page(
     admin_page,
     route="/admin",
-    title="GSI-EBD — Admin",
+    title="Didasko — Admin",
     on_load=[AuthState.check_auth, AdminState.load_coordenadores],
 )
 
@@ -76,14 +76,14 @@ app.add_page(
 app.add_page(
     aluno_page,
     route="/aluno",
-    title="GSI-EBD — Meus Estudos",
+    title="Didasko — Meus Estudos",
     on_load=[AuthState.check_auth, AlunoState.load_assigned_studies],
 )
 
 app.add_page(
     lesson_page,
     route="/aluno/licao",
-    title="GSI-EBD — Lição",
+    title="Didasko — Lição",
     on_load=[AuthState.check_auth],
 )
 
@@ -91,7 +91,7 @@ app.add_page(
 app.add_page(
     coordenador_page,
     route="/coordenador",
-    title="GSI-EBD — Coordenador",
+    title="Didasko — Coordenador",
     on_load=[AuthState.check_auth, CoordenadorState.load_all],
 )
 
@@ -99,7 +99,7 @@ app.add_page(
 app.add_page(
     alterar_senha_page,
     route="/perfil/alterar-senha",
-    title="GSI-EBD — Alterar Senha",
+    title="Didasko — Alterar Senha",
     on_load=[PerfilState.check_perfil_auth],
 )
 
@@ -107,7 +107,7 @@ app.add_page(
 app.add_page(
     revisao_page,
     route="/revisao",
-    title="GSI-EBD — Correcao de Respostas",
+    title="Didasko — Correcao de Respostas",
     on_load=[AuthState.check_auth, RevisaoState.load_fila],
 )
 
@@ -115,7 +115,7 @@ app.add_page(
 app.add_page(
     pareceres_page,
     route="/aluno/pareceres",
-    title="GSI-EBD — Meus Pareceres",
+    title="Didasko — Meus Pareceres",
     on_load=[AuthState.check_auth, AlunoState.load_pareceres],
 )
 
