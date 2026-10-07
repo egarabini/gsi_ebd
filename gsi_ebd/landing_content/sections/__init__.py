@@ -14,3 +14,4 @@ __all__ = [
     "formulario_section",
     "rodape_section",
 ]
+from .nome import nome_section

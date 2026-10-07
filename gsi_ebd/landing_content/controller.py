@@ -22,6 +22,7 @@ from ..models.site_content import SiteConfig, Testemunho
 from ..services.email_service import send_novo_lead_admin
 from .sections import (
     hero_section,
+    nome_section,
     sobre_section,
     niveis_section,
     testemunhos_section,
@@ -204,6 +205,7 @@ def _landing_navbar() -> rx.Component:
                 rx.link(rx.text("Sobre", color="rgba(255,255,255,0.8)", size="3"), href="#sobre"),
                 rx.link(rx.text("Níveis", color="rgba(255,255,255,0.8)", size="3"), href="#niveis"),
                 rx.link(rx.text("Depoimentos", color="rgba(255,255,255,0.8)", size="3"), href="#testemunhos"),
+            rx.link(rx.text("Homenagens", color="rgba(255,255,255,0.8)", size="3"), href="/homenagens"),
                 rx.link(
                     rx.button("Participar", size="2", variant="outline",
                               style={"border_color": "rgba(255,255,255,0.5)", "color": "white"}),
@@ -263,6 +265,10 @@ def landing_page_full() -> rx.Component:
             texto=LandingState.sobre_texto,
             missao=LandingState.missao,
             visao=LandingState.visao,
+        ),
+        nome_section(
+            titulo=LandingState.sobre_titulo,
+            texto=LandingState.sobre_texto,
         ),
         niveis_section(descricoes=LandingState.niveis_descricoes),
         testemunhos_section(state_cls=LandingState),

@@ -9,6 +9,7 @@ from .pages.coordenador import coordenador_page
 from .pages.perfil import alterar_senha_page
 from .pages.revisao import revisao_page
 from .pages.pareceres import pareceres_page
+from .pages.homenagens import homenagens_page, HomenagensState
 from .states.auth import AuthState
 from .states.admin import AdminState
 from .states.aluno import AlunoState
@@ -116,4 +117,12 @@ app.add_page(
     route="/aluno/pareceres",
     title="GSI-EBD — Meus Pareceres",
     on_load=[AuthState.check_auth, AlunoState.load_pareceres],
+)
+
+# ── Homenagens (pagina publica) ─────────────────────────────────────────────
+app.add_page(
+    homenagens_page,
+    route="/homenagens",
+    title="Didasko — Homenagens",
+    on_load=HomenagensState.load,
 )
