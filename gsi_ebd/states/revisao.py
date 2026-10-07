@@ -14,6 +14,13 @@ class RevisaoState(AuthState):
     parecer_texto: str = ""
     considerou_correto: bool = True
     mensagem: str = ""
+    # apoio da IA (parecer preliminar — o instrutor decide)
+    sugerindo: bool = False
+    sugestao_aderencia: str = ""
+    sugestao_comentario: str = ""
+    sugestao_sugestao: str = ""
+    sugestao_disponivel: bool = False
+    sugestao_erro: str = ""
     mensagem_tipo: str = "info"
 
     def load_fila(self):
@@ -42,6 +49,54 @@ class RevisaoState(AuthState):
     def fechar_resposta(self):
         self.resposta_aberta_id = ""
         self.parecer_texto = ""
+
+    def pedir_sugestao(self):
+        """Pede à IA um parecer preliminar. O instrutor decide o que fazer com ele."""
+        if not self.resposta_aberta_id:
+            return
+        try:
+            rid = int(self.resposta_aberta_id)
+        except (TypeError, ValueError):
+            return
+        self.sugerindo = True
+        self.sugestao_erro = ""
+        try:
+            r = ReviewService.sugerir_parecer(
+                response_id=rid,
+                instrutor_id=self.current_user_id,
+                role=self.current_user_role,
+            )
+        except Exception as e:
+            r = {"ok": False, "erro": f"Falha ao consultar a IA: {e}"}
+        self.sugerindo = False
+        if not r.get("ok"):
+            self.sugestao_erro = r.get("erro", "Não foi possível gerar a sugestão")
+            return
+        self.sugestao_disponivel = bool(r.get("disponivel"))
+        self.sugestao_aderencia = r.get("aderencia", "")
+        self.sugestao_comentario = r.get("comentario", "")
+        self.sugestao_sugestao = r.get("sugestao", "")
+        self.sugestao_erro = r.get("erro", "")
+        if self.sugestao_disponivel:
+            # preenche o campo para o instrutor EDITAR (ele pode trocar tudo)
+            base = self.sugestao_comentario
+            if self.sugestao_sugestao:
+                base += f"\n\n{self.sugestao_sugestao}"
+            if not self.parecer_texto.strip():
+                self.parecer_texto = base
+            self.considerou_correto = bool(r.get("correto_sugerido"))
+
+    def usar_sugestao(self):
+        base = self.sugestao_comentario
+        if self.sugestao_sugestao:
+            base += f"\n\n{self.sugestao_sugestao}"
+        self.parecer_texto = base
+
+    def descartar_sugestao(self):
+        self.sugestao_disponivel = False
+        self.sugestao_comentario = ""
+        self.sugestao_sugestao = ""
+        self.sugestao_aderencia = ""
 
     def salvar_parecer(self):
         if not self.resposta_aberta_id:

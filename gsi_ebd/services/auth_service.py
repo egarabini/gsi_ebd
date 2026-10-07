@@ -13,6 +13,7 @@ class AuthService:
         role_paths = {
             Role.ADMIN: "/admin",
             Role.COORDENADOR: "/coordenador",
+            Role.REVISOR: "/admin",       # valida o catalogo na tela do admin
             Role.INSTRUTOR: "/revisao",
             Role.ALUNO: "/aluno",
         }

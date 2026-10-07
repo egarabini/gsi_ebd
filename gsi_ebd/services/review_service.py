@@ -12,6 +12,8 @@ import reflex as rx
 from sqlmodel import or_, select
 
 from .escopo_service import EscopoService
+from .avaliador_service import avaliador
+from .escritura_service import escritura
 from ..models import (
     Ambiente, Progress, Role, Study, StudyAssignment, StudyVersion, Turma, TurmaMembro,
     User, UserResponse, UserStatus,
@@ -181,6 +183,57 @@ class ReviewService:
             progresso.last_activity = datetime.utcnow()
             session.add(progresso)
             session.commit()
+
+    # ── Apoio da IA ao instrutor ────────────────────────────────────────────
+    @staticmethod
+    def sugerir_parecer(response_id: int, instrutor_id: int, role: int) -> dict:
+        """Parecer PRELIMINAR da IA para o instrutor revisar antes de enviar.
+
+        Nao grava nada: devolve a sugestao. O instrutor aceita, edita ou
+        descarta. A IA nunca fala direto com o aluno.
+        """
+        with rx.session() as session:
+            r = session.exec(select(UserResponse).where(
+                UserResponse.id == response_id)).first()
+            if not r:
+                return {"ok": False, "erro": "Resposta não encontrada"}
+            permitidos = ReviewService._alunos_do_avaliador(instrutor_id, role)
+            if r.user_id not in permitidos:
+                return {"ok": False, "erro": "Você não acompanha este aluno"}
+
+            versao = session.exec(select(StudyVersion).where(
+                StudyVersion.id == r.study_version_id)).first()
+            contexto = (versao.content_md if versao else "") or ""
+            # o enunciado da pergunta, se estiver no questions_json
+            pergunta = r.question_key
+            try:
+                import json as _json
+                qs = _json.loads((versao.questions_json if versao else "") or "[]")
+                for q in qs:
+                    if q.get("key") == r.question_key:
+                        pergunta = q.get("question") or pergunta
+                        break
+            except Exception:
+                pass
+
+            # Escritura de apoio vem do corpus local, nunca do modelo
+            refs = escritura.extrair_referencias(pergunta + "\n" + contexto)
+            citacoes = ""
+            if refs and escritura.disponivel:
+                vs = escritura.buscar_referencias(refs)
+                citacoes = "\n".join(f"{v.referencia}: {v.texto}" for v in vs)
+
+            p = avaliador.avaliar(pergunta=pergunta, resposta=r.answer or "",
+                                 contexto=contexto, referencia_biblica=citacoes)
+            return {
+                "ok": True,
+                "disponivel": p.disponivel,
+                "erro": p.erro,
+                "aderencia": p.aderencia,
+                "comentario": p.comentario,
+                "sugestao": p.sugestao,
+                "correto_sugerido": p.aderencia in ("aderente", "parcial"),
+            }
 
     # ── Visao do aluno ──────────────────────────────────────────────────────
     @staticmethod

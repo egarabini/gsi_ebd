@@ -41,6 +41,10 @@ class AuthState(rx.State):
         return self.current_user_role == Role.ADMIN
 
     @rx.var
+    def is_revisor(self) -> bool:
+        """Funcao editorial: valida o catalogo junto com o Administrador."""
+        return self.current_user_role == Role.REVISOR
+
     def is_instrutor(self) -> bool:
         return self.current_user_role == Role.INSTRUTOR
 

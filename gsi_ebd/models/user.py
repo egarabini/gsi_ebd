@@ -18,6 +18,12 @@ class Role(IntEnum):
     COORDENADOR = 2
     INSTRUTOR = 3
     ALUNO = 4
+    # REVISOR: funcao EDITORIAL, fora da cadeia de comando. Valida, junto com o
+    # Administrador, os estudos que entrarao no catalogo — e so depois os
+    # Coordenadores escolhem quais usar no seu ambiente. Nao pertence a nenhum
+    # ambiente (nao tem ambiente_id), porque revisa o catalogo da plataforma.
+    # Recebe o valor 5 para NAO deslocar os papeis 1-4 ja gravados em producao.
+    REVISOR = 5
 
 
 class UserStatus(str, Enum):
