@@ -45,20 +45,125 @@ def get_or_create_engine():
 def seed_site_config(session: Session):
     """Popula textos dinâmicos da landing page."""
     configs = [
-        ("hero_titulo", "Cresça na Palavra — A qualquer hora, em qualquer lugar", "Título principal do Hero"),
-        ("hero_subtitulo", "Uma plataforma de estudos bíblicos dirigidos, com acompanhamento personalizado para cada etapa da sua jornada de fé.", "Subtítulo do Hero"),
-        ("hero_cta_texto", "Quero Participar", "Texto do botão CTA"),
-        ("sobre_titulo", "Sobre a Plataforma GSI-EBD", "Título da seção Sobre"),
-        ("sobre_texto", "O GSI-EBD (Estudos Bíblicos Dirigidos) é uma plataforma criada para facilitar o crescimento espiritual de forma estruturada, guiada e progressiva. Acreditamos que o estudo sistemático da Palavra transforma vidas.", "Texto da seção Sobre"),
-        ("missao_texto", "Nossa missão é conectar pessoas à Palavra de Deus por meio de estudos estruturados, acompanhamento personalizado e comunidade.", "Texto de Missão"),
-        ("visao_texto", "Ser a referência em estudos bíblicos digitais no Brasil, formando discípulos comprometidos com a Escritura.", "Texto de Visão"),
-        ("planos_descricao", "Escolha o plano que melhor se adapta à sua jornada. Todos incluem acesso completo à plataforma e acompanhamento personalizado.", "Descrição geral dos planos"),
-        ("niveis_basico_desc", "Fundamentos da fé — ideal para quem está iniciando a jornada bíblica.", "Descrição nível Básico"),
-        ("niveis_medio_desc", "Aprofundamento doutrinário — para quem já domina os fundamentos.", "Descrição nível Médio"),
-        ("niveis_avancado_desc", "Hermenêutica e teologia — para estudo avançado e contextualização.", "Descrição nível Avançado"),
-        ("niveis_master_desc", "Especialização e liderança — para formação de líderes e coordenadores de fé.", "Descrição nível Master"),
-        ("rodape_email", "contato@gsi-ebd.com.br", "Email de contato no rodapé"),
-        ("rodape_telefone", "(00) 00000-0000", "Telefone de contato no rodapé"),
+        # ── Hero ────────────────────────────────────────────────────────────
+        ("hero_titulo", "Didasko — Estudos Bíblicos Dirigidos",
+         "Título principal do Hero"),
+        ("hero_subtitulo",
+         "Uma plataforma onde cada pessoa estuda a Palavra acompanhada de perto — "
+         "com instrutores de verdade corrigindo, incentivando e caminhando junto. "
+         "Porque discipulado não se automatiza.",
+         "Subtítulo do Hero"),
+        ("hero_cta_texto", "Quero Participar", "Texto do botão principal"),
+
+        # ── Por que Didasko? (origem do nome) ───────────────────────────────
+        ("sobre_titulo", "Por que Didasko?", "Título da seção Sobre"),
+        ("sobre_texto",
+         "Didasko vem do grego διδάσκω — ensinar. É o verbo que Jesus usa na Grande "
+         "Comissão: «ide, fazei discípulos... ENSINANDO-os a guardar todas as coisas "
+         "que vos tenho ordenado» (Mt 28.19-20).\n\n"
+         "Nos primeiros séculos, a Escola de Alexandria — o Didaskaleion, «lugar de "
+         "ensino» — foi o grande centro onde a fé foi pensada com rigor, piedade e "
+         "coragem intelectual. Nós retomamos esse nome e esse espírito: um lugar de "
+         "ensino sério da Palavra, acessível a todo cristão, no seu ritmo.",
+         "Texto da seção Sobre / origem do nome"),
+
+        # ── Missão e visão ─────────────────────────────────────────────────
+        ("missao_texto",
+         "Levar cada pessoa a compreender e viver a Palavra, unindo estudo "
+         "estruturado e acompanhamento humano real. Não entregamos conteúdo solto: "
+         "acompanhamos o crescimento de cada aluno, capítulo por capítulo.",
+         "Texto de missão"),
+        ("visao_texto",
+         "Ser o lugar de ensino onde igrejas e comunidades formam discípulos de "
+         "verdade — com doutrina sólida, acompanhamento próximo e a alegria de ver "
+         "cada pessoa crescer.",
+         "Texto de visão"),
+
+        # ── Acompanhamento (o diferencial do produto) ──────────────────────
+        ("acompanhamento_titulo", "Como funciona o acompanhamento",
+         "Título da seção de acompanhamento"),
+        ("acompanhamento_texto",
+         "Cada estudo é conduzido por um INSTRUTOR. O aluno percorre o capítulo, "
+         "responde às questões e escreve suas reflexões. O instrutor lê cada "
+         "resposta, devolve um parecer pessoal e marca o que precisa ser revisto. "
+         "É esse retorno humano que transforma estudo em discipulado.",
+         "Texto da seção de acompanhamento"),
+
+        # ── Níveis ─────────────────────────────────────────────────────────
+        ("niveis_basico_desc",
+         "Fundamentos da fé — para quem está começando a jornada e quer bases firmes.",
+         "Descrição nível Básico"),
+        ("niveis_medio_desc",
+         "Aprofundamento doutrinário — para quem já conhece os fundamentos e quer mais.",
+         "Descrição nível Médio"),
+        ("niveis_avancado_desc",
+         "Hermenêutica e teologia — interpretação cuidadosa e contexto histórico.",
+         "Descrição nível Avançado"),
+        ("niveis_master_desc",
+         "Formação de instrutores e líderes — quem ensina também precisa aprender a ensinar.",
+         "Descrição nível Master"),
+
+        # ── Catálogo e ambientes ───────────────────────────────────────────
+        ("catalogo_titulo", "Estudos disponíveis", "Título da seção de catálogo"),
+        ("catalogo_texto",
+         "Os estudos são organizados por assunto, nível e foco — das doutrinas "
+         "fundamentais à pneumatologia paulina, da introdução à teologia sistemática "
+         "ao aprofundamento teológico. Cada coordenador escolhe, para o seu ambiente, "
+         "os estudos que fazem sentido para a sua comunidade.",
+         "Texto da seção de catálogo"),
+        ("ambiente_titulo", "Para coordenadores e instrutores",
+         "Título da seção de ambientes"),
+        ("ambiente_texto",
+         "Cada coordenador tem o seu ambiente: escolhe os estudos do catálogo, "
+         "organiza seus instrutores em equipes por nível, personaliza a identidade "
+         "visual e acompanha o crescimento de cada aluno em tempo real.",
+         "Texto da seção de ambientes"),
+
+        # ── Planos ─────────────────────────────────────────────────────────
+        ("planos_descricao",
+         "Fale conosco para levar a Didasko à sua igreja ou comunidade.",
+         "Descrição da seção de contato"),
+
+        # ── Homenagens (/homenagens) ───────────────────────────────────────
+        ("homenagens_titulo", "Homenagens", "Título da página de homenagens"),
+        ("homenagens_intro",
+         "Nenhum ensino nasce do nada. A Didasko é fruto de pessoas que ensinaram "
+         "antes de nós — algumas conhecidas, outras anônimas. Esta página é uma "
+         "dívida de gratidão.",
+         "Introdução da página de homenagens"),
+        ("homenagens",
+         "Marcelo Senna :: Instrutor que conduziu o estudo «Siga a Bíblia» e enviou, "
+         "pelo WhatsApp, cada lição com correção e incentivo. Foi vendo esse "
+         "acompanhamento próximo — de perto, com nome e retorno pessoal — que nasceu "
+         "a ideia desta plataforma. A Didasko existe para que esse cuidado não dependa "
+         "de uma só pessoa. :: o primeiro instrutor\n"
+         "David Livingstone :: Missionário e médico escocês (1813–1873) que nunca "
+         "separou o cuidado do corpo do cuidado da alma. Seu nome batiza o agente de "
+         "discipulado do projeto. :: inspiração para o DAVID\n"
+         "A Escola de Alexandria — Didaskaleion :: Centro de formação cristã dos "
+         "primeiros séculos, onde a fé foi pensada com rigor, piedade e coragem "
+         "intelectual. Deu ao projeto não apenas o nome, mas o propósito: ser um lugar "
+         "de ensino. :: a origem do nome\n"
+         "Os catequistas da igreja antiga :: Homens e mulheres que, antes de existirem "
+         "escolas formais, ensinavam a Palavra de casa em casa e de geração em geração, "
+         "muitas vezes sem registro e sem reconhecimento. :: a nuvem de testemunhas\n"
+         "Todos os que ensinam :: Pais que leem a Bíblia com os filhos à noite, líderes "
+         "de célula que preparam a lição depois do trabalho, professores de escola "
+         "dominical que estudam mais do que ensinam. Esta plataforma é uma ferramenta "
+         "nas mãos de vocês. :: Hb 5.12",
+         "Homenagens exibidas em /homenagens (Título :: Descrição :: Referência)"),
+
+        # ── Rodapé e redes ─────────────────────────────────────────────────
+        ("rodape_email", "contato@didasko.app.br", "Email de contato"),
+        ("rodape_site", "didasko.app.br", "Site oficial"),
+        ("rodape_telefone", "", "Telefone de contato (opcional)"),
+        ("rodape_texto",
+         "Didasko — lugar de ensino. Estudos bíblicos dirigidos com acompanhamento "
+         "humilde e fiel às Escrituras.",
+         "Texto do rodapé"),
+        ("rodape_versiculo",
+         "«Toda a Escritura é inspirada por Deus e útil para o ensino.» — 2 Timóteo 3.16",
+         "Versículo do rodapé"),
         ("redes_instagram", "", "URL Instagram"),
         ("redes_youtube", "", "URL YouTube"),
         ("redes_whatsapp", "", "URL ou número WhatsApp"),
