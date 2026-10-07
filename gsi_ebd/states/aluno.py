@@ -6,6 +6,7 @@ from ..models.progress import QuestionType
 from ..services.study_service import StudyService
 from ..services.progress_service import ProgressService
 from ..services.review_service import ReviewService
+from ..services.escritura_service import escritura
 from .auth import AuthState
 
 
@@ -26,6 +27,7 @@ class AlunoState(AuthState):
     pending_review: int = 0          # questoes abertas aguardando avaliação humana
     streak: int = 0
     ai_context: str = ""
+    escritura_md: str = ""   # Escritura verificada do RAG local
 
     @rx.var
     def has_active_study(self) -> bool:
@@ -74,6 +76,17 @@ class AlunoState(AuthState):
 
     pareceres: List[Dict] = []
 
+    def _carregar_escritura(self):
+        """Traz do corpus local o texto biblico citado no plano do estudo.
+
+        Degrada em silencio: se o ChromaDB nao estiver no ar, a licao segue
+        normalmente, apenas sem o bloco de Escritura.
+        """
+        try:
+            self.escritura_md = escritura.contexto_da_licao(self.study_content or "")
+        except Exception:
+            self.escritura_md = ""
+
     def load_pareceres(self):
         self.pareceres = ReviewService.pareceres_do_aluno(self.current_user_id)
 
@@ -120,6 +133,7 @@ class AlunoState(AuthState):
         payload = StudyService.load_version_payload(version_id)
         self.study_content = payload["content_md"]
         self.study_questions = payload["questions"]
+        self._carregar_escritura()
 
     def submit_answer(self):
         if not self.study_questions:

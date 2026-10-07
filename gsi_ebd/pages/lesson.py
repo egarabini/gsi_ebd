@@ -31,6 +31,25 @@ def lesson_page() -> rx.Component:
                 rx.card(
                     rx.vstack(
                         rx.markdown(AlunoState.study_content),
+                        # Escritura verificada, vinda do corpus local (ACF 2007).
+                        # Some sozinha quando o RAG nao esta no ar.
+                        rx.cond(
+                            AlunoState.escritura_md != "",
+                            rx.card(
+                                rx.vstack(
+                                    rx.hstack(
+                                        rx.icon("book-open", size=18, color="#7c3aed"),
+                                        rx.text("Escritura", size="3", weight="bold",
+                                                color="#1e1b4b"),
+                                        spacing="2", align="center",
+                                    ),
+                                    rx.markdown(AlunoState.escritura_md),
+                                    spacing="2", width="100%",
+                                ),
+                                width="100%",
+                                background="#faf8ff",
+                            ),
+                        ),
                         rx.divider(),
                         rx.cond(
                             AlunoState.has_more_questions,

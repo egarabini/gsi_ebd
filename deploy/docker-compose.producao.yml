@@ -47,6 +47,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      chromadb:
+        condition: service_started
     environment:
       # o app fala com o banco pelo nome do servico, na rede interna
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
@@ -61,6 +63,12 @@ services:
       MAX_FAILED_LOGIN_ATTEMPTS: ${MAX_FAILED_LOGIN_ATTEMPTS:-5}
       TOKEN_EXPIRY_HOURS: ${TOKEN_EXPIRY_HOURS:-24}
       INACTIVITY_DAYS: ${INACTIVITY_DAYS:-60}
+      # RAG biblico (mesmas chaves que o PASTOR_IA usa)
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: 8000
+      BIBLIA_COLLECTION: biblia_pt_br
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3}
     labels:
       - traefik.enable=true
       - traefik.http.routers.didasko.rule=Host(`didasko.app.br`) || Host(`www.didasko.app.br`)
@@ -88,9 +96,24 @@ services:
     networks:
       - didasko
 
+  # ChromaDB: banco vetorial com o corpus biblico (31 mil versiculos ACF 2007).
+  # Serve o texto VERIFICADO para a licao — o modelo nunca inventa Escritura.
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: didasko_chromadb
+    restart: unless-stopped
+    environment:
+      IS_PERSISTENT: "TRUE"
+      ANONYMIZED_TELEMETRY: "FALSE"
+    volumes:
+      - chroma_data:/chroma/chroma
+    networks:
+      - didasko
+
 volumes:
   pgdata:
   letsencrypt:
+  chroma_data:
 
 networks:
   didasko:

@@ -178,42 +178,16 @@ def seed_site_config(session: Session):
 
 
 def seed_testemunhos(session: Session):
-    """Cria testemunhos de exemplo para a landing page."""
-    if session.exec(select(Testemunho)).first():
-        print("⏭️  Testemunhos já existem — pulando")
-        return
+    """Depoimentos da landing page.
 
-    testemunhos = [
-        Testemunho(
-            nome="Maria Silva",
-            cidade="São Paulo",
-            estado="SP",
-            profissao_fe="Adventista",
-            texto="Os estudos bíblicos dirigidos transformaram minha vida espiritual. O acompanhamento personalizado fez toda a diferença na minha compreensão da Palavra.",
-            ordem=1,
-        ),
-        Testemunho(
-            nome="João Santos",
-            cidade="Belo Horizonte",
-            estado="MG",
-            profissao_fe="Batista",
-            texto="Nunca imaginei que seria possível estudar a Bíblia de forma tão estruturada e com tanto apoio. Estou no nível Avançado e não paro mais!",
-            ordem=2,
-        ),
-        Testemunho(
-            nome="Ana Rodrigues",
-            cidade="Curitiba",
-            estado="PR",
-            profissao_fe="Presbiteriana",
-            texto="Como coordenadora, posso acompanhar de perto o crescimento dos meus alunos. A plataforma facilita demais meu trabalho pastoral.",
-            ordem=3,
-        ),
-    ]
-    for t in testemunhos:
-        session.add(t)
-    session.commit()
-    print("✅ Testemunhos criados")
+    PROPOSITALMENTE VAZIO: nao inventamos depoimentos. Um testemunho ficticio
+    numa pagina de apresentacao compromete a credibilidade do projeto. Quando
+    houver depoimentos REAIS (com autorizacao de quem depoe), cadastre-os pelo
+    painel do Administrador ou acrescente aqui.
 
+    A secao correspondente some sozinha da landing enquanto nao houver nenhum.
+    """
+    print("[..] Testemunhos: nenhum cadastrado (nao inventamos depoimentos)")
 
 def seed_leads(session: Session):
     """Cria um lead de exemplo."""

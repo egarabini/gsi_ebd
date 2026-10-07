@@ -128,6 +128,51 @@ existiria no banco mas não apareceria para ninguém.
 
 ---
 
+## 5.6. Carregar o corpus bíblico (a Escritura da lição)
+
+A tela da lição mostra o **texto bíblico verificado**, vindo do RAG local — não do
+modelo. Isso evita alucinação em conteúdo doutrinário. Para isso o ChromaDB
+precisa ter o corpus indexado.
+
+O corpus e o script de carga estão no subprojeto **PASTOR_IA**
+(`ESTUDOS_BIBLICOS/PASTOR_IA/`): a Almeida Corrigida Fiel de 2007, com os
+comentários de Matthew Henry.
+
+```bash
+# 1. copiar o corpus e o script de carga para a VPS (do seu computador)
+scp -r ESTUDOS_BIBLICOS/PASTOR_IA/rag/biblia \
+       ESTUDOS_BIBLICOS/PASTOR_IA/requirements.txt \
+       eduardo@IP_DA_VPS:~/didasko/corpus/
+
+# ou, se preferir direto do GitHub (o corpus e um clone publico):
+#   o BibleMarkdown vem de github.com/ameisehaufen/BibleMarkdown
+
+# 2. instalar as dependencias de embeddings e carregar (na VPS)
+docker compose -f deploy/docker-compose.producao.yml exec app \
+  pip install -q chromadb sentence-transformers
+
+docker compose -f deploy/docker-compose.producao.yml exec app \
+  python /app/corpus/biblia/load_biblia.py --benchmark
+```
+
+O `--benchmark` roda o teste embutido: pergunta "O que João 3:16 diz?" e confere
+se o versículo volta correto.
+
+> **Enquanto o corpus não estiver carregado**, a lição funciona normalmente — o
+> bloco de Escritura simplesmente não aparece. A integração degrada em silêncio,
+> de propósito: nenhuma lição quebra por causa do RAG.
+
+### Sobre o LLM (opcional)
+
+O `Ollama` **não** está neste compose. Sem ele, a Escritura aparece normalmente
+(ela vem do corpus, não do modelo); só os recursos de explicação por IA ficam
+inativos. Se quiser ligá-los, suba um serviço Ollama com volume próprio e aponte
+`OLLAMA_BASE_URL` para ele.
+
+---
+
+---
+
 ## 6. Verificar
 
 ```bash
