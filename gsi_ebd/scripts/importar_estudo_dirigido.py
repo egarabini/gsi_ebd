@@ -243,35 +243,77 @@ def parse_plano(cap: int) -> dict | None:
 
 
 # ── Gravacao ────────────────────────────────────────────────────────────────
-def gravar(dados: dict, engine) -> str:
+def _admin_id(s) -> Optional[int]:
+    """Id do Administrador, para registrar quem aprovou. None se nao houver."""
+    from ..models.user import Role, User
+    from sqlmodel import select
+    adm = s.exec(select(User).where(User.role == Role.ADMIN)).first()
+    return adm.id if adm else None
+
+
+def _ambientes_alvo(s, ambiente_id: Optional[int]) -> list:
+    """Ambientes que receberao o estudo.
+
+    O catalogo e criado pelo Administrador e depois ESCOLHIDO pelos ambientes
+    (AmbienteEstudo). Sem esse vinculo o estudo nao aparece para ninguem.
+    - ambiente_id informado -> apenas ele
+    - None                  -> todos os ambientes ativos
+    """
+    from ..models.turma import Ambiente
+    from sqlmodel import select
+    if ambiente_id is not None:
+        a = s.exec(select(Ambiente).where(Ambiente.id == ambiente_id)).first()
+        return [a] if a else []
+    return list(s.exec(select(Ambiente).where(Ambiente.is_active == True)).all())
+
+
+def gravar(dados: dict, engine, ambiente_id: Optional[int] = None) -> str:
     from sqlmodel import Session, select
     from ..models.study import Study, StudyVersion, StudyStatus
+    from ..models.turma import AmbienteEstudo
 
     titulo = f"Cap. {dados['capitulo']:02d} — {dados['titulo']}"
     with Session(engine) as s:
-        if s.exec(select(Study).where(Study.title == titulo)).first():
-            return "ja existia"
-        st = Study(
-            title=titulo,
-            description=f"Parte {dados['parte']} — Estudo Dirigido (Doutrinas Cristas / Grudem)",
-            category=dados["categoria"],
-            level=dados["nivel"],
-            status=StudyStatus.APROVADO,
-            aprovado_por=1,
-        )
-        s.add(st)
-        s.flush()
-        sv = StudyVersion(
-            study_id=st.id,
-            version=1,
-            content_md=dados["content_md"],
-            questions_json=json.dumps(dados["questions"], ensure_ascii=False),
-            target_audience="all",
-        )
-        s.add(sv)
-        s.commit()
-        return f"gravado (study={st.id}, version={sv.id})"
+        existente = s.exec(select(Study).where(Study.title == titulo)).first()
+        if existente:
+            st = existente
+            novo = False
+        else:
+            st = Study(
+                title=titulo,
+                description=(f"Parte {dados['parte']} — Estudo Dirigido "
+                             f"(Doutrinas Cristas / Grudem)"),
+                category=dados["categoria"],
+                level=dados["nivel"],
+                status=StudyStatus.APROVADO,
+                aprovado_por=_admin_id(s),
+            )
+            s.add(st)
+            s.flush()
+            sv = StudyVersion(
+                study_id=st.id,
+                version=1,
+                content_md=dados["content_md"],
+                questions_json=json.dumps(dados["questions"], ensure_ascii=False),
+                target_audience="all",
+            )
+            s.add(sv)
+            s.flush()
+            novo = True
 
+        # vincula ao(s) ambiente(s): sem isso o estudo nao e servido a ninguem
+        vinculados = 0
+        for amb in _ambientes_alvo(s, ambiente_id):
+            ja = s.exec(select(AmbienteEstudo).where(
+                AmbienteEstudo.ambiente_id == amb.id,
+                AmbienteEstudo.study_id == st.id)).first()
+            if not ja:
+                s.add(AmbienteEstudo(ambiente_id=amb.id, study_id=st.id,
+                                     escolhido_por=_admin_id(s)))
+                vinculados += 1
+        s.commit()
+        base = "gravado" if novo else "ja existia (versao mantida)"
+        return f"{base}; vinculado a {vinculados} ambiente(s)"
 
 # ── CLI ─────────────────────────────────────────────────────────────────────
 def main() -> int:
@@ -281,6 +323,8 @@ def main() -> int:
     ap.add_argument("--apply", action="store_true", help="grava no banco do .env")
     ap.add_argument("--autoteste", action="store_true", help="grava em SQLite descartavel")
     ap.add_argument("--json", action="store_true", help="imprime as questoes do cap. 1")
+    ap.add_argument("--ambiente", type=int, default=None,
+                    help="id do ambiente que recebera os estudos (padrao: todos os ativos)")
     args = ap.parse_args()
 
     alvos = [args.capitulo] if args.capitulo else list(range(1, 35))
@@ -314,7 +358,7 @@ def main() -> int:
         SQLModel.metadata.create_all(eng)
         print(f"\n--- AUTOTESTE (SQLite descartavel) ---")
         for c, p in planos:
-            print(f"  cap {c:02d}: {gravar(p, eng)}")
+            print(f"  cap {c:02d}: {gravar(p, eng, ambiente_id=args.ambiente)}")
         from ..models.study import Study, StudyVersion
         with Session(eng) as s:
             ns = len(s.exec(select(Study)).all())
@@ -342,7 +386,7 @@ def main() -> int:
         print(f"\n--- APPLY ({str(config.db_url).split('@')[-1]}) ---")
         eng = create_engine(config.db_url)
         for c, p in planos:
-            print(f"  cap {c:02d}: {gravar(p, eng)}")
+            print(f"  cap {c:02d}: {gravar(p, eng, ambiente_id=args.ambiente)}")
 
     if not (args.apply or args.autoteste):
         print("\n(dry-run: nada gravado. Use --apply ou --autoteste.)")

@@ -82,6 +82,52 @@ Depois, **troque as senhas** dos usuarios de demonstracao (o seed cria todos com
 
 ---
 
+## 5.5. Importar o conteúdo real (34 capítulos do Grudem)
+
+O seed cria o catalogo com 5 estudos de exemplo (poucos parágrafos cada). O
+material de verdade — 34 capítulos do *Doutrinas Cristãs* (Grudem), com 341
+questões — vem do importador:
+
+```bash
+# 1. primeiro confira o que sera importado (NAO grava nada)
+docker compose -f deploy/docker-compose.producao.yml exec app \
+  python -m gsi_ebd.scripts.importar_estudo_dirigido --dry-run
+
+# 2. veja as questoes de um capitulo, para conferir a qualidade
+docker compose -f deploy/docker-compose.producao.yml exec app \
+  python -m gsi_ebd.scripts.importar_estudo_dirigido --capitulo 1 --json
+
+# 3. importar de verdade (grava no banco)
+docker compose -f deploy/docker-compose.producao.yml exec app \
+  python -m gsi_ebd.scripts.importar_estudo_dirigido --apply
+
+# 4. ou importar para UM ambiente especifico
+docker compose -f deploy/docker-compose.producao.yml exec app \
+  python -m gsi_ebd.scripts.importar_estudo_dirigido --apply --ambiente 1
+```
+
+O importador e **idempotente**: rodar duas vezes nao duplica nem sobrescreve as
+versoes ja criadas.
+
+**O que ele grava:** um `Study` + `StudyVersion` por capítulo, com 12 questões
+por capítulo (1 objetiva com gabarito, 1 de preenchimento e 10 abertas de
+aquecimento, dissertação, reflexão e síntese).
+
+**Importante:** sem `--apply` nada é gravado.
+
+**Sobre o vínculo com o ambiente:** o catálogo é criado pelo Administrador e
+depois *escolhido* por cada ambiente (`AmbienteEstudo`). Por padrão o importador
+vincula os estudos a **todos os ambientes ativos** — sem esse vínculo o estudo
+existiria no banco mas não apareceria para ninguém.
+
+> O texto integral dos capítulos (tradução do livro) **não** é importado: por
+> direitos autorais, a plataforma serve o plano de estudo (definições, passagens,
+> objetivos e questões), que é autossuficiente.
+
+---
+
+---
+
 ## 6. Verificar
 
 ```bash
