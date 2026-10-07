@@ -85,6 +85,28 @@ done
 echo; echo "6. Estado dos servicos"
 $COMPOSE ps
 
+# o app precisa estar DE PE antes de rodar seed/import (exec -T falha se ele
+# estiver reiniciando — foi o que aconteceu no primeiro deploy)
+echo; echo "6b. Confirmando que o app esta de pe"
+APP_OK=0
+for i in $(seq 1 30); do
+  ESTADO=$($COMPOSE ps --format json app 2>/dev/null | grep -o '"State":"[a-z]*"' | head -1 || echo "")
+  if echo "$ESTADO" | grep -q running; then
+    # running nao basta: pode estar em loop de restart. Testa se responde.
+    if $COMPOSE exec -T app python -c "import gsi_ebd.gsi_ebd" >/dev/null 2>&1; then
+      APP_OK=1; ok "app de pe e o codigo importa"; break
+    fi
+  fi
+  aviso "tentativa $i/30: app ainda nao esta pronto"
+  sleep 4
+done
+
+if [ "$APP_OK" != "1" ]; then
+  erro "o app NAO subiu. Logs:"
+  $COMPOSE logs --tail 40 app || true
+  morrer "corrija o app antes de popular o banco (seed e import dependem dele)"
+fi
+
 # ── 7. popular o banco (so se estiver vazio) ────────────────────────────────
 echo; echo "7. Populando o banco"
 $COMPOSE exec -T app python -m gsi_ebd.data.seed || aviso "seed falhou (talvez ja populado)"

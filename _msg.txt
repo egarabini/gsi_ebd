@@ -1,0 +1,36 @@
+fix(deploy): comando do container usava flags inexistentes do Reflex
+
+PROBLEMA RELATADO EM PRODUCAO (logs do container didasko_app):
+    Usage: reflex run [OPTIONS]
+    Error: No such option '--host'. Did you mean '--backend-host'?
+
+CAUSA: escrevi o CMD do Dockerfile com --host --port, que NAO existem nesta
+versao do Reflex. O container reiniciava em loop, e por isso o seed e a
+importacao falhavam ("Container is restarting, wait until the container is
+running") — os dois rodam com exec DENTRO do container do app.
+
+CORRECAO no CMD:
+    antes: reflex run --env prod --host 0.0.0.0 --port 3000
+    agora: reflex run --env prod --single-port --backend-host 0.0.0.0 --frontend-port 3000
+
+O --single-port e a melhor opcao para o nosso caso: faz frontend e backend
+responderem na MESMA porta (3000), que e exatamente o que o Traefik precisa para
+rotear o dominio a um unico alvo. Sem ele, frontend (3000) e backend (8000)
+ficariam em portas separadas e o proxy so alcancaria uma.
+
+Flags conferidas no proprio CLI (reflex run --help): --env, --frontend-only,
+--backend-only, --frontend-port, --backend-port, --backend-host, --single-port.
+
+Tambem removidas as env REFLEX_HOST/REFLEX_PORT do Dockerfile: nao existem, o
+host e a porta vem do comando.
+
+SEGUNDA CAUSA (preventiva): requirements.txt pedia 'reflex>=0.4.0', mas o projeto
+foi desenvolvido no 0.9.5.post2. O build da imagem instalava a versao mais
+recente do PyPI (hoje 0.9.9), que pode ter CLI e APIs diferentes. Fixado em
+reflex==0.9.5.post2 (confirmado que existe no PyPI). Sem o pin, o deploy fica
+sujeito a quebrar sozinho a cada release do Reflex.
+
+TERCEIRA CORRECAO no subir.sh: antes de rodar seed e importacao, o script agora
+confirma que o app esta DE PE (30 tentativas) e que o codigo importa. Se nao
+estiver, imprime os logs e ABORTA — em vez de tentar executar dentro de um
+container que reinicia, que foi o que produziu o "seed falhou" enganoso.

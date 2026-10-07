@@ -1,4 +1,7 @@
-reflex>=0.4.0
+# FIXADO: o projeto foi desenvolvido no 0.9.5.post2. Sem o pin, o build da imagem
+# instala a versao mais recente do PyPI, que pode ter CLI/API diferentes — foi
+# exatamente o que quebrou o deploy (o CMD usava --host, que nao existe).
+reflex==0.9.5.post2
 sqlmodel>=0.0.22
 psycopg2-binary>=2.9.9
 python-dotenv>=1.0.1

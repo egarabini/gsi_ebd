@@ -2,9 +2,9 @@
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    REFLEX_HOST=0.0.0.0 \
-    REFLEX_PORT=3000
+    PYTHONDONTWRITEBYTECODE=1
+# NOTA: REFLEX_HOST/REFLEX_PORT nao existem — o host e a porta sao definidos no
+# comando (--backend-host, --frontend-port, --backend-port, --single-port).
 
 # dependencias de sistema (build + node para o frontend do Reflex)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -29,5 +29,9 @@ RUN reflex export --frontend-only --no-zip 2>/dev/null || true
 
 EXPOSE 3000
 
-# Em producao o Reflex roda em modo producao servindo frontend + backend.
-CMD ["reflex", "run", "--env", "prod", "--host", "0.0.0.0", "--port", "3000"]
+# --single-port faz frontend e backend responderem na MESMA porta (3000), que e
+# o que o Traefik precisa para rotear o dominio para um unico alvo.
+# ATENCAO: nao usar --host/--port (nao existem nesta versao do Reflex; o CLI
+# responde "No such option '--host'"). As opcoes validas sao --backend-host,
+# --frontend-port, --backend-port e --single-port.
+CMD ["reflex", "run", "--env", "prod", "--single-port", "--backend-host", "0.0.0.0", "--frontend-port", "3000"]
