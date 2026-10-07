@@ -100,12 +100,16 @@ services:
       #
       # Origem: clone do repo EVANGELICOS em <projeto>/conteudo (o deploy usa o
       # repo gsi_ebd, que tem apenas o codigo — o conteudo vive no outro repo).
-      # O caminho e relativo a ESTE arquivo (deploy/), por isso ./conteudo/.
+      # ATENCAO: o caminho e relativo a ESTE arquivo, que esta em deploy/.
+      # Por isso ../conteudo/ (a raiz do projeto e o diretorio pai de deploy/).
+      # Com ./conteudo/ o Docker procura em deploy/conteudo/ — que nao existe, e
+      # o bind mount cria um diretorio VAZIO em vez de falhar. O sintoma foi o
+      # importador reclamar "nao contem DOUTRINAS_CRISTAS. Conteudo encontrado: []".
       #
       # :ro e deliberado. O importador apenas LE os planos. E sao ~15 MB de
       # traducao de obra protegida por direitos autorais: nao devem ser
       # embutidos na imagem (evita redistribuicao via registry) nem gravados.
-      - ./conteudo/ESTUDOS_BIBLICOS:/conteudo/ESTUDOS_BIBLICOS:ro
+      - ../conteudo/ESTUDOS_BIBLICOS:/conteudo/ESTUDOS_BIBLICOS:ro
     labels:
       - traefik.enable=true
       - traefik.http.routers.didasko.rule=Host(`didasko.app.br`) || Host(`www.didasko.app.br`)
