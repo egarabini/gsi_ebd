@@ -13,3 +13,6 @@ __pycache__/
 node_modules/
 assets/uploaded/
 .web/
+
+# temporarios de mensagem de commit
+_msg.txt
