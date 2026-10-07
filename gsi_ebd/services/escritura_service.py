@@ -32,7 +32,11 @@ from typing import List, Optional
 CHROMA_HOST = os.getenv("CHROMA_HOST", "localhost")
 CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8001"))
 COLLECTION_NAME = os.getenv("BIBLIA_COLLECTION", "biblia_pt_br")
-EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+# Embedding: usamos o PADRAO DO SERVIDOR ChromaDB (ONNXMiniLM_L6_V2), nao o
+# sentence-transformers do PASTOR_IA. Motivo: sentence-transformers arrasta o
+# torch (~2 GB) para dentro da imagem da aplicacao. Como a colecao usa o
+# embedding padrao, o servidor calcula os vetores e o cliente so envia texto.
+# IMPORTANTE: app e carga do corpus precisam usar O MESMO embedding.
 RAG_TOP_K = 5
 RAG_SCORE_MIN = 0.55
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
@@ -93,13 +97,12 @@ class EscrituraService:
             return self._colecao
         try:
             import chromadb
-            from chromadb.utils import embedding_functions
 
             client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
-            fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-                model_name=EMBEDDING_MODEL
-            )
-            self._colecao = client.get_collection(name=COLLECTION_NAME, embedding_function=fn)
+            # sem embedding_function: o SERVIDOR usa o padrao dele ao receber
+            # texto puro. Isso mantem a imagem leve e a query coerente com o
+            # indice, desde que a colecao tenha sido criada com o mesmo padrao.
+            self._colecao = client.get_collection(name=COLLECTION_NAME)
         except Exception:
             # sem ChromaDB no ar: a licao continua funcionando, so sem Escritura citada
             self._indisponivel = True

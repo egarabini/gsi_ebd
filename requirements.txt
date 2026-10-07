@@ -1,13 +1,41 @@
-# FIXADO: o projeto foi desenvolvido no 0.9.5.post2. Sem o pin, o build da imagem
-# instala a versao mais recente do PyPI, que pode ter CLI/API diferentes — foi
-# exatamente o que quebrou o deploy (o CMD usava --host, que nao existe).
+# ---------------------------------------------------------------------------
+# Dependencias do GSI-EBD / Didasko
+#
+# ATENCAO: este arquivo precisa listar TAMBEM as dependencias que o codigo usa
+# indiretamente. O primeiro deploy falhou porque `greenlet` (exigido pelo
+# SQLAlchemy asyncio) existia no venv local por via transitiva, mas nao aqui —
+# e o container quebrava no import do reflex com ModuleNotFoundError.
+# Regra: se o codigo importa, declare.
+# ---------------------------------------------------------------------------
+
+# --- Aplicacao (Reflex) ---
+# FIXADO: o projeto foi desenvolvido no 0.9.5.post2. Sem o pin, o build instala a
+# versao mais recente do PyPI, com CLI/API potencialmente diferentes.
 reflex==0.9.5.post2
+
+# --- Banco de dados ---
 sqlmodel>=0.0.22
+# o extra [asyncio] garante o greenlet, exigido pelo SQLAlchemy async (o Reflex
+# usa). Sem ele: ImportError no import do reflex.
+sqlalchemy[asyncio]>=2.0.30
 psycopg2-binary>=2.9.9
+
+# --- Configuracao ---
 python-dotenv>=1.0.1
+
+# --- Autenticacao ---
 passlib>=1.7.4
 bcrypt>=4.1.0
+
+# --- IA (agentes e apoio ao instrutor) ---
 langchain>=0.2.0
 langchain-community>=0.2.0
+langchain-core>=0.2.0
 ollama>=0.3.0
 httpx>=0.27.0
+
+# --- RAG biblico (Escritura verificada na licao) ---
+# O cliente e leve; o servidor roda em container proprio (imagem chromadb/chroma)
+# e o corpus e indexado pelo proprio servidor com o embedding padrao dele
+# (ONNXMiniLM_L6_V2), evitando trazer torch (~2 GB) para a imagem da aplicacao.
+chromadb>=0.5
