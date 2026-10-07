@@ -49,6 +49,8 @@ services:
         condition: service_healthy
       chromadb:
         condition: service_started
+      ollama:
+        condition: service_started
     environment:
       # o app fala com o banco pelo nome do servico, na rede interna
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
@@ -67,7 +69,7 @@ services:
       CHROMA_HOST: chromadb
       CHROMA_PORT: 8000
       BIBLIA_COLLECTION: biblia_pt_br
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3}
     labels:
       - traefik.enable=true
@@ -110,10 +112,28 @@ services:
     networks:
       - didasko
 
+  # Ollama: LLM local. NAO e exposto ao mundo (fica so na rede interna).
+  # Serve dois papeis: (a) parecer preliminar das respostas abertas para o
+  # instrutor confirmar; (b) explicacoes de contexto. A Escritura NAO vem daqui —
+  # ela vem do corpus no ChromaDB, para nao haver versiculo inventado.
+  ollama:
+    image: ollama/ollama:latest
+    container_name: didasko_ollama
+    restart: unless-stopped
+    environment:
+      # desliga telemetria e mantem os modelos no volume
+      OLLAMA_KEEP_ALIVE: "24h"
+      OLLAMA_NUM_PARALLEL: "1"
+    volumes:
+      - ollama_models:/root/.ollama
+    networks:
+      - didasko
+
 volumes:
   pgdata:
   letsencrypt:
   chroma_data:
+  ollama_models:
 
 networks:
   didasko:

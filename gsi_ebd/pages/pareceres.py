@@ -23,7 +23,7 @@ def _parecer(item: dict) -> rx.Component:
             rx.text("Parecer do instrutor:", size="1", weight="bold", color="gray"),
             rx.callout(item["parecer"], icon="user-check", color_scheme="green",
                        variant="surface"),
-            rx.text("— " + item["instrutor"], size="1", color="gray"),
+            rx.text("— ", item["instrutor"], size="1", color="gray"),
             spacing="2", width="100%",
         ),
         width="100%",

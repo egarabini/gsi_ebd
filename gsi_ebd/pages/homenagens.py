@@ -60,7 +60,7 @@ def _card(h: dict) -> rx.Component:
             ),
             rx.cond(
                 h["referencia"] != "",
-                rx.text("— " + h["referencia"], size="2", color="#7c3aed", weight="medium"),
+                rx.text("— ", h["referencia"], size="2", color="#7c3aed", weight="medium"),
             ),
             spacing="3",
             align="start",

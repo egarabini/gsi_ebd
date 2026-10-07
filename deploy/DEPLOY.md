@@ -173,6 +173,50 @@ inativos. Se quiser ligá-los, suba um serviço Ollama com volume próprio e apo
 
 ---
 
+## 5.7. Ligar a IA local (Ollama)
+
+O Ollama aparece em dois lugares do produto:
+
+1. **Parecer preliminar** das respostas abertas, na tela `/revisao` — o instrutor
+   clica em "Sugerir com IA", a IA prepara um parecer, e **o instrutor revisa,
+   edita ou descarta** antes de enviar ao aluno.
+2. Explicações de contexto (quando ligadas).
+
+> **A Escritura não vem do modelo.** O texto bíblico vem do corpus no ChromaDB
+> (seção 5.6). O modelo é instruído a não citar versículo de memória — é assim
+> que se evita alucinação em conteúdo doutrinário.
+
+### Baixar o modelo (uma vez, depois de subir)
+
+```bash
+docker compose -f deploy/docker-compose.producao.yml exec ollama \
+  ollama pull llama3
+```
+
+Confira que baixou:
+
+```bash
+docker compose -f deploy/docker-compose.producao.yml exec ollama ollama list
+```
+
+### Sobre o tamanho do modelo
+
+O VPS tem **12 GB de RAM**. O `llama3` (8B, ~4,7 GB) roda com folga. Modelos
+grandes (70B) **não cabem** — evite.
+
+Se quiser um modelo melhor em português, `mistral-nemo` ou `gemma2:9b` são boas
+alternativas; troque o `OLLAMA_MODEL` no `.env` e baixe o correspondente.
+
+### Sem o Ollama
+
+Se o serviço estiver parado, **nada quebra**: o botão "Sugerir com IA" mostra
+"Ollama não respondeu" e o instrutor escreve o parecer normalmente. A IA é um
+apoio, não uma dependência.
+
+---
+
+---
+
 ## 6. Verificar
 
 ```bash

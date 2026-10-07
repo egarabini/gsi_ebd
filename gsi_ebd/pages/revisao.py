@@ -23,6 +23,63 @@ def _item_pendente(item: dict) -> rx.Component:
             rx.cond(
                 aberto,
                 rx.vstack(
+                    # ── Apoio da IA: parecer PRELIMINAR ────────────────────────
+                    # A IA nunca fala com o aluno: ela sugere, o instrutor decide.
+                    rx.hstack(
+                        rx.button(
+                            rx.icon("sparkles", size=15),
+                            rx.cond(RevisaoState.sugerindo,
+                                    "Consultando...", "Sugerir com IA"),
+                            on_click=RevisaoState.pedir_sugestao,
+                            disabled=RevisaoState.sugerindo,
+                            variant="soft", color_scheme="violet", size="2",
+                        ),
+                        rx.cond(
+                            RevisaoState.sugestao_erro != "",
+                            rx.text(RevisaoState.sugestao_erro, size="1", color="orange"),
+                        ),
+                        spacing="2", align="center",
+                    ),
+                    rx.cond(
+                        RevisaoState.sugestao_disponivel,
+                        rx.card(
+                            rx.vstack(
+                                rx.hstack(
+                                    rx.icon("sparkles", size=16, color="#7c3aed"),
+                                    rx.text("Sugestão preliminar da IA", size="2",
+                                            weight="bold", color="#1e1b4b"),
+                                    rx.badge(RevisaoState.sugestao_aderencia,
+                                             color_scheme="violet", variant="soft", size="1"),
+                                    spacing="2", align="center",
+                                ),
+                                rx.cond(
+                                    RevisaoState.sugestao_comentario != "",
+                                    rx.text(RevisaoState.sugestao_comentario, size="2",
+                                            color="gray"),
+                                ),
+                                rx.cond(
+                                    RevisaoState.sugestao_sugestao != "",
+                                    rx.callout(RevisaoState.sugestao_sugestao,
+                                               icon="lightbulb", variant="surface",
+                                               color_scheme="violet"),
+                                ),
+                                rx.hstack(
+                                    rx.button("Usar sugestão", on_click=RevisaoState.usar_sugestao,
+                                              variant="soft", color_scheme="violet", size="1"),
+                                    rx.button("Descartar", on_click=RevisaoState.descartar_sugestao,
+                                              variant="ghost", size="1"),
+                                    spacing="2",
+                                ),
+                                rx.text(
+                                    "Revise antes de enviar — o parecer é seu, não da IA.",
+                                    size="1", color="gray", font_style="italic",
+                                ),
+                                spacing="2", width="100%",
+                            ),
+                            width="100%",
+                            background="#faf8ff",
+                        ),
+                    ),
                     rx.text_area(
                         placeholder="Escreva seu parecer para o aluno...",
                         value=RevisaoState.parecer_texto,
@@ -101,7 +158,7 @@ def revisao_page() -> rx.Component:
                     ),
                     rx.card(
                         rx.vstack(
-                            rx.icon("check-circle", size=40, color="green"),
+                            rx.icon("circle-check", size=40, color="green"),
                             rx.heading("Tudo em dia!", size="4"),
                             rx.text("Nenhuma resposta aguardando sua correcao no momento.",
                                     color="gray", size="2"),
