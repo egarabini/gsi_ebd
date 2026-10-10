@@ -29,6 +29,32 @@ git clone https://github.com/egarabini/gsi_ebd.git didasko
 cd didasko
 ```
 
+### 2.1. Trazer o conteudo dos estudos (obrigatorio)
+
+Codigo e conteudo ficam em **repositorios separados**. O compose espera o
+conteudo em `conteudo/`, ao lado de `deploy/`:
+
+```bash
+git clone https://github.com/egarabini/EVANGELICOS.git conteudo
+```
+
+Confira que a arvore chegou:
+
+```bash
+ls conteudo/ESTUDOS_BIBLICOS/DOUTRINAS_CRISTAS/estudo_dirigido | head
+```
+
+> **Por que isso importa:** o compose monta `../conteudo/ESTUDOS_BIBLICOS` em
+> `/conteudo/ESTUDOS_BIBLICOS:ro`. Se a origem **nao existir**, o Docker **nao
+> falha** — ele cria um diretorio **vazio** ali. O sintoma so aparece depois, no
+> importador, como `nao contem DOUTRINAS_CRISTAS. Conteudo encontrado: []`.
+> O `subir.sh` confere isso duas vezes: no passo 1 (no disco) e no passo 8
+> (dentro do container). Se voce usa os comandos manuais, o clone e por sua conta.
+
+> O conteudo e traducao de obra protegida por direitos autorais: fica fora da
+> imagem e fora do versionamento do repo de codigo (`conteudo/` esta no
+> `.gitignore`).
+
 ---
 
 ## 3. Configurar as variaveis

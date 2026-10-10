@@ -35,6 +35,26 @@ ok "docker e docker compose presentes"
 [ -f .env ] || morrer ".env nao encontrado. Copie deploy/.env.producao.example para .env e preencha"
 ok ".env presente"
 
+# O compose monta ../conteudo/ESTUDOS_BIBLICOS (relativo a deploy/) em /conteudo.
+# O conteudo vive em OUTRO repositorio (EVANGELICOS), clonado em conteudo/.
+# Se a ORIGEM do bind mount nao existir, o Docker NAO falha: ele cria um
+# diretorio VAZIO. O erro so aparece depois, no importador, como
+# "nao contem DOUTRINAS_CRISTAS. Conteudo encontrado: []" — foi o que aconteceu
+# no primeiro deploy, e custou uma rodada inteira de diagnostico.
+CONTEUDO="conteudo/ESTUDOS_BIBLICOS"
+CONTEUDO_ALVO="$CONTEUDO/DOUTRINAS_CRISTAS/estudo_dirigido"
+if [ ! -d "$CONTEUDO_ALVO" ]; then
+  aviso "$CONTEUDO_ALVO nao encontrado"
+  if [ -d conteudo/.git ]; then
+    morrer "existe um clone em conteudo/ mas sem a arvore esperada. Confira: git -C conteudo status"
+  fi
+  aviso "clonando o repositorio de conteudo (EVANGELICOS, publico) em conteudo/"
+  git clone --depth 1 https://github.com/egarabini/EVANGELICOS.git conteudo \
+    || morrer "nao consegui clonar o conteudo. Clone na mao: git clone https://github.com/egarabini/EVANGELICOS.git conteudo"
+  [ -d "$CONTEUDO_ALVO" ] || morrer "o clone nao trouxe $CONTEUDO_ALVO"
+fi
+ok "conteudo presente em $CONTEUDO"
+
 # ── 2. variaveis obrigatorias ───────────────────────────────────────────────
 echo; echo "2. Variaveis obrigatorias"
 faltando=()
@@ -113,6 +133,14 @@ $COMPOSE exec -T app python -m gsi_ebd.data.seed || aviso "seed falhou (talvez j
 
 # ── 8. importar o conteudo (34 capitulos) ───────────────────────────────────
 echo; echo "8. Importando os 34 capitulos do Doutrinas Cristas"
+
+# Confirma que o CONTAINER enxerga o conteudo. O Docker nao avisa quando o bind
+# mount resolve para uma pasta inexistente: cria uma vazia e segue. Testar de
+# dentro do container e o unico jeito confiavel de saber que o mount valeu.
+$COMPOSE exec -T app test -d /conteudo/ESTUDOS_BIBLICOS/DOUTRINAS_CRISTAS/estudo_dirigido \
+  || morrer "/conteudo/ESTUDOS_BIBLICOS chegou VAZIO no container (bind mount sem origem). Veja o caminho resolvido com: $COMPOSE config | grep -A4 'volumes:'"
+ok "o container enxerga o conteudo em /conteudo/ESTUDOS_BIBLICOS"
+
 $COMPOSE exec -T app python -m gsi_ebd.scripts.importar_estudo_dirigido --dry-run | tail -5
 echo
 read -r -p "Importar agora? (s/n) " RESP
