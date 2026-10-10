@@ -19,10 +19,22 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 2. codigo da aplicacao
+# 2. Modelo ONNX do embedding padrao do ChromaDB (all-MiniLM-L6-v2, ~80 MB).
+#    O EscrituraService consulta o corpus com o DefaultEmbeddingFunction, que roda
+#    NO CLIENTE (o onnxruntime vem como dependencia do proprio chromadb) e baixa o
+#    modelo de forma PREGUICOSA: so na primeira consulta de verdade (ver
+#    ONNXMiniLM_L6_V2.__call__). Sem este passo, a primeira licao tentaria baixar
+#    ~80 MB da internet e, se nao conseguisse, sairia sem o bloco de Escritura —
+#    em silencio, porque o servico degrada de proposito. Aqui o modelo entra na
+#    IMAGEM: o runtime fica previsivel e nao depende de rede.
+#    ATENCAO: e obrigatorio CHAMAR a funcao, nao apenas instanciar — o __init__
+#    nao baixa nada, o download acontece no __call__.
+RUN python -c "from chromadb.utils.embedding_functions import DefaultEmbeddingFunction as D; D()(['aquecimento'])"
+
+# 3. codigo da aplicacao
 COPY . .
 
-# 3. build do frontend Reflex (gera .web) durante a imagem, para o start ser rapido.
+# 4. build do frontend Reflex (gera .web) durante a imagem, para o start ser rapido.
 #    O projeto ja tem a estrutura pronta, entao nao usamos 'reflex init'
 #    (que sobrescreveria rxconfig.py e gsi_ebd.py).
 RUN reflex export --frontend-only --no-zip 2>/dev/null || true

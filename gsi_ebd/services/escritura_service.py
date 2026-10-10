@@ -32,11 +32,17 @@ from typing import List, Optional
 CHROMA_HOST = os.getenv("CHROMA_HOST", "localhost")
 CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8001"))
 COLLECTION_NAME = os.getenv("BIBLIA_COLLECTION", "biblia_pt_br")
-# Embedding: usamos o PADRAO DO SERVIDOR ChromaDB (ONNXMiniLM_L6_V2), nao o
-# sentence-transformers do PASTOR_IA. Motivo: sentence-transformers arrasta o
-# torch (~2 GB) para dentro da imagem da aplicacao. Como a colecao usa o
-# embedding padrao, o servidor calcula os vetores e o cliente so envia texto.
-# IMPORTANTE: app e carga do corpus precisam usar O MESMO embedding.
+# Embedding: nao passamos embedding_function na consulta, entao o chromadb usa o
+# DefaultEmbeddingFunction dele (ONNXMiniLM_L6_V2, 384 dims).
+#
+# CORRECAO DE ENTENDIMENTO: o chromadb calcula o vetor NO CLIENTE, nao no
+# servidor — "nao passar embedding_function" nao significa "o servidor resolve",
+# significa "o cliente usa o modelo padrao". Isso importa porque a carga do corpus
+# tem de usar EXATAMENTE o mesmo modelo: com modelos diferentes o indice e a
+# consulta ficam em espacos vetoriais distintos, e como ambos tem 384 dimensoes
+# nao ha erro nenhum — so similaridade sem sentido.
+# A carga e o gsi_ebd/scripts/... usam PASTOR_IA/rag/biblia/load_biblia.py, que
+# foi alinhado ao DefaultEmbeddingFunction por causa disto.
 RAG_TOP_K = 5
 RAG_SCORE_MIN = 0.55
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
@@ -99,9 +105,9 @@ class EscrituraService:
             import chromadb
 
             client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
-            # sem embedding_function: o SERVIDOR usa o padrao dele ao receber
-            # texto puro. Isso mantem a imagem leve e a query coerente com o
-            # indice, desde que a colecao tenha sido criada com o mesmo padrao.
+            # sem embedding_function: o CLIENTE usa o DefaultEmbeddingFunction
+            # (o servidor nao vetoriza nada). A colecao precisa ter sido criada
+            # com esse mesmo modelo — ver o comentario no topo do arquivo.
             self._colecao = client.get_collection(name=COLLECTION_NAME)
         except Exception:
             # sem ChromaDB no ar: a licao continua funcionando, so sem Escritura citada

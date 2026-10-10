@@ -168,38 +168,64 @@ precisa ter o corpus indexado.
 
 O corpus e o script de carga estão no subprojeto **PASTOR_IA**
 (`ESTUDOS_BIBLICOS/PASTOR_IA/`): a Almeida Corrigida Fiel de 2007, com os
-comentários de Matthew Henry.
+comentários de Matthew Henry. O **script** chega junto com o clone do `conteudo/`
+(seção 2.1) — não é preciso copiá-lo.
+
+### 1) Copiar o texto do corpus (378 MB)
+
+O texto em si (o clone do BibleMarkdown) está no `.gitignore` do repositório de
+conteúdo: são 378 MB e **não vêm** no `git clone`. Copie da sua máquina para
+dentro do clone do conteúdo na VPS:
 
 ```bash
-# 1. copiar o corpus e o script de carga para a VPS (do seu computador)
-scp -r ESTUDOS_BIBLICOS/PASTOR_IA/rag/biblia \
-       ESTUDOS_BIBLICOS/PASTOR_IA/requirements.txt \
-       eduardo@IP_DA_VPS:~/didasko/corpus/
-
-# ou, se preferir direto do GitHub (o corpus e um clone publico):
-#   o BibleMarkdown vem de github.com/ameisehaufen/BibleMarkdown
-
-# 2. instalar as dependencias de embeddings e carregar (na VPS)
-docker compose --env-file .env -f deploy/docker-compose.producao.yml exec app \
-  pip install -q chromadb sentence-transformers
-
-docker compose --env-file .env -f deploy/docker-compose.producao.yml exec app \
-  python /app/corpus/biblia/load_biblia.py --benchmark
+scp -r ESTUDOS_BIBLICOS/PASTOR_IA/rag/biblia/sources/BibleMarkdown \
+       eduardo@IP_DA_VPS:~/didasko/conteudo/ESTUDOS_BIBLICOS/PASTOR_IA/rag/biblia/sources/
 ```
+
+O diretório é ignorado pelo git também na VPS, então `git -C conteudo status`
+continua limpo.
+
+### 2) Indexar (de dentro do container do app)
+
+**Nada a instalar.** O `chromadb` já está no `requirements.txt`, o `onnxruntime`
+vem como dependência dele, e o modelo de embedding (`all-MiniLM-L6-v2`, ~80 MB) já
+está **dentro da imagem** — ver `deploy/Dockerfile`.
+
+```bash
+COMPOSE="docker compose --env-file .env -f deploy/docker-compose.producao.yml"
+
+$COMPOSE exec app python /conteudo/ESTUDOS_BIBLICOS/PASTOR_IA/rag/biblia/load_biblia.py \
+  --source /conteudo/ESTUDOS_BIBLICOS/PASTOR_IA/rag/biblia/sources/BibleMarkdown \
+  --recriar --benchmark
+```
+
+O script e o corpus aparecem no container por causa do volume `:ro` do `conteudo/`.
+
+> **Por que `--recriar` importa.** Ele apaga a coleção antes de indexar. Foi o que
+> corrigiu um conflito real: a carga indexava com
+> `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` enquanto a consulta
+> do app usa o embedding padrão do ChromaDB. Como os dois modelos têm **384
+> dimensões**, o banco não acusa erro nenhum — apenas devolve similaridade sem
+> sentido, tudo cai abaixo do corte de score, e a lição sai sem o bloco de
+> Escritura. Falha silenciosa, em ponta oposta à causa.
 
 O `--benchmark` roda o teste embutido: pergunta "O que João 3:16 diz?" e confere
 se o versículo volta correto.
 
 > **Enquanto o corpus não estiver carregado**, a lição funciona normalmente — o
 > bloco de Escritura simplesmente não aparece. A integração degrada em silêncio,
-> de propósito: nenhuma lição quebra por causa do RAG.
+> de propósito: nenhuma lição quebra por causa do RAG. O efeito colateral é que um
+> corpus **mal indexado** também não faz barulho: se a Escritura não aparecer em
+> lição nenhuma, desconfie do índice antes de desconfiar do código.
 
-### Sobre o LLM (opcional)
+### Sobre o LLM (opcional, mas já vem no compose)
 
-O `Ollama` **não** está neste compose. Sem ele, a Escritura aparece normalmente
-(ela vem do corpus, não do modelo); só os recursos de explicação por IA ficam
-inativos. Se quiser ligá-los, suba um serviço Ollama com volume próprio e aponte
-`OLLAMA_BASE_URL` para ele.
+O `ollama` **está** neste compose (serviço `ollama`, sem porta exposta ao mundo) e
+o `app` declara `depends_on` nele. Falta apenas baixar o modelo — seção 5.7.
+
+Sem o modelo baixado, a Escritura aparece normalmente (ela vem do corpus, não do
+modelo) e só os recursos de explicação por IA ficam inativos. A IA é apoio, nunca
+dependência.
 
 ---
 
@@ -318,5 +344,8 @@ docker compose --env-file .env -f deploy/docker-compose.producao.yml down -v
   Para acessar de fora, use um tunel SSH ou um `docker exec`.
 - **HTTPS**: renovado automaticamente pelo Traefik.
 - **Backup**: o volume `pgdata` guarda os dados. Agende o backup acima no cron.
-- **Ollama**: nao esta neste compose. Se quiser a IA local depois, adicione um
-  servico `ollama` com volume proprio.
+- **Ollama**: ja esta neste compose (servico `ollama`, so na rede interna). O que
+  falta e baixar o modelo — secao 5.7.
+- **Conteudo**: o texto biblico (378 MB) e o material dos estudos vem do repo
+  `EVANGELICOS`, clonado em `conteudo/` e montado `:ro` (secoes 2.1 e 5.6). Ele
+  **nao** entra na imagem nem no versionamento deste repositorio.
