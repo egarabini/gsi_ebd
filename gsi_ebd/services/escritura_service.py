@@ -28,6 +28,8 @@ import re
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+from ..utils.livros import resolver
+
 # ── Configuracao (mesmas chaves que o PASTOR_IA usa) ────────────────────────
 CHROMA_HOST = os.getenv("CHROMA_HOST", "localhost")
 CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8001"))
@@ -48,34 +50,13 @@ RAG_SCORE_MIN = 0.55
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
 
-# Livros em portugues, como aparecem no plano de estudo (abreviacoes da CONVENTIONS.md)
-LIVROS = {
-    "gn": "Gênesis", "ex": "Êxodo", "lv": "Levítico", "nm": "Números", "dt": "Deuteronômio",
-    "js": "Josué", "jz": "Juízes", "rt": "Rute", "1sm": "1 Samuel", "2sm": "2 Samuel",
-    "1rs": "1 Reis", "2rs": "2 Reis", "1cr": "1 Crônicas", "2cr": "2 Crônicas",
-    "ed": "Esdras", "ne": "Neemias", "et": "Ester", "jo": "Jó", "sl": "Salmos",
-    "pv": "Provérbios", "ec": "Eclesiastes", "ct": "Cantares", "is": "Isaías",
-    "jr": "Jeremias", "lm": "Lamentações", "ez": "Ezequiel", "dn": "Daniel",
-    "os": "Oséias", "jl": "Joel", "am": "Amós", "ob": "Obadias", "jn": "Jonas",
-    "mq": "Miquéias", "na": "Naum", "hc": "Habacuque", "sf": "Sofonias",
-    "ag": "Ageu", "zc": "Zacarias", "ml": "Malaquias",
-    "mt": "Mateus", "mc": "Marcos", "lc": "Lucas", "joao": "João", "at": "Atos",
-    "rm": "Romanos", "1co": "1 Coríntios", "2co": "2 Coríntios", "gl": "Gálatas",
-    "ef": "Efésios", "fp": "Filipenses", "cl": "Colossenses",
-    "1ts": "1 Tessalonicenses", "2ts": "2 Tessalonicenses", "1tm": "1 Timóteo",
-    "2tm": "2 Timóteo", "tt": "Tito", "fm": "Filemom", "hb": "Hebreus",
-    "tg": "Tiago", "1pe": "1 Pedro", "2pe": "2 Pedro", "1jo": "1 João",
-    "2jo": "2 João", "3jo": "3 João", "jd": "Judas", "ap": "Apocalipse",
-}
-# nomes escritos por extenso que aparecem nos planos
-ALIASES = {
-    "joão": "João", "joao": "João", "salmo": "Salmos", "salmos": "Salmos",
-    "gênesis": "Gênesis", "genesis": "Gênesis", "êxodo": "Êxodo", "exodo": "Êxodo",
-    "mateus": "Mateus", "marcos": "Marcos", "lucas": "Lucas", "atos": "Atos",
-    "romanos": "Romanos", "efésios": "Efésios", "efesios": "Efésios",
-    "hebreus": "Hebreus", "tiago": "Tiago", "apocalipse": "Apocalipse",
-    "isaías": "Isaías", "isaias": "Isaías", "jeremias": "Jeremias",
-}
+# Livros: fonte unica e canonica em gsi_ebd/utils/livros.py.
+#
+# Aqui existia um mapa proprio, e ele era o bug: resolvia "jo" como Jo (o livro),
+# enquanto a convencao de abreviaturas dos estudos (AGENTS.md do DOUTRINAS_CRISTAS)
+# usa Jo = Joao. Como Jo 3:16 existe, a licao pedia o versiculo errado e recebia
+# texto errado, sem erro nenhum. Medido nos 34 planos: 17 citacoes erradas e 2
+# descartadas. Ver Diagnostico/referencias-cruzadas.md.
 
 # "Rm 3.23", "1Co 13.4-7", "João 3:16", "Sl 119.18"
 RE_REF = re.compile(
@@ -126,11 +107,10 @@ class EscrituraService:
         achadas: List[str] = []
         for m in RE_REF.finditer(texto or ""):
             bruto, cap, v1, v2 = m.group(1), m.group(2), m.group(3), m.group(4)
-            chave = bruto.lower().replace(" ", "")
-            livro = LIVROS.get(chave) or ALIASES.get(bruto.lower())
-            if not livro:
+            livro = resolver(bruto)
+            if livro is None:
                 continue
-            ref = f"{livro} {cap}:{v1}" + (f"-{v2}" if v2 else "")
+            ref = f"{livro.nome} {cap}:{v1}" + (f"-{v2}" if v2 else "")
             if ref not in achadas:
                 achadas.append(ref)
         return achadas
