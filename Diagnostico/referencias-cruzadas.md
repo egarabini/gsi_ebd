@@ -109,6 +109,24 @@ tem limiar. **A busca exata existe e não está sendo usada.**
 Isso importa duas vezes: corrige o bloco de Escritura *e* é pré-requisito das
 referências cruzadas, que precisam casar por identidade de versículo.
 
+## Estado medido da produção (antes deste deploy)
+
+Levantado na VPS em 2026-10-16, antes de reconstruir:
+
+| Item | Estado |
+|---|---|
+| Site | no ar (`HTTP 200`), Traefik + TLS ok, 5 containers de pé há 9 dias |
+| Conteúdo | montado corretamente — o container enxerga os 34 capítulos |
+| Banco | populado: 39 estudos, 39 versões, 34 vínculos de ambiente, 5 usuários |
+| **ChromaDB** | **zero coleções** |
+| Corpus (378 MB) | **ausente na VPS** (está no `.gitignore` do repo de conteúdo) |
+| Ollama | **sem modelo baixado** |
+
+Consequência que muda o diagnóstico: o bloco de Escritura **nunca funcionou em
+produção** — e não foi pelo embedding trocado (defeito real, mas latente), e sim
+porque **não havia índice nenhum**. Carregar o corpus é um passo manual de 378 MB
+que ainda não foi feito, e é pré-requisito dos passos 2 e 3.
+
 ## Plano proposto (nesta ordem)
 
 1. **Mapa canônico de livros** — ✅ **feito** em `gsi_ebd/utils/livros.py`: os 66
@@ -117,10 +135,23 @@ referências cruzadas, que precisam casar por identidade de versículo.
    com 18 testes (`tests/test_livros.py`) e, sobre os 34 planos reais, **0 citações
    erradas e 0 descartadas** — era 17 e 2.
 2. **Busca exata por referência** — trocar a consulta semântica por filtro de
-   metadado no caminho das citações. Verificar contra o corpus (local ou VPS).
-   Pendência conhecida: o corpus grava o nome do livro **sem acento** e com nomes
-   próprios (`Cantares`, `Jo` para Jó, `Joao` para João), então este passo precisa
-   de um campo de nome-de-corpus **conferido no índice**, não deduzido.
+   metadado no caminho das citações (`where={"referencia": ...}`).
+
+   O casamento de nomes já foi **medido**, comparando o mapa canônico com o
+   dicionário `PREFIXO_LIVRO` do `load_biblia.py` (a definição do que o corpus
+   grava): normalizando os dois lados (sem acento, sem espaço), **63 dos 66 livros
+   casam automaticamente** — inclusive os dois que já morderam: `João` → `Joao` e
+   `Jó` → `Jo`. Sobram **3 divergências de grafia**, todas nomes legítimos, que
+   precisam de apelido explícito:
+
+   | Livro | mapa canônico | corpus |
+   |---|---|---|
+   | Song | Cântico dos Cânticos | Cantares |
+   | Obad | Obadias | Abdias |
+   | Phlm | Filemom | Filemon |
+
+   Ou seja, o passo 2 é normalização + uma tabela de 3 apelidos — nada de
+   adivinhação. Medido por `_openbible/comparar_nomes_corpus.py`.
 3. **Carregar as referências cruzadas** — tabela `cross_reference` no Postgres,
    carregada uma vez (344 mil linhas é trivial). Só então o bloco no plano.
 
