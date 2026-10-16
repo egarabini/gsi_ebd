@@ -109,23 +109,29 @@ tem limiar. **A busca exata existe e não está sendo usada.**
 Isso importa duas vezes: corrige o bloco de Escritura *e* é pré-requisito das
 referências cruzadas, que precisam casar por identidade de versículo.
 
-## Estado medido da produção (antes deste deploy)
+## Estado medido da produção
 
 Levantado na VPS em 2026-10-16, antes de reconstruir:
 
-| Item | Estado |
-|---|---|
-| Site | no ar (`HTTP 200`), Traefik + TLS ok, 5 containers de pé há 9 dias |
-| Conteúdo | montado corretamente — o container enxerga os 34 capítulos |
-| Banco | populado: 39 estudos, 39 versões, 34 vínculos de ambiente, 5 usuários |
-| **ChromaDB** | **zero coleções** |
-| Corpus (378 MB) | **ausente na VPS** (está no `.gitignore` do repo de conteúdo) |
-| Ollama | **sem modelo baixado** |
+| Item | Estado (antes) | Depois |
+|---|---|---|
+| Site | no ar (`HTTP 200`) | no ar |
+| Conteúdo | montado, 34 capítulos visíveis | idem |
+| Banco | populado: 39 estudos, 5 usuários | idem |
+| **ChromaDB** | **zero coleções** | **31.102 versículos** (`biblia_pt_br`) |
+| Corpus (378 MB) | **ausente na VPS** | enviado (391 MB) |
+| Ollama | **sem modelo** | `gemma2:9b` (5,4 GB) |
 
-Consequência que muda o diagnóstico: o bloco de Escritura **nunca funcionou em
-produção** — e não foi pelo embedding trocado (defeito real, mas latente), e sim
-porque **não havia índice nenhum**. Carregar o corpus é um passo manual de 378 MB
-que ainda não foi feito, e é pré-requisito dos passos 2 e 3.
+O bloco de Escritura **nunca havia funcionado em produção** — e a causa não era o
+embedding trocado (defeito real, mas latente): era **não haver índice**. Com o
+corpus carregado, os dois defeitos apareceram juntos, e o segundo era pior:
+
+```
+buscar('João 3:16')  ->  Mateus 4:12 (0.647) e Joao 4:1 (0.630)
+```
+
+Os dois acima do `RAG_SCORE_MIN` — a lição exibiria o **versículo errado**. Ver o
+passo 2 abaixo.
 
 ## Plano proposto (nesta ordem)
 
@@ -134,15 +140,16 @@ que ainda não foi feito, e é pré-requisito dos passos 2 e 3.
    `escritura_service` abandonou o mapa próprio e passou a usar este. Verificado
    com 18 testes (`tests/test_livros.py`) e, sobre os 34 planos reais, **0 citações
    erradas e 0 descartadas** — era 17 e 2.
-2. **Busca exata por referência** — trocar a consulta semântica por filtro de
-   metadado no caminho das citações (`where={"referencia": ...}`).
+2. **Busca exata por referência** — ✅ **feito**. `buscar_citacao` consulta
+   `get(where={"referencia": "Joao 3:16"})`: igualdade, sem embedding e sem corte
+   de score. Quando não acha, devolve **vazio** — melhor a lição sem o bloco de
+   Escritura do que com o versículo trocado. A semelhança ficou onde ela serve:
+   `buscar()` continua para perguntas por assunto.
 
-   O casamento de nomes já foi **medido**, comparando o mapa canônico com o
-   dicionário `PREFIXO_LIVRO` do `load_biblia.py` (a definição do que o corpus
-   grava): normalizando os dois lados (sem acento, sem espaço), **63 dos 66 livros
-   casam automaticamente** — inclusive os dois que já morderam: `João` → `Joao` e
-   `Jó` → `Jo`. Sobram **3 divergências de grafia**, todas nomes legítimos, que
-   precisam de apelido explícito:
+   O casamento de nomes foi conferido **livro a livro** contra o `PREFIXO_LIVRO`
+   do `load_biblia.py`: **66 de 66 batem**. Sessenta e três saem da normalização
+   do nome canônico (sem acento, sem espaço) — inclusive os dois que já morderam,
+   `João` → `Joao` e `Jó` → `Jo`; três precisam de apelido explícito:
 
    | Livro | mapa canônico | corpus |
    |---|---|---|
@@ -150,10 +157,30 @@ que ainda não foi feito, e é pré-requisito dos passos 2 e 3.
    | Obad | Obadias | Abdias |
    | Phlm | Filemom | Filemon |
 
-   Ou seja, o passo 2 é normalização + uma tabela de 3 apelidos — nada de
-   adivinhação. Medido por `_openbible/comparar_nomes_corpus.py`.
+   Cuidado que custou um teste: `sem_acento()` também passa para minúsculas (é a
+   chave de comparação de abreviaturas), mas o corpus grava `Joao`, não `joao`.
+   Daí `tirar_acentos()`, que preserva a caixa. Testes em
+   `tests/test_escritura.py` (24 casos, com uma coleção falsa que registra os
+   `where` usados).
+
+   **Medição da busca semântica por texto** (a que continua valendo, para
+   perguntas por assunto), contra a coleção real:
+
+   | Consulta | Resultado | Score |
+   |---|---|---|
+   | "No princípio Deus criou os céus e a terra" | Gênesis 1:1 ✓ | 0,985 |
+   | "Orai sem cessar" | 1Ts 5:17 ✓ | 0,985 |
+   | "futebol campeonato brasileiro" | nada (abaixo do corte) ✓ | 0,525 |
+   | "Porque Deus amou o mundo de tal maneira" | Romanos 3:6, **João 3:16 em 2º** | 0,775 / 0,746 |
+
+   A última linha é uma **melhoria em aberto**: o embedding padrão do ChromaDB é
+   o `all-MiniLM-L6-v2`, treinado em inglês. Ele funciona em português, mas
+   ranqueia mal uma citação quase literal. Se a busca por assunto for muito usada,
+   vale reavaliar o modelo — com a régua de que carga e consulta têm de usar o
+   mesmo.
 3. **Carregar as referências cruzadas** — tabela `cross_reference` no Postgres,
    carregada uma vez (344 mil linhas é trivial). Só então o bloco no plano.
+   O dado já está versionado em `DADOS_EXTERNOS/openbible/`.
 
 ## Onde o dado deve morar
 
