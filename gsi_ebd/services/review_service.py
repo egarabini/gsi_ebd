@@ -217,10 +217,10 @@ class ReviewService:
                 pass
 
             # Escritura de apoio vem do corpus local, nunca do modelo
-            refs = escritura.extrair_referencias(pergunta + "\n" + contexto)
+            citacoes_achadas = escritura.extrair_citacoes(pergunta + "\n" + contexto)
             citacoes = ""
-            if refs and escritura.disponivel:
-                vs = escritura.buscar_referencias(refs)
+            if citacoes_achadas and escritura.disponivel:
+                vs = escritura.buscar_referencias(citacoes_achadas)
                 citacoes = "\n".join(f"{v.referencia}: {v.texto}" for v in vs)
 
             p = avaliador.avaliar(pergunta=pergunta, resposta=r.answer or "",

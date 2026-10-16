@@ -28,7 +28,7 @@ import re
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from ..utils.livros import resolver
+from ..utils.livros import Livro, resolver
 
 # ── Configuracao (mesmas chaves que o PASTOR_IA usa) ────────────────────────
 CHROMA_HOST = os.getenv("CHROMA_HOST", "localhost")
@@ -72,6 +72,42 @@ class Versiculo:
 
 
 @dataclass
+class Citacao:
+    """Uma referencia citada no plano: livro + capitulo + versiculo(s).
+
+    Existe para separar duas coisas que estavam misturadas: *achar* a passagem
+    (igualdade, por metadado) e *buscar por assunto* (semelhanca, por embedding).
+    """
+
+    livro: Livro
+    capitulo: int
+    versiculo: int
+    versiculo_fim: int = 0
+
+    def __post_init__(self) -> None:
+        if not self.versiculo_fim:
+            self.versiculo_fim = self.versiculo
+
+    @property
+    def texto(self) -> str:
+        """Como a citacao aparece para o leitor: `'Mt 28:19-20'` — aqui, por extenso."""
+        fim = "" if self.versiculo_fim == self.versiculo else f"-{self.versiculo_fim}"
+        return f"{self.livro.nome} {self.capitulo}:{self.versiculo}{fim}"
+
+    def chaves_corpus(self, maximo: int = 12) -> List[str]:
+        """As chaves EXATAS do indice (`'Joao 3:16'`).
+
+        Intervalo longo e cortado em `maximo` versiculos: a licao exibe no maximo
+        seis passagens, entao varrer um salmo inteiro so custaria tempo.
+        """
+        fim = min(self.versiculo_fim, self.versiculo + maximo - 1)
+        return [
+            self.livro.referencia_corpus(self.capitulo, v)
+            for v in range(self.versiculo, fim + 1)
+        ]
+
+
+@dataclass
 class EscrituraService:
     """Recupera Escritura do corpus local. Nunca inventa texto biblico."""
 
@@ -102,21 +138,42 @@ class EscrituraService:
 
     # ── extracao de referencias do plano de estudo ──────────────────────────
     @staticmethod
-    def extrair_referencias(texto: str) -> List[str]:
-        """Encontra referencias biblicas (ex.: 'Rm 3.23', '1Co 13.4-7') no texto."""
-        achadas: List[str] = []
+    def extrair_citacoes(texto: str) -> List[Citacao]:
+        """Encontra as referencias biblicas do texto, ja resolvidas em livro.
+
+        Aceita a convencao do estudo: `'Rm 3.23'`, `'1Co 13.4-7'`, `'Jo 3.16'`
+        (Joao), `'Jó 1.21'` (o livro de Jo) e `'Êx 34.6-7'` (com acento).
+        """
+        achadas: List[Citacao] = []
+        vistas: set = set()
         for m in RE_REF.finditer(texto or ""):
             bruto, cap, v1, v2 = m.group(1), m.group(2), m.group(3), m.group(4)
             livro = resolver(bruto)
             if livro is None:
                 continue
-            ref = f"{livro.nome} {cap}:{v1}" + (f"-{v2}" if v2 else "")
-            if ref not in achadas:
-                achadas.append(ref)
+            citacao = Citacao(
+                livro=livro,
+                capitulo=int(cap),
+                versiculo=int(v1),
+                versiculo_fim=int(v2 or v1),
+            )
+            if citacao.texto not in vistas:
+                vistas.add(citacao.texto)
+                achadas.append(citacao)
         return achadas
+
+    @staticmethod
+    def extrair_referencias(texto: str) -> List[str]:
+        """As mesmas citacoes, como texto: `['Rm 3:23', '1Co 13:4-7']`."""
+        return [c.texto for c in EscrituraService.extrair_citacoes(texto)]
 
     # ── busca ───────────────────────────────────────────────────────────────
     def buscar(self, consulta: str, n: int = RAG_TOP_K) -> List[Versiculo]:
+        """Busca SEMANTICA por assunto, em texto livre.
+
+        Serve para perguntar "onde a Biblia fala disso?". NAO serve para achar
+        uma referencia: para isso e `buscar_citacao`, por igualdade.
+        """
         col = self._conectar()
         if col is None or not consulta.strip():
             return []
@@ -143,11 +200,48 @@ class EscrituraService:
             out.append(Versiculo(referencia=ref, texto=(doc or "").strip(), score=round(score, 3)))
         return out
 
-    def buscar_referencias(self, referencias: List[str]) -> List[Versiculo]:
-        """Busca cada referencia citada no plano; o texto vem do corpus."""
+    def buscar_citacao(self, citacao: Citacao) -> List[Versiculo]:
+        """Busca EXATA por metadado — igualdade, sem embedding e sem corte de score.
+
+        Antes isto era uma busca semantica usando a REFERENCIA como consulta, e o
+        resultado era versiculo errado: `'João 3:16'` devolvia Mateus 4:12 (0.647)
+        e Joao 4:1 (0.630) — os dois acima do corte de 0.55, prontos para aparecer
+        na licao como se fossem a citacao. Referencia se acha por igualdade; a
+        semelhanca fica para `buscar()`.
+
+        Em caso de falha devolve vazio: e melhor a licao ficar sem o bloco de
+        Escritura do que mostra-lo com o versiculo trocado.
+        """
+        col = self._conectar()
+        if col is None:
+            return []
+        out: List[Versiculo] = []
+        for chave in citacao.chaves_corpus():
+            try:
+                r = col.get(where={"referencia": chave})
+            except Exception:
+                continue
+            docs = r.get("documents") or []
+            metas = r.get("metadatas") or []
+            for i, doc in enumerate(docs):
+                meta = metas[i] if i < len(metas) else {}
+                referencia = ""
+                if isinstance(meta, dict):
+                    referencia = meta.get("referencia") or ""
+                out.append(
+                    Versiculo(
+                        referencia=referencia or chave,
+                        texto=(doc or "").strip(),
+                        score=1.0,  # igualdade, nao similaridade
+                    )
+                )
+        return out
+
+    def buscar_referencias(self, citacoes: List[Citacao]) -> List[Versiculo]:
+        """O texto das referencias citadas no plano; vem do corpus, por igualdade."""
         vistos, out = set(), []
-        for ref in referencias[:6]:
-            for v in self.buscar(ref, n=2):
+        for citacao in citacoes[:6]:
+            for v in self.buscar_citacao(citacao):
                 if v.referencia and v.referencia not in vistos:
                     vistos.add(v.referencia)
                     out.append(v)
@@ -164,7 +258,7 @@ class EscrituraService:
         """
         if not self.disponivel:
             return ""
-        versiculos = self.buscar_referencias(self.extrair_referencias(plano_md))
+        versiculos = self.buscar_referencias(self.extrair_citacoes(plano_md))
         if pergunta:
             for v in self.buscar(pergunta, n=3):
                 if v.referencia and all(x.referencia != v.referencia for x in versiculos):

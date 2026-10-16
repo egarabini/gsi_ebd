@@ -29,11 +29,23 @@ import unicodedata
 from dataclasses import dataclass
 
 
-def sem_acento(texto: str) -> str:
-    """`"Êx"` -> `"ex"`; `"Jó"` -> `"jo"`; `"1 Cor"` -> `"1 cor"`."""
+def tirar_acentos(texto: str) -> str:
+    """Remove acentos PRESERVANDO a caixa: `'João'` -> `'Joao'`, `'Êx'` -> `'Ex'`.
+
+    É o que o corpus precisa: ele grava `'Joao 3:16'`, não `'joao 3:16'`.
+    """
     return "".join(
         c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn"
-    ).lower()
+    )
+
+
+def sem_acento(texto: str) -> str:
+    """Minúsculas e sem acento: `'Êx'` -> `'ex'`; `'Jó'` -> `'jo'`.
+
+    É a chave de comparação de ABREVIATURAS (aceita `'JO'`, `'1 Co'`, `'Jó'`).
+    Para o nome como o corpus grava, use `tirar_acentos` — a caixa importa lá.
+    """
+    return tirar_acentos(texto).lower()
 
 
 @dataclass(frozen=True)
@@ -47,6 +59,33 @@ class Livro:
 
     def __str__(self) -> str:
         return self.nome
+
+    @property
+    def nome_corpus(self) -> str:
+        """Como o CORPUS grava o nome do livro: sem acento e sem espaço.
+
+        É a chave do metadado `referencia` no ChromaDB (ver
+        `load_biblia.py:230`), e portanto o que a busca exata precisa casar.
+        Medido contra `PREFIXO_LIVRO`: 63 dos 66 saem da normalização do nome
+        canônico (`João` → `Joao`, `Jó` → `Jo`); 3 têm grafia própria e estão
+        no mapa de divergências abaixo.
+        """
+        return _NOME_CORPUS_DIVERGENTE.get(self.osis) or tirar_acentos(self.nome).replace(" ", "")
+
+    def referencia_corpus(self, capitulo: int, versiculo: int) -> str:
+        """A chave exata de um versículo no índice: `'Joao 3:16'`."""
+        return f"{self.nome_corpus} {capitulo}:{versiculo}"
+
+
+# Nomes que o corpus usa e que NÃO saem da normalização do nome canônico.
+# Conferidos contra PREFIXO_LIVRO do load_biblia.py — são grafias legítimas,
+# não erros: "Cantares" é o nome do livro, "Abdias" e "Filemon" são variantes
+# correntes em português. Ver _openbible/comparar_nomes_corpus.py.
+_NOME_CORPUS_DIVERGENTE = {
+    "Song": "Cantares",
+    "Obad": "Abdias",
+    "Phlm": "Filemon",
+}
 
 
 # A ordem é a canônica (1..66). Os códigos OSIS são exatamente os que o dataset
