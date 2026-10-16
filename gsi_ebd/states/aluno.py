@@ -7,6 +7,7 @@ from ..services.study_service import StudyService
 from ..services.progress_service import ProgressService
 from ..services.review_service import ReviewService
 from ..services.escritura_service import escritura
+from ..services.referencias_cruzadas_service import ReferenciasCruzadasService
 from .auth import AuthState
 
 
@@ -28,6 +29,7 @@ class AlunoState(AuthState):
     streak: int = 0
     ai_context: str = ""
     escritura_md: str = ""   # Escritura verificada do RAG local
+    relacionadas_md: str = ""  # Passagens relacionadas (OpenBible, CC-BY)
 
     @rx.var
     def has_active_study(self) -> bool:
@@ -82,10 +84,15 @@ class AlunoState(AuthState):
         Degrada em silencio: se o ChromaDB nao estiver no ar, a licao segue
         normalmente, apenas sem o bloco de Escritura.
         """
+        plano = self.study_content or ""
         try:
-            self.escritura_md = escritura.contexto_da_licao(self.study_content or "")
+            self.escritura_md = escritura.contexto_da_licao(plano)
         except Exception:
             self.escritura_md = ""
+        try:
+            self.relacionadas_md = ReferenciasCruzadasService.bloco(plano)
+        except Exception:
+            self.relacionadas_md = ""
 
     def load_pareceres(self):
         self.pareceres = ReviewService.pareceres_do_aluno(self.current_user_id)

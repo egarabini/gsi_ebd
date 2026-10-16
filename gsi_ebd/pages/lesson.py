@@ -50,6 +50,27 @@ def lesson_page() -> rx.Component:
                                 background="#faf8ff",
                             ),
                         ),
+                        # Passagens relacionadas: referencias cruzadas do OpenBible
+                        # (dado de terceiros, CC-BY — a atribuicao vai no proprio
+                        # texto do bloco). Some sozinha se a tabela nao estiver
+                        # carregada ou o corpus nao estiver no ar.
+                        rx.cond(
+                            AlunoState.relacionadas_md != "",
+                            rx.card(
+                                rx.vstack(
+                                    rx.hstack(
+                                        rx.icon("git-compare-arrows", size=18, color="#0891b2"),
+                                        rx.text("Passagens relacionadas", size="3",
+                                                weight="bold", color="#1e1b4b"),
+                                        spacing="2", align="center",
+                                    ),
+                                    rx.markdown(AlunoState.relacionadas_md),
+                                    spacing="2", width="100%",
+                                ),
+                                width="100%",
+                                background="#f0fbff",
+                            ),
+                        ),
                         rx.divider(),
                         rx.cond(
                             AlunoState.has_more_questions,
