@@ -16,21 +16,36 @@ erro() { echo -e "${VERM}[ERRO]${NC} $1"; }
 aviso(){ echo -e "${AMAR}[..]${NC} $1"; }
 morrer(){ erro "$1"; exit 1; }
 
+echo "=============================================="
+echo " Didasko — deploy"
+echo "=============================================="
+
 # O compose procura o .env NA PASTA DO ARQUIVO COMPOSE (deploy/), nao na raiz.
 # Como o .env fica na raiz, e obrigatorio passar --env-file explicitamente —
 # sem isso as variaveis chegam VAZIAS (POSTGRES_PASSWORD em branco, sem ACME_EMAIL)
 # e o Docker so emite um WARN, o que e facil de nao perceber.
-COMPOSE="docker compose --env-file .env -f deploy/docker-compose.producao.yml"
+#
+# ACESSO AO DOCKER: o usuario provisionado para deploy (didasko-deploy) NAO esta no
+# grupo docker — o acesso dele e `sudo -n /usr/bin/docker`, por regra NOPASSWD.
+# Quem entra como eduardo tem acesso direto. Antes o script assumia acesso direto e
+# morria no primeiro comando que fala com o daemon, mesmo com todo o resto certo
+# (o `docker --version` funciona sem socket, entao a falha aparecia tarde).
+if docker info >/dev/null 2>&1; then
+  DOCKER="docker"
+elif sudo -n docker info >/dev/null 2>&1; then
+  DOCKER="sudo -n docker"
+else
+  morrer "sem acesso ao daemon do Docker (nem direto, nem via 'sudo -n docker')"
+fi
 
-echo "=============================================="
-echo " Didasko — deploy"
-echo "=============================================="
+COMPOSE="$DOCKER compose --env-file .env -f deploy/docker-compose.producao.yml"
 
 # ── 1. pre-requisitos ───────────────────────────────────────────────────────
 echo; echo "1. Pre-requisitos"
 command -v docker >/dev/null 2>&1 || morrer "docker nao encontrado"
 docker compose version >/dev/null 2>&1 || morrer "docker compose (plugin) nao encontrado"
 ok "docker e docker compose presentes"
+ok "acesso ao daemon: $DOCKER"
 [ -f deploy/docker-compose.producao.yml ] || morrer "rode este script da raiz do projeto (nao achei deploy/)"
 [ -f .env ] || morrer ".env nao encontrado. Copie deploy/.env.producao.example para .env e preencha"
 ok ".env presente"
@@ -129,7 +144,27 @@ fi
 
 # ── 7. popular o banco (so se estiver vazio) ────────────────────────────────
 echo; echo "7. Populando o banco"
-$COMPOSE exec -T app python -m gsi_ebd.data.seed || aviso "seed falhou (talvez ja populado)"
+PGUSER=$(grep '^POSTGRES_USER=' .env | cut -d= -f2 || echo didasko)
+PGDB=$(grep '^POSTGRES_DB=' .env | cut -d= -f2 || echo didasko)
+USUARIOS=$(
+  $COMPOSE exec -T postgres psql -U "${PGUSER:-didasko}" -d "${PGDB:-didasko}" \
+    -tAc 'select count(*) from "user";' 2>/dev/null | tr -d '[:space:]' || true
+)
+if [ "${USUARIOS:-0}" = "0" ]; then
+  $COMPOSE exec -T app python -m gsi_ebd.data.seed || aviso "seed falhou"
+  ok "banco populado"
+else
+  # O titulo desta secao sempre disse "so se estiver vazio", mas o comando rodava
+  # SEMPRE. Nao e inofensivo: seed_site_config ATUALIZA as chaves existentes para
+  # os valores do codigo (seed.py:179-186), entao num banco em uso ele desfaz
+  # ajustes feitos pelo painel. O resto do seed e guardado e nao duplicaria nada,
+  # mas o efeito nas chaves de site_config e real.
+  aviso "banco ja tem ${USUARIOS} usuarios — pulando o seed (use --forcar-seed para rodar assim mesmo)"
+  if [ "${1:-}" = "--forcar-seed" ]; then
+    aviso "forcando o seed"
+    $COMPOSE exec -T app python -m gsi_ebd.data.seed || aviso "seed falhou"
+  fi
+fi
 
 # ── 8. importar o conteudo (34 capitulos) ───────────────────────────────────
 echo; echo "8. Importando os 34 capitulos do Doutrinas Cristas"
