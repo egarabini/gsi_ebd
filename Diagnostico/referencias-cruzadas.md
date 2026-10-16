@@ -121,6 +121,7 @@ Levantado na VPS em 2026-10-16, antes de reconstruir:
 | **ChromaDB** | **zero coleções** | **31.102 versículos** (`biblia_pt_br`) |
 | Corpus (378 MB) | **ausente na VPS** | enviado (391 MB) |
 | Ollama | **sem modelo** | `gemma2:9b` (5,4 GB) |
+| Referências cruzadas | (não existiam) | **344.799 pares** em `referenciacruzada` |
 
 O bloco de Escritura **nunca havia funcionado em produção** — e a causa não era o
 embedding trocado (defeito real, mas latente): era **não haver índice**. Com o
@@ -178,9 +179,20 @@ passo 2 abaixo.
    ranqueia mal uma citação quase literal. Se a busca por assunto for muito usada,
    vale reavaliar o modelo — com a régua de que carga e consulta têm de usar o
    mesmo.
-3. **Carregar as referências cruzadas** — tabela `cross_reference` no Postgres,
-   carregada uma vez (344 mil linhas é trivial). Só então o bloco no plano.
-   O dado já está versionado em `DADOS_EXTERNOS/openbible/`.
+3. **Carregar as referências cruzadas** — ✅ **feito**. Tabela `referenciacruzada`
+   no Postgres: **344.799 linhas em 10,6 s**, das quais **45.036 com votos ≥ 10**.
+   Carregador em `gsi_ebd/scripts/importar_referencias_cruzadas.py`: sem `--apply`
+   nada é gravado, `--recarregar` substitui o retrato, `--autoteste` roda em SQLite
+   descartável.
+
+   O bloco entra na lição por `gsi_ebd/services/referencias_cruzadas_service.py`,
+   em cartão próprio, com o texto vindo do corpus. Curadoria implementada: piso de
+   votos ≥ 10, teto de 5 por lição, rodízio entre as citações do plano, nada que o
+   plano já cita, nada repetido. A atribuição CC-BY vai no texto renderizado.
+
+   Verificado no capítulo 21 (que cita Marcos 1:15, Atos 20:21, João 3:16 e
+   Hebreus 11:1): cinco passagens, entre elas Romanos 5:8 (986 votos) e
+   1 João 4:9-10 (700 votos — intervalo, com os dois versículos).
 
 ## Onde o dado deve morar
 
