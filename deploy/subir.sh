@@ -40,6 +40,21 @@ fi
 
 COMPOSE="$DOCKER compose --env-file .env -f deploy/docker-compose.producao.yml"
 
+# Opcoes, para deploy automatizado (sem terminal):
+#   --forcar-seed    roda o seed mesmo com o banco ja populado
+#   --importar       aplica a importacao do conteudo sem perguntar
+#   --pular-import   nao importa (e o padrao quando nao ha terminal)
+FORCAR_SEED=0
+IMPORTAR=""
+for arg in "$@"; do
+  case "$arg" in
+    --forcar-seed)  FORCAR_SEED=1 ;;
+    --importar)     IMPORTAR="s" ;;
+    --pular-import) IMPORTAR="n" ;;
+    *) aviso "argumento ignorado: $arg" ;;
+  esac
+done
+
 # ── 1. pre-requisitos ───────────────────────────────────────────────────────
 echo; echo "1. Pre-requisitos"
 command -v docker >/dev/null 2>&1 || morrer "docker nao encontrado"
@@ -109,7 +124,7 @@ ok "containers criados"
 # ── 5. esperar o banco ──────────────────────────────────────────────────────
 echo; echo "5. Aguardando o banco responder"
 for i in $(seq 1 40); do
-  if $COMPOSE exec -T postgres pg_isready -U "$(grep '^POSTGRES_USER=' .env | cut -d= -f2 || echo didasko)" >/dev/null 2>&1; then
+  if $COMPOSE exec -T postgres pg_isready -U "$(grep '^POSTGRES_USER=' .env | cut -d= -f2 || echo didasko)" >/dev/null 2>&1 < /dev/null; then
     ok "banco pronto"; break
   fi
   [ "$i" -eq 40 ] && morrer "o banco nao respondeu em 80s"
@@ -128,7 +143,7 @@ for i in $(seq 1 30); do
   ESTADO=$($COMPOSE ps --format json app 2>/dev/null | grep -o '"State":"[a-z]*"' | head -1 || echo "")
   if echo "$ESTADO" | grep -q running; then
     # running nao basta: pode estar em loop de restart. Testa se responde.
-    if $COMPOSE exec -T app python -c "import gsi_ebd.gsi_ebd" >/dev/null 2>&1; then
+    if $COMPOSE exec -T app python -c "import gsi_ebd.gsi_ebd" >/dev/null 2>&1 < /dev/null; then
       APP_OK=1; ok "app de pe e o codigo importa"; break
     fi
   fi
@@ -148,10 +163,10 @@ PGUSER=$(grep '^POSTGRES_USER=' .env | cut -d= -f2 || echo didasko)
 PGDB=$(grep '^POSTGRES_DB=' .env | cut -d= -f2 || echo didasko)
 USUARIOS=$(
   $COMPOSE exec -T postgres psql -U "${PGUSER:-didasko}" -d "${PGDB:-didasko}" \
-    -tAc 'select count(*) from "user";' 2>/dev/null | tr -d '[:space:]' || true
+    -tAc 'select count(*) from "user";' 2>/dev/null < /dev/null | tr -d '[:space:]' || true
 )
 if [ "${USUARIOS:-0}" = "0" ]; then
-  $COMPOSE exec -T app python -m gsi_ebd.data.seed || aviso "seed falhou"
+  $COMPOSE exec -T app python -m gsi_ebd.data.seed < /dev/null || aviso "seed falhou"
   ok "banco populado"
 else
   # O titulo desta secao sempre disse "so se estiver vazio", mas o comando rodava
@@ -160,9 +175,9 @@ else
   # ajustes feitos pelo painel. O resto do seed e guardado e nao duplicaria nada,
   # mas o efeito nas chaves de site_config e real.
   aviso "banco ja tem ${USUARIOS} usuarios — pulando o seed (use --forcar-seed para rodar assim mesmo)"
-  if [ "${1:-}" = "--forcar-seed" ]; then
+  if [ "$FORCAR_SEED" = "1" ]; then
     aviso "forcando o seed"
-    $COMPOSE exec -T app python -m gsi_ebd.data.seed || aviso "seed falhou"
+    $COMPOSE exec -T app python -m gsi_ebd.data.seed < /dev/null || aviso "seed falhou"
   fi
 fi
 
@@ -172,15 +187,30 @@ echo; echo "8. Importando os 34 capitulos do Doutrinas Cristas"
 # Confirma que o CONTAINER enxerga o conteudo. O Docker nao avisa quando o bind
 # mount resolve para uma pasta inexistente: cria uma vazia e segue. Testar de
 # dentro do container e o unico jeito confiavel de saber que o mount valeu.
-$COMPOSE exec -T app test -d /conteudo/ESTUDOS_BIBLICOS/DOUTRINAS_CRISTAS/estudo_dirigido \
+$COMPOSE exec -T app test -d /conteudo/ESTUDOS_BIBLICOS/DOUTRINAS_CRISTAS/estudo_dirigido < /dev/null \
   || morrer "/conteudo/ESTUDOS_BIBLICOS chegou VAZIO no container (bind mount sem origem). Veja o caminho resolvido com: $COMPOSE config | grep -A4 'volumes:'"
 ok "o container enxerga o conteudo em /conteudo/ESTUDOS_BIBLICOS"
 
-$COMPOSE exec -T app python -m gsi_ebd.scripts.importar_estudo_dirigido --dry-run | tail -5
+$COMPOSE exec -T app python -m gsi_ebd.scripts.importar_estudo_dirigido --dry-run < /dev/null | tail -5
 echo
-read -r -p "Importar agora? (s/n) " RESP
+
+# O prompt so faz sentido com terminal. Sem terminal (deploy automatizado, cron,
+# nohup), `read` recebe EOF, devolve != 0 e o `set -e` ENCERRA O SCRIPT EM
+# SILENCIO — foi exatamente o que aconteceu no deploy de 2026-10-16: o log parou
+# aqui, sem uma linha de erro, e os passos 9 e 10 nunca rodaram.
+# Agravante: `docker compose exec -T` tambem consome o stdin do script (compose
+# v5.6.0), entao a resposta podia ser engolida por um exec anterior — por isso
+# todos os execs acima redirecionam < /dev/null.
+RESP="${IMPORTAR:-n}"
+if [ -z "$IMPORTAR" ]; then
+  if [ -t 0 ]; then
+    read -r -p "Importar agora? (s/n) " RESP || RESP="n"
+  else
+    aviso "sem terminal: nao vou importar (use --importar para aplicar)"
+  fi
+fi
 if [ "${RESP,,}" = "s" ]; then
-  $COMPOSE exec -T app python -m gsi_ebd.scripts.importar_estudo_dirigido --apply
+  $COMPOSE exec -T app python -m gsi_ebd.scripts.importar_estudo_dirigido --apply < /dev/null
   ok "conteudo importado"
 else
   aviso "pulou a importacao (rode depois: $COMPOSE exec app python -m gsi_ebd.scripts.importar_estudo_dirigido --apply)"
@@ -190,8 +220,8 @@ fi
 echo; echo "9. Modelo de IA (Ollama)"
 MODELO=$(grep '^OLLAMA_MODEL=' .env | cut -d= -f2 || echo llama3)
 aviso "baixando $MODELO (alguns GB, pode demorar)"
-$COMPOSE exec -T ollama ollama pull "$MODELO" || aviso "nao consegui baixar o modelo — a IA fica inativa, o resto funciona"
-$COMPOSE exec -T ollama ollama list || true
+$COMPOSE exec -T ollama ollama pull "$MODELO" < /dev/null || aviso "nao consegui baixar o modelo — a IA fica inativa, o resto funciona"
+$COMPOSE exec -T ollama ollama list < /dev/null || true
 
 # ── 10. verificar o site ────────────────────────────────────────────────────
 echo; echo "10. Verificando o site"
