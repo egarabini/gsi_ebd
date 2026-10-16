@@ -124,9 +124,16 @@ class AlunoState(AuthState):
                 self.study_content = payload.get("content_md", "")
                 self.study_questions = payload.get("questions", [])
 
-    def start_study(self, study_id: int, version_id: int):
-        self.current_study_id = study_id
-        self.current_version_id = version_id
+    def start_study(self, study_id, version_id):
+        # Os ids chegam do foreach como string; converter aqui evita que
+        # current_study_id/current_version_id virem texto e quebrem as consultas
+        # mais adiante (submit_answer usa current_version_id).
+        try:
+            sid, vid = int(study_id), int(version_id)
+        except (TypeError, ValueError):
+            return
+        self.current_study_id = sid
+        self.current_version_id = vid
         self.current_question_idx = 0
         self.user_answer = ""
         self.answer_feedback = ""

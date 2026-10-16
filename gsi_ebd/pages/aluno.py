@@ -72,7 +72,15 @@ def _study_card(s: dict) -> rx.Component:
             rx.text(s["version_label"], color="gray", size="1"),
             rx.button(
                 "Iniciar Estudo",
-                on_click=AlunoState.select_study(s["study_id"]),
+                # `start_study` (e nao `select_study`) porque e ele que carrega o
+                # payload E monta os blocos de Escritura e de passagens
+                # relacionadas; e a pagina da licao e quem os exibe. Antes o botao
+                # so preenchia o conteudo e ficava nesta pagina — entao os dois
+                # blocos nunca apareciam, nem aqui nem la.
+                on_click=[
+                    AlunoState.start_study(s["study_id"], s["version_id"]),
+                    rx.redirect("/aluno/licao"),
+                ],
                 color_scheme="green",
             ),
             spacing="2",
