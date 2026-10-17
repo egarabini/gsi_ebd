@@ -17,11 +17,13 @@ def admin_page() -> rx.Component:
                         rx.tabs.trigger("Gestores", value="gestores"),
                         rx.tabs.trigger("Coordenadores", value="coordenadores"),
                         rx.tabs.trigger("Aprovação de Estudos", value="estudos"),
+                        rx.tabs.trigger("Obras", value="obras"),
                         rx.tabs.trigger("Leads", value="leads"),
                     ),
                     rx.tabs.content(_gestores_tab(), value="gestores"),
                     rx.tabs.content(_coordenadores_tab(), value="coordenadores"),
                     rx.tabs.content(_estudos_tab(), value="estudos"),
+                    rx.tabs.content(_obras_tab(), value="obras"),
                     rx.tabs.content(_leads_tab(), value="leads"),
                     # value/on_change (e nao default_value) para o menu lateral
                     # conseguir abrir uma aba especifica.
@@ -260,6 +262,65 @@ def _estudos_tab() -> rx.Component:
             rx.text("Nenhum estudo pendente de avaliação.", color="gray"),
         ),
         on_mount=AdminState.load_estudos_pendentes,
+        spacing="3",
+        width="100%",
+    )
+
+
+def _obra_card(o: dict) -> rx.Component:
+    return rx.card(
+        rx.hstack(
+            rx.icon("book-marked", size=18, color="#0891b2"),
+            rx.text(o["titulo"], weight="bold", size="4"),
+            rx.badge(o["tipo"], color_scheme="cyan", variant="soft"),
+            rx.badge(o["qtd"] + " capítulos", color_scheme="gray", variant="soft"),
+            spacing="2",
+            align="center",
+        ),
+        width="100%",
+    )
+
+
+def _capitulo_linha(c: dict) -> rx.Component:
+    return rx.hstack(
+        rx.text(c["ordem"], color="gray", size="1", width="2rem"),
+        rx.text(c["titulo"], size="2"),
+        spacing="2",
+        align="center",
+        width="100%",
+        padding_y="0.15rem",
+    )
+
+
+def _obras_tab() -> rx.Component:
+    """A OBRA é a fonte; o ESTUDO aplicável é gerado a partir dela (fase seguinte)."""
+    return rx.vstack(
+        rx.heading("Obras — a fonte do estudo", size="4"),
+        rx.text(
+            "A obra é o material de origem (livro, coletânea ou condensado). "
+            "Ela não é o estudo que o aluno faz: o estudo tem capítulos próprios, "
+            "que não correspondem necessariamente a estes.",
+            color="gray",
+            size="2",
+        ),
+        rx.cond(
+            AdminState.obras.length() > 0,
+            rx.foreach(AdminState.obras, _obra_card),
+            rx.text("Nenhuma obra importada ainda.", color="gray"),
+        ),
+        rx.cond(
+            AdminState.capitulos_obra.length() > 0,
+            rx.card(
+                rx.vstack(
+                    rx.heading("Capítulos da obra", size="3"),
+                    rx.foreach(AdminState.capitulos_obra, _capitulo_linha),
+                    spacing="1",
+                    width="100%",
+                ),
+                width="100%",
+            ),
+        ),
+        on_mount=AdminState.load_obras,
         spacing="3",
         width="100%",
     )

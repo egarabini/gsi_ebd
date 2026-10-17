@@ -24,6 +24,9 @@ class AdminState(AuthState):
     coordenadores: list[dict] = []
     leads: list[dict] = []
     estudos_pendentes: list[dict] = []
+    # Obra (a fonte do estudo) e seus capítulos
+    obras: list[dict] = []
+    capitulos_obra: list[dict] = []
 
     # Controles de UI
     reject_motivo: str = ""
@@ -71,6 +74,41 @@ class AdminState(AuthState):
                  "status": str(e.status), "proposto_por": e.proposto_por or 0}
                 for e in estudos
             ]
+
+    def load_obras(self):
+        """Lista as obras (a fonte) e os capítulos da primeira.
+
+        A obra não é o estudo que o aluno faz: é o material de origem. Os
+        capítulos do estudo virão em outra fase e não correspondem
+        necessariamente a estes.
+        """
+        from ..models import Obra, ObraCapitulo
+
+        with rx.session() as session:
+            obras = session.exec(select(Obra).order_by(Obra.titulo)).all()
+            self.obras = []
+            for obra in obras:
+                capitulos = session.exec(
+                    select(ObraCapitulo).where(ObraCapitulo.obra_id == obra.id)
+                ).all()
+                self.obras.append({
+                    "id": str(obra.id),
+                    "titulo": obra.titulo,
+                    "tipo": obra.tipo,
+                    "qtd": str(len(capitulos)),
+                })
+
+            self.capitulos_obra = []
+            if obras:
+                for cap in session.exec(
+                    select(ObraCapitulo)
+                    .where(ObraCapitulo.obra_id == obras[0].id)
+                    .order_by(ObraCapitulo.ordem)
+                ).all():
+                    self.capitulos_obra.append({
+                        "ordem": f"{cap.ordem:02d}",
+                        "titulo": cap.titulo,
+                    })
 
     # ── Criação de Gestor (Admin cria; começa SUSPENSO) ─────────
 

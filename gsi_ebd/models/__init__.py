@@ -7,6 +7,7 @@ from .site_content import Testemunho, SiteConfig
 from .notification import Notification, NotificationType
 from .turma import (Ambiente, AmbienteEstudo, Equipe, EquipeInstrutor, Turma, TurmaMembro)
 from .referencia_cruzada import ReferenciaCruzada
+from .obra import Doutrina, Obra, ObraCapitulo, Adendo
 
 __all__ = [
     # Usuário
@@ -28,4 +29,6 @@ __all__ = [
     "Turma", "TurmaMembro",
     # Referências cruzadas (dado de terceiros, CC-BY)
     "ReferenciaCruzada",
+    # Obra (fonte) e adendos — a base do estudo
+    "Doutrina", "Obra", "ObraCapitulo", "Adendo",
 ]
