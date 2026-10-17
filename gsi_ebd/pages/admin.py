@@ -273,7 +273,7 @@ def _obra_card(o: dict) -> rx.Component:
             rx.icon("book-marked", size=18, color="#0891b2"),
             rx.text(o["titulo"], weight="bold", size="4"),
             rx.badge(o["tipo"], color_scheme="cyan", variant="soft"),
-            rx.badge(o["qtd"] + " capítulos", color_scheme="gray", variant="soft"),
+            rx.badge(o["capitulos_label"], color_scheme="gray", variant="soft"),
             spacing="2",
             align="center",
         ),

@@ -95,7 +95,11 @@ class AdminState(AuthState):
                     "id": str(obra.id),
                     "titulo": obra.titulo,
                     "tipo": obra.tipo,
-                    "qtd": str(len(capitulos)),
+                    # Concatenado AQUI, em Python: dentro do `rx.foreach` o valor
+                    # é um Var, e `var + " texto"` estoura em tempo de compilação
+                    # (TypeError: ObjectItemOperation + str). Aconteceu no deploy
+                    # de 16/10 e derrubou o app em loop de restart.
+                    "capitulos_label": f"{len(capitulos)} capítulos",
                 })
 
             self.capitulos_obra = []
