@@ -27,6 +27,9 @@ class AdminState(AuthState):
     # Obra (a fonte do estudo) e seus capítulos
     obras: list[dict] = []
     capitulos_obra: list[dict] = []
+    # Estudo aplicável (capítulos próprios + origem)
+    estudos_aplicados: list[dict] = []
+    capitulos_estudo: list[dict] = []
 
     # Controles de UI
     reject_motivo: str = ""
@@ -113,6 +116,75 @@ class AdminState(AuthState):
                         "ordem": f"{cap.ordem:02d}",
                         "titulo": cap.titulo,
                     })
+
+    def load_estudos_aplicados(self):
+        """Lista o estudo aplicavel, seus capitulos e a origem de cada um.
+
+        Os rotulos sao montados AQUI, em Python. Dentro do `rx.foreach` o valor e
+        um Var, e `var + "texto"` estoura na compilacao da pagina — foi assim que
+        o deploy de 16/10 derrubou o site em loop de restart.
+        """
+        from ..models import (
+            Adendo,
+            Estudo,
+            EstudoCapitulo,
+            EstudoCapituloOrigem,
+            Obra,
+            ObraCapitulo,
+        )
+
+        with rx.session() as session:
+            estudos = session.exec(select(Estudo).order_by(Estudo.id)).all()
+
+            resumo = []
+            for estudo in estudos:
+                capitulos = session.exec(
+                    select(EstudoCapitulo)
+                    .where(EstudoCapitulo.estudo_id == estudo.id)
+                    .order_by(EstudoCapitulo.ordem)
+                ).all()
+                resumo.append((estudo, capitulos))
+
+            self.estudos_aplicados = [{
+                "titulo": estudo.titulo,
+                "status": estudo.status,
+                "capitulos_label": f"{len(capitulos)} capítulos",
+            } for estudo, capitulos in resumo]
+
+            self.capitulos_estudo = []
+            if not resumo:
+                return
+
+            estudo, capitulos = resumo[0]
+            obra = session.get(Obra, estudo.obra_id)
+            titulo_obra = obra.titulo if obra is not None else "obra não encontrada"
+
+            for cap in capitulos:
+                origens = session.exec(
+                    select(EstudoCapituloOrigem).where(
+                        EstudoCapituloOrigem.estudo_capitulo_id == cap.id
+                    )
+                ).all()
+
+                partes = []
+                for origem in origens:
+                    capitulo_obra = session.get(ObraCapitulo, origem.obra_capitulo_id)
+                    if capitulo_obra is None:
+                        continue
+                    rotulo = f"{titulo_obra} · Cap. {capitulo_obra.ordem:02d}"
+                    if origem.adendo_id:
+                        adendo = session.get(Adendo, origem.adendo_id)
+                        if adendo is not None:
+                            rotulo += f" + {adendo.codigo}"
+                    partes.append(rotulo)
+
+                self.capitulos_estudo.append({
+                    "ordem": f"{cap.ordem:02d}",
+                    "titulo": cap.titulo,
+                    "origem_label": " ; ".join(partes) if partes else "sem origem declarada",
+                    "conteudo_label": f"{len(cap.conteudo_md):,}".replace(",", ".") + " caracteres",
+                    "status": cap.status,
+                })
 
     # ── Criação de Gestor (Admin cria; começa SUSPENSO) ─────────
 

@@ -70,6 +70,7 @@ def _admin_items():
         _sidebar_tab_item("shield", "Coordenadores", "coordenadores"),
         _sidebar_tab_item("clipboard-check", "Aprovação de Estudos", "estudos"),
         _sidebar_tab_item("book-marked", "Obras", "obras"),
+        _sidebar_tab_item("layers", "Estudo Aplicável", "estudo_aplicado"),
         _sidebar_tab_item("inbox", "Leads", "leads"),
         # Fora de /admin: e a tela de atribuicao, que o admin tambem usa para
         # disponibilizar estudo ao aluno (ver CoordenadorState.load_alunos).
