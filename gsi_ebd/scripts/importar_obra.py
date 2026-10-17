@@ -27,8 +27,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from sqlalchemy import func, select  # noqa: E402
-from sqlmodel import Session, SQLModel, create_engine  # noqa: E402
+from sqlalchemy import func  # noqa: E402
+# `select` do SQLMODEL, nao o do SQLAlchemy: o do SQLAlchemy devolve Row, e
+# `obra.id` estourava na RE-EXECUCAO (defeito encontrado na DEM-202610-001 —
+# a primeira execucao criava a obra e nunca lia o registro de volta).
+from sqlmodel import Session, SQLModel, create_engine, select  # noqa: E402
 
 from gsi_ebd.models import Doutrina, Obra, ObraCapitulo  # noqa: E402
 
