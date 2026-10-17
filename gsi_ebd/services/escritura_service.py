@@ -225,12 +225,18 @@ class EscrituraService:
             metas = r.get("metadatas") or []
             for i, doc in enumerate(docs):
                 meta = metas[i] if i < len(metas) else {}
-                referencia = ""
-                if isinstance(meta, dict):
-                    referencia = meta.get("referencia") or ""
+                meta = meta if isinstance(meta, dict) else {}
+                # O rotulo vem do NOSSO mapa, nao do metadado: o corpus grava o
+                # nome do livro sem acento ("Joao 3:16"), e exibir assim parece
+                # defeito. A referencia do metadado fica como reserva.
+                capitulo, versiculo = meta.get("capitulo"), meta.get("versiculo")
+                if isinstance(capitulo, int) and isinstance(versiculo, int):
+                    referencia = f"{citacao.livro.nome} {capitulo}:{versiculo}"
+                else:
+                    referencia = meta.get("referencia") or chave
                 out.append(
                     Versiculo(
-                        referencia=referencia or chave,
+                        referencia=referencia,
                         texto=(doc or "").strip(),
                         score=1.0,  # igualdade, nao similaridade
                     )

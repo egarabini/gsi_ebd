@@ -12,7 +12,11 @@ from gsi_ebd.utils.livros import por_osis, resolver
 
 
 class ColecaoFalsa:
-    """Substitui a coleção do ChromaDB: registra os `where` e devolve do dicionário."""
+    """Substitui a coleção do ChromaDB: registra os `where` e devolve do dicionário.
+
+    Devolve metadados no formato REAL do corpus (`livro` sem acento, `capitulo` e
+    `versiculo` como inteiros), para os testes exercitarem o mesmo caminho.
+    """
 
     def __init__(self, dados: dict):
         self.dados = dados
@@ -22,9 +26,17 @@ class ColecaoFalsa:
         chave = (where or {}).get("referencia")
         self.consultas.append(chave)
         if chave in self.dados:
+            livro = chave.rsplit(" ", 1)[0]
+            capitulo, versiculo = chave.rsplit(" ", 1)[-1].split(":")
             return {
                 "documents": [self.dados[chave]],
-                "metadatas": [{"referencia": chave}],
+                "metadatas": [{
+                    "referencia": chave,
+                    "livro": livro,
+                    "capitulo": int(capitulo),
+                    "versiculo": int(versiculo),
+                    "traducao": "ACF",
+                }],
             }
         return {"documents": [], "metadatas": []}
 
@@ -111,11 +123,23 @@ def test_buscar_citacao_usa_igualdade_e_acha_o_versiculo_certo():
     srv, fake = servico_com({"Joao 3:16": "Porque Deus amou o mundo de tal maneira"})
     citacao = EscrituraService.extrair_citacoes("Jo 3.16")[0]
     achados = srv.buscar_citacao(citacao)
-    assert fake.consultas == ["Joao 3:16"]  # consultou a chave exata
+    assert fake.consultas == ["Joao 3:16"]  # consultou a chave exata do corpus
     assert len(achados) == 1
-    assert achados[0].referencia == "Joao 3:16"
+    # O rotulo sai do NOSSO mapa (com acento), nao do metadado ("Joao 3:16")
+    assert achados[0].referencia == "João 3:16"
     assert achados[0].texto.startswith("Porque Deus amou")
     assert achados[0].score == 1.0
+
+
+def test_buscar_citacao_monta_rotulo_de_qualquer_livro():
+    """O metadado do corpus e sem acento; o rotulo exibido nao pode ser."""
+    srv, _ = servico_com({
+        "Genesis 1:1": "No princípio criou Deus os céus e a terra.",
+        "Exodo 34:6": "Passando, pois, o Senhor perante ele, clamou",
+    })
+    for entrada, esperado in (("Gn 1.1", "Gênesis 1:1"), ("Êx 34.6", "Êxodo 34:6")):
+        citacao = EscrituraService.extrair_citacoes(entrada)[0]
+        assert srv.buscar_citacao(citacao)[0].referencia == esperado
 
 
 def test_buscar_citacao_nao_devolve_versiculo_errado_quando_nao_acha():
