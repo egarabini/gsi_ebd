@@ -1,6 +1,7 @@
 """Painel do Coordenador — acompanha e atribui estudos aos seus alunos."""
 import reflex as rx
 from ..states.coordenador import CoordenadorState
+from ..states.auth import AuthState
 from ..components.navbar import navbar
 from ..components.sidebar import sidebar
 
@@ -320,7 +321,13 @@ def coordenador_page() -> rx.Component:
                 rx.hstack(
                     rx.vstack(
                         rx.heading(
-                            "Painel do Coordenador",
+                            # O admin usa esta tela para DISPONIBILIZAR estudo ao
+                            # aluno; o coordenador, para acompanhar os seus.
+                            rx.cond(
+                                AuthState.is_admin,
+                                "Disponibilizar Estudos",
+                                "Painel do Coordenador",
+                            ),
                             size="7",
                             weight="bold",
                             color="#1e1b4b",

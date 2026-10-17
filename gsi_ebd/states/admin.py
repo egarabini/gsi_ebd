@@ -192,6 +192,47 @@ class AdminState(AuthState):
         self.message_type = "success"
         self.load_estudos_pendentes()
 
+    def aprovar_todos(self):
+        """Aprova de uma vez todos os estudos pendentes.
+
+        Existe porque carga em massa entra como PROPOSTO (o importador traz 34
+        capitulos) e exigiria 34 cliques. A validacao continua sendo uma decisao
+        humana — so nao precisa ser repetida 34 vezes.
+        """
+        if not self.is_admin:
+            return rx.redirect("/login")
+        with rx.session() as session:
+            pendentes = session.exec(
+                select(Study).where(
+                    Study.status.in_([StudyStatus.PROPOSTO, StudyStatus.EM_REVISAO]),
+                    Study.is_active == True,
+                )
+            ).all()
+            for estudo in pendentes:
+                estudo.status = StudyStatus.APROVADO
+                estudo.aprovado_por = self.current_user_id
+                estudo.approved_at = datetime.utcnow()
+                estudo.feedback_admin = ""
+                session.add(estudo)
+                if estudo.proposto_por:
+                    session.add(Notification(
+                        user_id=estudo.proposto_por,
+                        tipo=NotificationType.ESTUDO_APROVADO,
+                        titulo="Estudo aprovado!",
+                        mensagem=f"Seu estudo '{estudo.title}' foi aprovado e já pode ser atribuído.",
+                        link="/coordenador",
+                    ))
+            session.commit()
+            quantos = len(pendentes)
+
+        if quantos:
+            self.message = f"{quantos} estudo(s) aprovado(s) e disponíveis para atribuição."
+            self.message_type = "success"
+        else:
+            self.message = "Nenhum estudo pendente para aprovar."
+            self.message_type = "info"
+        self.load_estudos_pendentes()
+
     def rejeitar_estudo(self, study_id: int):
         if not self.is_admin:
             return rx.redirect("/login")

@@ -127,6 +127,18 @@ class CoordenadorState(AuthState):
 
             # Unifica sem duplicatas
             todos = {u.id: u for u in alunos_diretos + alunos_turma}
+
+            # ADMIN: as duas estrategias acima sao do coordenador (instrutores e
+            # turmas APONTANDO para ele) e devolvem vazio para o admin. Mas o
+            # EscopoService diz que ADMIN ve todos os ambientes (role ADMIN ->
+            # None), entao aqui ele ve todos os alunos — e sem este ramo ele nao
+            # teria como disponibilizar estudo a ninguem.
+            if self.current_user_role == Role.ADMIN:
+                for u in session.exec(
+                    select(User).where(User.role == Role.ALUNO)
+                ).all():
+                    todos.setdefault(u.id, u)
+
             alunos_list = list(todos.values())
 
             # Busca progresso de cada aluno (dentro do ambiente)
@@ -273,6 +285,13 @@ class CoordenadorState(AuthState):
                 return
 
             atribuidos = 0
+            # O ambiente vem do ALUNO: e ele quem define o tenant do vinculo, e
+            # o EscopoService diz que toda tabela de dados carrega ambiente_id.
+            # Antes a atribuicao nascia com ambiente_id NULL — o isolamento
+            # ficava incompleto.
+            alunos = {u.id: u for u in session.exec(
+                select(User).where(User.id.in_(self.selected_aluno_ids))
+            ).all()}
             for aluno_id in self.selected_aluno_ids:
                 existing = session.exec(
                     select(StudyAssignment).where(
@@ -283,11 +302,13 @@ class CoordenadorState(AuthState):
                 ).first()
                 if existing:
                     continue
+                aluno = alunos.get(aluno_id)
                 session.add(StudyAssignment(
                     user_id=aluno_id,
                     study_id=study_id,
                     study_version_id=version.id,
                     assigned_by=self.current_user_id,
+                    ambiente_id=aluno.ambiente_id if aluno else None,
                 ))
                 atribuidos += 1
 

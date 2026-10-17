@@ -237,6 +237,17 @@ def _estudos_tab() -> rx.Component:
         ),
         rx.divider(),
         rx.heading("Estudos Pendentes de Avaliação", size="4"),
+        # Aprovação em lote: uma carga do importador traz 34 capítulos de uma vez.
+        rx.cond(
+            AdminState.estudos_pendentes.length() > 0,
+            rx.button(
+                rx.icon("check-check", size=16),
+                "Aprovar todos os pendentes",
+                on_click=AdminState.aprovar_todos,
+                color_scheme="green",
+                variant="soft",
+            ),
+        ),
         rx.cond(
             AdminState.estudos_pendentes.length() > 0,
             rx.foreach(

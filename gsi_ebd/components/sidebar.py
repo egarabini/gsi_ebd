@@ -57,6 +57,9 @@ def _admin_items():
         _sidebar_item("shield", "Admin", "/admin"),
         _sidebar_item("users", "Coordenadores", "/admin"),
         _sidebar_item("eye", "Coordenadores", "/admin"),
+        # O admin tambem disponibiliza estudo ao aluno (a tela do coordenador
+        # passou a lista-lo todos; ver CoordenadorState.load_alunos).
+        _sidebar_item("send", "Disponibilizar Estudos", "/coordenador"),
         _sidebar_item("bar-chart-2", "Relatórios", "/admin"),
     )
 

@@ -296,7 +296,8 @@ def _ambientes_alvo(s, ambiente_id: Optional[int]) -> list:
     return list(s.exec(select(Ambiente).where(Ambiente.is_active == True)).all())
 
 
-def gravar(dados: dict, engine, ambiente_id: Optional[int] = None) -> str:
+def gravar(dados: dict, engine, ambiente_id: Optional[int] = None,
+           aprovar: bool = False) -> str:
     from sqlmodel import Session, select
     from ..models.study import Study, StudyVersion, StudyStatus
     from ..models.turma import AmbienteEstudo
@@ -314,8 +315,13 @@ def gravar(dados: dict, engine, ambiente_id: Optional[int] = None) -> str:
                              f"(Doutrinas Cristas / Grudem)"),
                 category=dados["categoria"],
                 level=dados["nivel"],
-                status=StudyStatus.APROVADO,
-                aprovado_por=_admin_id(s),
+                # Entra como PROPOSTO: quem valida e o Administrador, na aba
+                # "Aprovacao de Estudos". Antes o importador gravava APROVADO e
+                # ATROPELAVA a validacao — os 34 capitulos nunca passaram pela
+                # fila do admin. `--aprovar` existe para a carga em massa em que a
+                # validacao ja foi feita fora do app.
+                status=StudyStatus.APROVADO if aprovar else StudyStatus.PROPOSTO,
+                aprovado_por=_admin_id(s) if aprovar else None,
             )
             s.add(st)
             s.flush()
@@ -354,6 +360,8 @@ def main() -> int:
     ap.add_argument("--json", action="store_true", help="imprime as questoes do cap. 1")
     ap.add_argument("--ambiente", type=int, default=None,
                     help="id do ambiente que recebera os estudos (padrao: todos os ativos)")
+    ap.add_argument("--aprovar", action="store_true",
+                    help="grava ja aprovado (padrao: entra como PROPOSTO, para o admin validar)")
     args = ap.parse_args()
 
     alvos = [args.capitulo] if args.capitulo else list(range(1, 35))
@@ -387,12 +395,17 @@ def main() -> int:
         SQLModel.metadata.create_all(eng)
         print(f"\n--- AUTOTESTE (SQLite descartavel) ---")
         for c, p in planos:
-            print(f"  cap {c:02d}: {gravar(p, eng, ambiente_id=args.ambiente)}")
+            print(f"  cap {c:02d}: {gravar(p, eng, ambiente_id=args.ambiente, aprovar=args.aprovar)}")
         from ..models.study import Study, StudyVersion
         with Session(eng) as s:
             ns = len(s.exec(select(Study)).all())
             vs = s.exec(select(StudyVersion)).all()
             print(f"  -> Studies: {ns} | versoes: {len(vs)}")
+            primeiro = s.exec(select(Study)).first()
+            if primeiro:
+                # Conferir o status aqui e o que garante que o importador nao
+                # aprova sozinho: sem isso, a fila de validacao do admin nasce vazia.
+                print(f"  -> status do primeiro estudo: {primeiro.status}")
             if vs:
                 q = json.loads(vs[0].questions_json)
                 tipos = {}
@@ -403,6 +416,7 @@ def main() -> int:
                 if mc:
                     print(f"  -> MC: {mc['question'][:58]}")
                     print(f"     opcoes={len(mc['options'])} resposta='{mc['answer'][:40]}'")
+        eng.dispose()  # sem isso o arquivo fica preso e o unlink falha no Windows
         db.unlink(missing_ok=True)
         print("  -> SQLite descartavel removido")
 
@@ -413,9 +427,11 @@ def main() -> int:
         from rxconfig import config
         from sqlmodel import create_engine
         print(f"\n--- APPLY ({str(config.db_url).split('@')[-1]}) ---")
+        print("    status: " + ("APROVADO (--aprovar)" if args.aprovar
+                                else "PROPOSTO — aguarda validacao do admin"))
         eng = create_engine(config.db_url)
         for c, p in planos:
-            print(f"  cap {c:02d}: {gravar(p, eng, ambiente_id=args.ambiente)}")
+            print(f"  cap {c:02d}: {gravar(p, eng, ambiente_id=args.ambiente, aprovar=args.aprovar)}")
 
     if not (args.apply or args.autoteste):
         print("\n(dry-run: nada gravado. Use --apply ou --autoteste.)")
