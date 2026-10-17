@@ -1,4 +1,6 @@
 import reflex as rx
+
+from ..states.admin import AdminState
 from ..states.auth import AuthState
 from ..states.common import CommonState
 
@@ -10,11 +12,7 @@ def sidebar() -> rx.Component:
         rx.cond(
             AuthState.is_coordenador,
             _coordenador_items(),
-            rx.cond(
-                AuthState.is_coordenador,
-                _coordenador_items(),
-                _aluno_items(),
-            ),
+            _aluno_items(),
         ),
     )
     return rx.box(
@@ -35,40 +33,46 @@ def sidebar() -> rx.Component:
     )
 
 
+def _item_body(icon_name: str, label: str) -> rx.Component:
+    return rx.hstack(
+        rx.icon(icon_name, size=18),
+        rx.text(label, display=rx.cond(CommonState.sidebar_open, "block", "none")),
+        spacing="2",
+        align="center",
+        padding="0.5rem",
+        border_radius="0.375rem",
+        _hover={"bg": "var(--accent-4)"},
+        width="100%",
+    )
+
+
 def _sidebar_item(icon_name: str, label: str, href: str) -> rx.Component:
+    return rx.link(_item_body(icon_name, label), href=href, width="100%")
+
+
+def _sidebar_tab_item(icon_name: str, label: str, aba: str) -> rx.Component:
+    """Item que leva a /admin E abre a aba correspondente.
+
+    Antes todos os itens do admin apontavam para /admin sem selecionar aba — o
+    menu parecia funcionar e nao fazia nada, e dois itens tinham o mesmo rotulo.
+    """
     return rx.link(
-        rx.hstack(
-            rx.icon(icon_name, size=18),
-            rx.text(label, display=rx.cond(CommonState.sidebar_open, "block", "none")),
-            spacing="2",
-            align="center",
-            padding="0.5rem",
-            border_radius="0.375rem",
-            _hover={"bg": "var(--accent-4)"},
-            width="100%",
-        ),
-        href=href,
+        _item_body(icon_name, label),
+        href="/admin",
+        on_click=AdminState.set_tab_atual(aba),
         width="100%",
     )
 
 
 def _admin_items():
     return rx.fragment(
-        _sidebar_item("shield", "Admin", "/admin"),
-        _sidebar_item("users", "Coordenadores", "/admin"),
-        _sidebar_item("eye", "Coordenadores", "/admin"),
-        # O admin tambem disponibiliza estudo ao aluno (a tela do coordenador
-        # passou a lista-lo todos; ver CoordenadorState.load_alunos).
+        _sidebar_tab_item("users", "Gestores", "gestores"),
+        _sidebar_tab_item("shield", "Coordenadores", "coordenadores"),
+        _sidebar_tab_item("clipboard-check", "Aprovação de Estudos", "estudos"),
+        _sidebar_tab_item("inbox", "Leads", "leads"),
+        # Fora de /admin: e a tela de atribuicao, que o admin tambem usa para
+        # disponibilizar estudo ao aluno (ver CoordenadorState.load_alunos).
         _sidebar_item("send", "Disponibilizar Estudos", "/coordenador"),
-        _sidebar_item("bar-chart-2", "Relatórios", "/admin"),
-    )
-
-
-def _coordenador_items():
-    return rx.fragment(
-        _sidebar_item("eye", "Visao Geral", "/coordenador"),
-        _sidebar_item("users", "Meus Alunos", "/coordenador"),
-        _sidebar_item("bar-chart-2", "Progresso", "/coordenador"),
     )
 
 

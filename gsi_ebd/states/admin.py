@@ -29,6 +29,10 @@ class AdminState(AuthState):
     reject_motivo: str = ""
     message: str = ""
     message_type: str = "info"
+    # Aba ativa do painel. Fica no estado porque o menu lateral precisa poder
+    # levar direto a uma aba — antes os itens do menu so apontavam para /admin
+    # sem selecionar nada, e dois deles tinham o mesmo rotulo.
+    tab_atual: str = "gestores"
 
     # ── Carregamento ────────────────────────────────────────────
 

@@ -23,7 +23,10 @@ def admin_page() -> rx.Component:
                     rx.tabs.content(_coordenadores_tab(), value="coordenadores"),
                     rx.tabs.content(_estudos_tab(), value="estudos"),
                     rx.tabs.content(_leads_tab(), value="leads"),
-                    default_value="gestores",
+                    # value/on_change (e nao default_value) para o menu lateral
+                    # conseguir abrir uma aba especifica.
+                    value=AdminState.tab_atual,
+                    on_change=AdminState.set_tab_atual,
                     width="100%",
                 ),
                 spacing="4",
