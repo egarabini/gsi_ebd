@@ -1,0 +1,53 @@
+name: CI
+
+# Etapa 1 da DEM-202610-004: a suite roda em todo PR e todo push nas branches de
+# integracao e producao. O porteiro de merge da ADR-009 depende deste check.
+#
+# Sem segredos, sem acesso a VPS, sem corpus: os testes usam dubles. A instalacao
+# do Reflex e a parte lenta, por isso o cache de pip.
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    name: testes (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python 3.12 (mesma versao da imagem de producao)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Versoes (ajuda a diagnosticar diferenca de ambiente)
+        run: |
+          python --version
+          python -c "import reflex, sqlmodel, pytest; print('reflex', reflex.__version__)"
+
+      - name: Suite de testes
+        env:
+          PYTHONIOENCODING: utf-8
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python -m pytest tests -q
