@@ -283,7 +283,7 @@ def test_handlers_reais_barrados_nao_executam():
         (AdminState.update_lead_status, Role.ALUNO),
         (AdminState.load_leads, Role.ALUNO),
         (CoordenadorState.assign_study, Role.ALUNO),
-        (RevisaoState.abrir_resposta, Role.COORDENADOR),
+        (RevisaoState.salvar_parecer, Role.COORDENADOR),
     )
     for handler, papel in casos:
         falso = SimpleNamespace(current_user_role=papel)

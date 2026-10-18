@@ -7,7 +7,7 @@ import bcrypt
 from ..models.user import User, Role, UserStatus
 from ..services.auth_service import AuthService
 from ..services.user_status_service import UserStatusService
-from ..utils.rbac import guarda_rota, home_do_papel, pode
+from ..utils.rbac import guarda_rota
 
 
 class AuthState(rx.State):
