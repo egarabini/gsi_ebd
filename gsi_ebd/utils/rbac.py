@@ -16,8 +16,21 @@ import reflex as rx
 from ..models.user import Role
 
 # ── matriz unica: rotas e acoes de evento ───────────────────────────────────
+# Rota fora desta matriz nao tem guarda. As publicas/abertas entram com _TODOS
+# para `pode` ser total (F-06): o guarda de rota checa autenticacao antes.
+_TODOS = (Role.ADMIN, Role.REVISOR, Role.COORDENADOR, Role.INSTRUTOR, Role.ALUNO)
+
 PERMISSOES: dict[str, tuple[int, ...]] = {
-    # rotas (usadas pelos handlers de on_load)
+    # rotas publicas ou abertas a qualquer logado
+    "rota:/": _TODOS,
+    "rota:/login": _TODOS,
+    "rota:/confirmar/[token]": _TODOS,
+    "rota:/homenagens": _TODOS,
+    "rota:/aluno": _TODOS,
+    "rota:/aluno/licao": _TODOS,
+    "rota:/aluno/pareceres": _TODOS,
+    "rota:/perfil/alterar-senha": _TODOS,
+    # rotas guardadas (usadas pelos handlers de on_load)
     "rota:/admin": (Role.ADMIN, Role.REVISOR),
     "rota:/coordenador": (Role.ADMIN, Role.COORDENADOR),
     "rota:/revisao": (Role.ADMIN, Role.INSTRUTOR),

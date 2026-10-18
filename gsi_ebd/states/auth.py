@@ -7,7 +7,7 @@ import bcrypt
 from ..models.user import User, Role, UserStatus
 from ..services.auth_service import AuthService
 from ..services.user_status_service import UserStatusService
-from ..utils.rbac import home_do_papel, pode
+from ..utils.rbac import guarda_rota, home_do_papel, pode
 
 
 class AuthState(rx.State):
@@ -211,19 +211,17 @@ class AuthState(rx.State):
 
     # ── Guarda de papel por rota (DEM-202610-002) ───────────────────
     # O `check_auth` so pergunta "esta logado?". Estes perguntam "pode esta
-    # rota?" e devolvem quem nao pode para a casa do proprio papel - nunca para
-    # a rota negada, senao o redirect entra em loop.
-    def _guarda(self, rota: str):
-        if not self.is_authenticated:
-            return rx.redirect("/login")
-        if not pode("rota:" + rota, self.current_user_role):
-            return rx.redirect(home_do_papel(self.current_user_role))
-
+    # rota?" pelo decorador `guarda_rota`, que consulta a matriz unica e devolve
+    # quem nao pode para a casa do proprio papel - nunca para a rota negada,
+    # senao o redirect entra em loop.
+    @guarda_rota("/admin")
     def guarda_admin(self):
-        return self._guarda("/admin")
+        return None
 
+    @guarda_rota("/coordenador")
     def guarda_coordenador(self):
-        return self._guarda("/coordenador")
+        return None
 
+    @guarda_rota("/revisao")
     def guarda_revisao(self):
-        return self._guarda("/revisao")
+        return None

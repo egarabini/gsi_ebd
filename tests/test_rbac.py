@@ -160,16 +160,88 @@ def test_lista_de_eventos_congelada(nome):
 
 # ── 5. todo evento dos estados administrativos tem @exige ──────────────────
 def test_todo_evento_tem_marcador_exige():
+    """Varre os EVENTOS reais (`event_handlers`), nao `vars(cls)`.
+
+    O Reflex troca cada metodo publico por um `EventHandler` quando a classe e
+    compilada, entao `inspect.isfunction(vars(cls)[nome])` e False. A versao
+    anterior desta varredura examinava **zero** eventos e passava com os 28
+    `@exige` removidos - achado do EVAL (rodada 1).
+    """
     for estado in ESTADOS_GUARDADOS:
         sem_marcador = []
-        for nome, fn in vars(estado).items():
-            if nome.startswith("_") or nome == "setvar" or not inspect.isfunction(fn):
-                continue
-            if nome.startswith("set_"):   # campo de formulario: coberto pela lista congelada
-                continue
-            if not hasattr(fn, "__exige__"):
+        for nome, handler in estado.event_handlers.items():
+            if nome == "setvar" or nome.startswith("set_"):
+                continue   # setters de formulario: cobertos pela lista congelada
+            if not hasattr(getattr(handler, "fn", None), "__exige__"):
                 sem_marcador.append(nome)
         assert sem_marcador == [], f"{estado.__name__} sem @exige: {sem_marcador}"
+
+
+# ── 7. rotas publicas e casa unica (F-06 e F-08) ───────────────────────────
+def test_rotas_publicas_abertas_a_todos():
+    for rota in (
+        "/", "/login", "/confirmar/[token]", "/homenagens",
+        "/aluno", "/aluno/licao", "/aluno/pareceres", "/perfil/alterar-senha",
+    ):
+        for papel in Role:
+            assert rbac.pode("rota:" + rota, papel), f"{papel.name} deveria poder {rota}"
+
+
+def test_home_consistente_com_authservice():
+    """A casa do papel tem UMA fonte: `rbac.home_do_papel`.
+
+    Antes havia duas tabelas iguais (rbac e AuthService) - duas verdades para a
+    mesma pergunta, que divergiriam na primeira mudanca.
+    """
+    from gsi_ebd.services.auth_service import AuthService
+
+    for papel in Role:
+        assert AuthService.redirect_for_role(papel) == rbac.home_do_papel(papel)
+
+
+# ── 8. fiacao real: os on_load do app e os guardas de verdade ──────────────
+def test_fiacao_on_load_das_rotas_guardadas():
+    """Importa o app e confere que cada rota guardada TEM o guarda no on_load.
+
+    Sem este teste, apagar a guarda do `on_load` nao reprovava nada (achado do
+    EVAL, rodada 1).
+    """
+    from gsi_ebd.gsi_ebd import app
+
+    esperado = {
+        "/admin": AuthState.guarda_admin,
+        "/coordenador": AuthState.guarda_coordenador,
+        "/revisao": AuthState.guarda_revisao,
+    }
+    for rota, guarda in esperado.items():
+        # Reflex 0.9.5: as paginas ficam em `_unevaluated_pages`, com a rota sem
+        # a barra inicial ('admin', 'coordenador', 'revisao').
+        pagina = app._unevaluated_pages[rota.lstrip("/")]
+        on_load = list(getattr(pagina, "on_load", None) or [])
+        funcoes = [getattr(h, "fn", None) for h in on_load]
+        assert guarda.fn in funcoes, f"{rota} sem o guarda no on_load: {funcoes}"
+
+
+def test_guarda_real_bloqueia_e_libera():
+    """O guarda que o app USA (nao uma copia sintetica) barra e libera por papel."""
+    from types import SimpleNamespace
+
+    casos = (
+        ("/admin", AuthState.guarda_admin),
+        ("/coordenador", AuthState.guarda_coordenador),
+        ("/revisao", AuthState.guarda_revisao),
+    )
+    for rota, handler in casos:
+        fn = handler.fn
+        anon = SimpleNamespace(is_authenticated=False, current_user_role=Role.ALUNO)
+        assert fn(anon) is not None, f"{rota}: anonimo deveria ser barrado"
+        for papel in Role:
+            falso = SimpleNamespace(is_authenticated=True, current_user_role=papel)
+            resultado = fn(falso)
+            if papel in rbac.PERMISSOES["rota:" + rota]:
+                assert resultado is None, f"{rota}: {papel.name} deveria passar"
+            else:
+                assert resultado is not None, f"{rota}: {papel.name} deveria ser barrado"
 
 
 # ── 6. o decorador realmente barra ─────────────────────────────────────────
