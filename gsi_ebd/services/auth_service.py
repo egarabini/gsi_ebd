@@ -10,14 +10,12 @@ class AuthService:
 
     @staticmethod
     def redirect_for_role(current_role: int) -> str:
-        role_paths = {
-            Role.ADMIN: "/admin",
-            Role.COORDENADOR: "/coordenador",
-            Role.REVISOR: "/admin",       # valida o catalogo na tela do admin
-            Role.INSTRUTOR: "/revisao",
-            Role.ALUNO: "/aluno",
-        }
-        return role_paths.get(current_role, "/login")
+        # FONTE UNICA: utils/rbac.py (DEM-202610-002). Antes havia duas tabelas
+        # iguais em arquivos diferentes - duas verdades para a mesma pergunta,
+        # que divergiriam na primeira DEM que mudasse a casa de um papel.
+        from ..utils.rbac import home_do_papel
+
+        return home_do_papel(current_role)
 
     @staticmethod
     def require_login(is_authenticated: bool):

@@ -1,0 +1,11 @@
+# Dependencias de DESENVOLVIMENTO e CI.
+#
+# Nao entram na imagem de producao: o Dockerfile instala apenas requirements.txt.
+#
+# Este arquivo existe por um motivo concreto: a suite de testes NAO rodava fora do
+# venv local, porque o requirements.txt e a lista de RUNTIME e o pytest nao estava
+# la. O primeiro run da CI (DEM-202610-004, 2026-10-18) falhou com
+# "ModuleNotFoundError: No module named 'pytest'" - e provou o problema.
+
+-r requirements.txt
+pytest==9.1.0

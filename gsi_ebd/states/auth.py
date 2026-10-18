@@ -7,6 +7,7 @@ import bcrypt
 from ..models.user import User, Role, UserStatus
 from ..services.auth_service import AuthService
 from ..services.user_status_service import UserStatusService
+from ..utils.rbac import guarda_rota, home_do_papel, pode
 
 
 class AuthState(rx.State):
@@ -197,3 +198,30 @@ class AuthState(rx.State):
     # ── Guard de rota ─────────────────────────────────────────
     def check_auth(self):
         return AuthService.require_login(self.is_authenticated)
+
+    # ── Setters explicitos (state_auto_setters=False) ───────────────
+    # So campo de formulario. Identidade (current_user_*) nao tem setter:
+    # o cliente nao escreve o proprio papel.
+
+    def set_login_email(self, v: str):
+        self.login_email = v
+
+    def set_login_password(self, v: str):
+        self.login_password = v
+
+    # ── Guarda de papel por rota (DEM-202610-002) ───────────────────
+    # O `check_auth` so pergunta "esta logado?". Estes perguntam "pode esta
+    # rota?" pelo decorador `guarda_rota`, que consulta a matriz unica e devolve
+    # quem nao pode para a casa do proprio papel - nunca para a rota negada,
+    # senao o redirect entra em loop.
+    @guarda_rota("/admin")
+    def guarda_admin(self):
+        return None
+
+    @guarda_rota("/coordenador")
+    def guarda_coordenador(self):
+        return None
+
+    @guarda_rota("/revisao")
+    def guarda_revisao(self):
+        return None

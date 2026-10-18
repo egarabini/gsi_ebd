@@ -11,6 +11,7 @@ from ..models.lead import Lead, LeadStatus
 from .auth import AuthState
 from ..utils.rbac import can_manage
 from ..services.user_status_service import UserStatusService
+from ..utils.rbac import exige
 
 
 class AdminState(AuthState):
@@ -27,6 +28,9 @@ class AdminState(AuthState):
     # Obra (a fonte do estudo) e seus capítulos
     obras: list[dict] = []
     capitulos_obra: list[dict] = []
+    # Estudo aplicável (capítulos próprios + origem)
+    estudos_aplicados: list[dict] = []
+    capitulos_estudo: list[dict] = []
 
     # Controles de UI
     reject_motivo: str = ""
@@ -40,6 +44,7 @@ class AdminState(AuthState):
     # ── Carregamento ────────────────────────────────────────────
 
 
+    @exige("acao:usuarios")
     def load_coordenadores(self):
         with rx.session() as session:
             users = session.exec(
@@ -51,6 +56,7 @@ class AdminState(AuthState):
                 for u in users
             ]
 
+    @exige("acao:leads")
     def load_leads(self):
         with rx.session() as session:
             leads = session.exec(
@@ -61,6 +67,7 @@ class AdminState(AuthState):
                 for l in leads
             ]
 
+    @exige("acao:catalogo_ler")
     def load_estudos_pendentes(self):
         with rx.session() as session:
             estudos = session.exec(
@@ -75,6 +82,7 @@ class AdminState(AuthState):
                 for e in estudos
             ]
 
+    @exige("acao:catalogo_ler")
     def load_obras(self):
         """Lista as obras (a fonte) e os capítulos da primeira.
 
@@ -114,9 +122,80 @@ class AdminState(AuthState):
                         "titulo": cap.titulo,
                     })
 
+    @exige("acao:catalogo_ler")
+    def load_estudos_aplicados(self):
+        """Lista o estudo aplicavel, seus capitulos e a origem de cada um.
+
+        Os rotulos sao montados AQUI, em Python. Dentro do `rx.foreach` o valor e
+        um Var, e `var + "texto"` estoura na compilacao da pagina — foi assim que
+        o deploy de 16/10 derrubou o site em loop de restart.
+        """
+        from ..models import (
+            Adendo,
+            Estudo,
+            EstudoCapitulo,
+            EstudoCapituloOrigem,
+            Obra,
+            ObraCapitulo,
+        )
+
+        with rx.session() as session:
+            estudos = session.exec(select(Estudo).order_by(Estudo.id)).all()
+
+            resumo = []
+            for estudo in estudos:
+                capitulos = session.exec(
+                    select(EstudoCapitulo)
+                    .where(EstudoCapitulo.estudo_id == estudo.id)
+                    .order_by(EstudoCapitulo.ordem)
+                ).all()
+                resumo.append((estudo, capitulos))
+
+            self.estudos_aplicados = [{
+                "titulo": estudo.titulo,
+                "status": estudo.status,
+                "capitulos_label": f"{len(capitulos)} capítulos",
+            } for estudo, capitulos in resumo]
+
+            self.capitulos_estudo = []
+            if not resumo:
+                return
+
+            estudo, capitulos = resumo[0]
+            obra = session.get(Obra, estudo.obra_id)
+            titulo_obra = obra.titulo if obra is not None else "obra não encontrada"
+
+            for cap in capitulos:
+                origens = session.exec(
+                    select(EstudoCapituloOrigem).where(
+                        EstudoCapituloOrigem.estudo_capitulo_id == cap.id
+                    )
+                ).all()
+
+                partes = []
+                for origem in origens:
+                    capitulo_obra = session.get(ObraCapitulo, origem.obra_capitulo_id)
+                    if capitulo_obra is None:
+                        continue
+                    rotulo = f"{titulo_obra} · Cap. {capitulo_obra.ordem:02d}"
+                    if origem.adendo_id:
+                        adendo = session.get(Adendo, origem.adendo_id)
+                        if adendo is not None:
+                            rotulo += f" + {adendo.codigo}"
+                    partes.append(rotulo)
+
+                self.capitulos_estudo.append({
+                    "ordem": f"{cap.ordem:02d}",
+                    "titulo": cap.titulo,
+                    "origem_label": " ; ".join(partes) if partes else "sem origem declarada",
+                    "conteudo_label": f"{len(cap.conteudo_md):,}".replace(",", ".") + " caracteres",
+                    "status": cap.status,
+                })
+
     # ── Criação de Gestor (Admin cria; começa SUSPENSO) ─────────
 
 
+    @exige("acao:usuarios")
     def create_gestor(self):
         if not self.is_admin:
             return rx.redirect("/login")
@@ -153,6 +232,7 @@ class AdminState(AuthState):
 
     # ── Gestão de Status ──────────────────────────────────────────
 
+    @exige("acao:usuarios")
     def activate_user(self, user_id: int):
         """Força ativação manual pelo Admin (sem precisar de email)."""
         with rx.session() as session:
@@ -167,6 +247,7 @@ class AdminState(AuthState):
                 session.commit()
         self._reload_all()
 
+    @exige("acao:usuarios")
     def suspend_user(self, user_id: int):
         """Suspende manualmente um usuário. Admin nunca pode ser suspenso."""
         with rx.session() as session:
@@ -182,6 +263,7 @@ class AdminState(AuthState):
                 session.commit()
         self._reload_all()
 
+    @exige("acao:usuarios")
     def cancel_user(self, user_id: int):
         """Cancela definitivamente o acesso de um usuário."""
         with rx.session() as session:
@@ -201,6 +283,7 @@ class AdminState(AuthState):
 
     # ── Leads ─────────────────────────────────────────────────────
 
+    @exige("acao:leads")
     def update_lead_status(self, lead_id: int, new_status: str):
         with rx.session() as session:
             lead = session.exec(select(Lead).where(Lead.id == lead_id)).first()
@@ -213,6 +296,7 @@ class AdminState(AuthState):
 
     # ── Aprovação de Estudos ──────────────────────────────────────
 
+    @exige("acao:catalogo_aprovar")
     def aprovar_estudo(self, study_id: int):
         if not self.is_admin:
             return rx.redirect("/login")
@@ -238,6 +322,7 @@ class AdminState(AuthState):
         self.message_type = "success"
         self.load_estudos_pendentes()
 
+    @exige("acao:catalogo_aprovar")
     def aprovar_todos(self):
         """Aprova de uma vez todos os estudos pendentes.
 
@@ -279,6 +364,7 @@ class AdminState(AuthState):
             self.message_type = "info"
         self.load_estudos_pendentes()
 
+    @exige("acao:catalogo_aprovar")
     def rejeitar_estudo(self, study_id: int):
         if not self.is_admin:
             return rx.redirect("/login")
@@ -307,3 +393,19 @@ class AdminState(AuthState):
         self.message = "Estudo devolvido para revisão"
         self.message_type = "info"
         self.load_estudos_pendentes()
+
+    # ── Setters explicitos (state_auto_setters=False) ───────────────
+    # So campo de formulario. Identidade (current_user_*) nao tem setter:
+    # o cliente nao escreve o proprio papel.
+
+    def set_tab_atual(self, v: str):
+        self.tab_atual = v
+
+    def set_new_gestor_nome(self, v: str):
+        self.new_gestor_nome = v
+
+    def set_new_gestor_email(self, v: str):
+        self.new_gestor_email = v
+
+    def set_reject_motivo(self, v: str):
+        self.reject_motivo = v

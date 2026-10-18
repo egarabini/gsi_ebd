@@ -68,7 +68,7 @@ app.add_page(
     admin_page,
     route="/admin",
     title="Didasko — Admin",
-    on_load=[AuthState.check_auth, AdminState.load_coordenadores],
+    on_load=[AuthState.guarda_admin, AdminState.load_coordenadores],
 )
 
 
@@ -92,7 +92,7 @@ app.add_page(
     coordenador_page,
     route="/coordenador",
     title="Didasko — Coordenador",
-    on_load=[AuthState.check_auth, CoordenadorState.load_all],
+    on_load=[AuthState.guarda_coordenador, CoordenadorState.load_all],
 )
 
 # ── Perfil / Alterar Senha ────────────────────────────────────────────────────────────────────
@@ -108,7 +108,7 @@ app.add_page(
     revisao_page,
     route="/revisao",
     title="Didasko — Correcao de Respostas",
-    on_load=[AuthState.check_auth, RevisaoState.load_fila],
+    on_load=[AuthState.guarda_revisao, RevisaoState.load_fila],
 )
 
 # ── Pareceres do instrutor (aluno) ───────────────────────────────────────────
