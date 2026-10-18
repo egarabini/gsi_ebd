@@ -1,0 +1,121 @@
+name: Deploy (producao)
+
+# Etapa 2 da DEM-202610-004: publicacao pela pipeline (ADR-010).
+#
+# Dispara em:
+#   - tag v* (release publicada)          -> decisao 9.1
+#   - workflow_dispatch (republicar sem release, emergencia)
+#
+# O job usa o Environment "producao", que exige aprovacao do ARQUITECT antes de
+# qualquer comando rodar. Sem aprovacao, o deploy nao acontece - e a pipeline
+# nao tem como contornar isso.
+#
+# O que a VPS faz de fato esta em deploy/didasko-deploy-entry.sh (comando
+# forcado do SSH): valida a tag, faz pg_dump, checkout, subir.sh e verifica HTTP.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag a publicar (vazio = ultima tag alcancavel)"
+        required: false
+        default: ""
+
+concurrency:
+  group: deploy-producao
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publicar:
+    name: publicar na VPS
+    runs-on: ubuntu-latest
+    environment: producao          # aprovacao do ARQUITECT antes de rodar
+    timeout-minutes: 40
+
+    steps:
+      - name: So tag ou main publica
+        run: |
+          set -euo pipefail
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "origem: tag ${{ github.ref_name }}"; exit 0
+          fi
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "origem: main"; exit 0
+          fi
+          echo "::error::so tag v* ou main publica - ref atual: ${{ github.ref }}"
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Definir a tag
+        id: tag
+        run: |
+          set -euo pipefail
+          TAG="${{ inputs.tag }}"
+          if [ -z "$TAG" ]; then
+            if [ "${{ github.ref_type }}" = "tag" ]; then
+              TAG="${{ github.ref_name }}"
+            else
+              TAG="$(git describe --tags --abbrev=0)"
+            fi
+          fi
+          git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || {
+            echo "::error::tag $TAG nao existe no repositorio"; exit 1; }
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "publicando: $TAG"
+
+      - name: Preparar a chave (so existe nesta maquina temporaria)
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+          ssh-keygen -y -f ~/.ssh/deploy_key >/dev/null || {
+            echo "::error::DEPLOY_SSH_KEY nao e uma chave privada valida"; exit 1; }
+
+      - name: Publicar (comando forcado)
+        env:
+          HOST: ${{ vars.DEPLOY_HOST }}
+          USUARIO: ${{ vars.DEPLOY_USER }}
+          PORTA: ${{ vars.DEPLOY_PORT }}
+        run: |
+          set -euo pipefail
+          HOST="${HOST:-didasko.app.br}"
+          USUARIO="${USUARIO:-didasko-deploy}"
+          PORTA="${PORTA:-22}"
+          echo "alvo: $USUARIO@$HOST:$PORTA | tag: ${{ steps.tag.outputs.tag }}"
+          ssh -i ~/.ssh/deploy_key -p "$PORTA" \
+              -o UserKnownHostsFile=~/.ssh/known_hosts \
+              -o StrictHostKeyChecking=yes \
+              -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+              "$USUARIO@$HOST" "deploy ${{ steps.tag.outputs.tag }}"
+
+      - name: Apagar a chave da maquina temporaria
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
+
+      - name: Verificar o site de fora
+        if: success()
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 20); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 https://didasko.app.br/ || echo 000)
+            if [ "$CODE" = "200" ]; then echo "site HTTP 200"; exit 0; fi
+            echo "tentativa $i/20: HTTP $CODE"
+            sleep 5
+          done
+          echo "::error::site nao respondeu 200 depois do deploy"
+          exit 1
