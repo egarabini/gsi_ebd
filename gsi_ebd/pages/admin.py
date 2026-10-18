@@ -18,12 +18,14 @@ def admin_page() -> rx.Component:
                         rx.tabs.trigger("Coordenadores", value="coordenadores"),
                         rx.tabs.trigger("Aprovação de Estudos", value="estudos"),
                         rx.tabs.trigger("Obras", value="obras"),
+                        rx.tabs.trigger("Estudo Aplicável", value="estudo_aplicado"),
                         rx.tabs.trigger("Leads", value="leads"),
                     ),
                     rx.tabs.content(_gestores_tab(), value="gestores"),
                     rx.tabs.content(_coordenadores_tab(), value="coordenadores"),
                     rx.tabs.content(_estudos_tab(), value="estudos"),
                     rx.tabs.content(_obras_tab(), value="obras"),
+                    rx.tabs.content(_estudo_aplicado_tab(), value="estudo_aplicado"),
                     rx.tabs.content(_leads_tab(), value="leads"),
                     # value/on_change (e nao default_value) para o menu lateral
                     # conseguir abrir uma aba especifica.
@@ -321,6 +323,84 @@ def _obras_tab() -> rx.Component:
             ),
         ),
         on_mount=AdminState.load_obras,
+        spacing="3",
+        width="100%",
+    )
+
+
+def _estudo_aplicado_card(e: dict) -> rx.Component:
+    return rx.card(
+        rx.hstack(
+            rx.icon("layers", size=18, color="#0891b2"),
+            rx.text(e["titulo"], weight="bold", size="4"),
+            rx.badge(e["status"], color_scheme="amber", variant="soft"),
+            rx.badge(e["capitulos_label"], color_scheme="gray", variant="soft"),
+            spacing="2",
+            align="center",
+        ),
+        width="100%",
+    )
+
+
+def _capitulo_estudo_linha(c: dict) -> rx.Component:
+    return rx.vstack(
+        rx.hstack(
+            rx.text(c["ordem"], color="gray", size="1", width="2rem"),
+            rx.text(c["titulo"], size="2", weight="medium"),
+            rx.badge(c["status"], color_scheme="amber", variant="soft", size="1"),
+            spacing="2",
+            align="center",
+            width="100%",
+        ),
+        rx.hstack(
+            rx.icon("git-branch", size=12, color="gray"),
+            rx.text(c["origem_label"], size="1", color="gray"),
+            rx.text("·", size="1", color="gray"),
+            rx.text(c["conteudo_label"], size="1", color="gray"),
+            spacing="1",
+            align="center",
+        ),
+        spacing="1",
+        align="start",
+        width="100%",
+        padding_y="0.2rem",
+    )
+
+
+def _estudo_aplicado_tab() -> rx.Component:
+    """O ESTUDO aplicável — capítulos próprios e origem, somente leitura.
+
+    Os rótulos chegam prontos do estado (nunca concatenados aqui): dentro de
+    `rx.foreach` o valor é Var, e `var + "texto"` quebra a compilação da página.
+    """
+    return rx.vstack(
+        rx.heading("Estudo aplicável — capítulos e origem", size="4"),
+        rx.text(
+            "O estudo é o material que será aplicado ao aluno; seus capítulos não "
+            "correspondem necessariamente aos da obra. Esta tela é somente leitura: "
+            "todo capítulo nasce em rascunho e só muda de estado com aprovação "
+            "assinada (ADR-011).",
+            color="gray",
+            size="2",
+        ),
+        rx.cond(
+            AdminState.estudos_aplicados.length() > 0,
+            rx.foreach(AdminState.estudos_aplicados, _estudo_aplicado_card),
+            rx.text("Nenhum estudo aplicável importado ainda.", color="gray"),
+        ),
+        rx.cond(
+            AdminState.capitulos_estudo.length() > 0,
+            rx.card(
+                rx.vstack(
+                    rx.heading("Capítulos do estudo", size="3"),
+                    rx.foreach(AdminState.capitulos_estudo, _capitulo_estudo_linha),
+                    spacing="1",
+                    width="100%",
+                ),
+                width="100%",
+            ),
+        ),
+        on_mount=AdminState.load_estudos_aplicados,
         spacing="3",
         width="100%",
     )

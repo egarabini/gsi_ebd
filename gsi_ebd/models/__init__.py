@@ -8,6 +8,7 @@ from .notification import Notification, NotificationType
 from .turma import (Ambiente, AmbienteEstudo, Equipe, EquipeInstrutor, Turma, TurmaMembro)
 from .referencia_cruzada import ReferenciaCruzada
 from .obra import Doutrina, Obra, ObraCapitulo, Adendo
+from .estudo import Estudo, EstudoCapitulo, EstudoCapituloOrigem
 
 __all__ = [
     # Usuário
@@ -31,4 +32,6 @@ __all__ = [
     "ReferenciaCruzada",
     # Obra (fonte) e adendos — a base do estudo
     "Doutrina", "Obra", "ObraCapitulo", "Adendo",
+    # Estudo aplicavel (capitulos proprios + mapa de origem)
+    "Estudo", "EstudoCapitulo", "EstudoCapituloOrigem",
 ]
