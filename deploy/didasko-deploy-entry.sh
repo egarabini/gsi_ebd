@@ -26,11 +26,16 @@ BACKUPS="$HOME/backups"
 LOG="$HOME/deploy-$(date +%Y%m%d-%H%M%S).log"
 COMPOSE_ARQ="deploy/docker-compose.producao.yml"
 
+# tudo o que sai vai para o log e para o stdout (a pipeline ve no run).
+# O log() NAO usa tee: o exec abaixo ja espelha stdout/stderr no arquivo. Usar
+# tee nas duas pontas gravaria cada linha duas vezes no log.
+exec > >(tee -a "$LOG") 2>&1
+
 log()   { echo "$(date -Is) $*"; }
 morrer(){ log "[ERRO] $*"; exit 1; }
 
-# tudo o que sai vai para o log e para o stdout (a pipeline ve no run)
-exec > >(tee -a "$LOG") 2>&1
+# ── 0. onde estamos ─────────────────────────────────────────────────────────
+log "inicio"
 
 # ── 1. validar o pedido ─────────────────────────────────────────────────────
 CMD="${SSH_ORIGINAL_COMMAND:-}"
