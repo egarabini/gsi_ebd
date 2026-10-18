@@ -81,6 +81,29 @@ class LandingState(rx.State):
     form_success: bool = False
     form_loading: bool = False
 
+    # ── Setters explicitos (state_auto_setters=False) ───────────────
+    # O formulario da landing liga os campos por `state_class.set_form_*`.
+    def set_form_nome(self, v: str):
+        self.form_nome = v
+
+    def set_form_email(self, v: str):
+        self.form_email = v
+
+    def set_form_telefone(self, v: str):
+        self.form_telefone = v
+
+    def set_form_cidade_estado(self, v: str):
+        self.form_cidade_estado = v
+
+    def set_form_membro_igreja(self, v: bool):
+        self.form_membro_igreja = v
+
+    def set_form_nome_igreja(self, v: str):
+        self.form_nome_igreja = v
+
+    def set_form_mensagem(self, v: str):
+        self.form_mensagem = v
+
     def load_content(self):
         """
         Carrega textos do SiteConfig e testemunhos do banco.

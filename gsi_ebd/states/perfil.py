@@ -113,3 +113,16 @@ class PerfilState(AuthState):
 
         # Redireciona para o dashboard após troca bem-sucedida
         return rx.redirect(self.redirect_path)
+
+    # ── Setters explicitos (state_auto_setters=False) ───────────────
+    # So campo de formulario. Identidade (current_user_*) nao tem setter:
+    # o cliente nao escreve o proprio papel.
+
+    def set_senha_atual(self, v: str):
+        self.senha_atual = v
+
+    def set_nova_senha(self, v: str):
+        self.nova_senha = v
+
+    def set_confirma_senha(self, v: str):
+        self.confirma_senha = v

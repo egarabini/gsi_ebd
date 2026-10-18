@@ -5,6 +5,7 @@ import reflex as rx
 
 from ..services.review_service import ReviewService
 from .auth import AuthState
+from ..utils.rbac import exige
 
 
 class RevisaoState(AuthState):
@@ -23,6 +24,7 @@ class RevisaoState(AuthState):
     sugestao_erro: str = ""
     mensagem_tipo: str = "info"
 
+    @exige("acao:revisao")
     def load_fila(self):
         itens = ReviewService.fila_pendente(self.current_user_id, self.current_user_role)
         self.pendentes = itens
@@ -40,16 +42,19 @@ class RevisaoState(AuthState):
             return "1 resposta aguardando sua correcao"
         return f"{self.total_pendentes} respostas aguardando sua correcao"
 
+    @exige("acao:revisao")
     def abrir_resposta(self, response_id: str):
         self.resposta_aberta_id = response_id
         self.parecer_texto = ""
         self.considerou_correto = True
         self.mensagem = ""
 
+    @exige("acao:revisao")
     def fechar_resposta(self):
         self.resposta_aberta_id = ""
         self.parecer_texto = ""
 
+    @exige("acao:revisao")
     def pedir_sugestao(self):
         """Pede à IA um parecer preliminar. O instrutor decide o que fazer com ele."""
         if not self.resposta_aberta_id:
@@ -86,18 +91,21 @@ class RevisaoState(AuthState):
                 self.parecer_texto = base
             self.considerou_correto = bool(r.get("correto_sugerido"))
 
+    @exige("acao:revisao")
     def usar_sugestao(self):
         base = self.sugestao_comentario
         if self.sugestao_sugestao:
             base += f"\n\n{self.sugestao_sugestao}"
         self.parecer_texto = base
 
+    @exige("acao:revisao")
     def descartar_sugestao(self):
         self.sugestao_disponivel = False
         self.sugestao_comentario = ""
         self.sugestao_sugestao = ""
         self.sugestao_aderencia = ""
 
+    @exige("acao:revisao")
     def salvar_parecer(self):
         if not self.resposta_aberta_id:
             return
@@ -123,3 +131,13 @@ class RevisaoState(AuthState):
         self.resposta_aberta_id = ""
         self.parecer_texto = ""
         self.load_fila()
+
+    # ── Setters explicitos (state_auto_setters=False) ───────────────
+    # So campo de formulario. Identidade (current_user_*) nao tem setter:
+    # o cliente nao escreve o proprio papel.
+
+    def set_parecer_texto(self, v: str):
+        self.parecer_texto = v
+
+    def set_considerou_correto(self, v: bool):
+        self.considerou_correto = v

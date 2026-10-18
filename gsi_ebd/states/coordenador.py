@@ -19,6 +19,7 @@ from ..models.progress import Progress
 from ..models.turma import Turma, TurmaMembro
 from ..services.study_service import StudyService
 from .auth import AuthState
+from ..utils.rbac import exige
 
 
 class CoordenadorState(AuthState):
@@ -69,12 +70,14 @@ class CoordenadorState(AuthState):
 
     # ── Carregamento ─────────────────────────────────────────────
 
+    @exige("acao:coordenacao")
     def load_all(self):
         """Carrega tudo de uma vez no on_load da página."""
         self.load_alunos()
         self.load_estudos()
         self.load_turmas()
 
+    @exige("acao:coordenacao")
     def load_alunos(self):
         """Carrega os alunos do ambiente do Coordenador.
 
@@ -195,6 +198,7 @@ class CoordenadorState(AuthState):
                 for info in atribuicoes_raw.values()
             )
 
+    @exige("acao:coordenacao")
     def load_estudos(self):
         """Carrega estudos aprovados disponíveis para atribuição."""
         with rx.session() as session:
@@ -214,6 +218,7 @@ class CoordenadorState(AuthState):
                 for e in estudos
             ]
 
+    @exige("acao:coordenacao")
     def load_turmas(self):
         """Carrega turmas sob responsabilidade do coordenador."""
         with rx.session() as session:
@@ -234,6 +239,7 @@ class CoordenadorState(AuthState):
 
     # ── Seleção de alunos ────────────────────────────────────────
 
+    @exige("acao:coordenacao")
     def toggle_aluno(self, aluno_id: str):
         """Seleciona/deseleciona um aluno para atribuição de estudo."""
         try:
@@ -245,12 +251,14 @@ class CoordenadorState(AuthState):
         else:
             self.selected_aluno_ids = self.selected_aluno_ids + [aid]
 
+    @exige("acao:coordenacao")
     def select_all_alunos(self):
         """Seleciona todos os alunos."""
         self.selected_aluno_ids = [
             int(a["id"]) for a in self.alunos if a.get("id")
         ]
 
+    @exige("acao:coordenacao")
     def clear_selection(self):
         """Limpa a seleção de alunos."""
         self.selected_aluno_ids = []
@@ -258,6 +266,7 @@ class CoordenadorState(AuthState):
 
     # ── Atribuição de estudo ─────────────────────────────────────
 
+    @exige("acao:coordenacao")
     def assign_study(self):
         """Atribui o estudo selecionado aos alunos selecionados."""
         self.message = ""
@@ -324,3 +333,13 @@ class CoordenadorState(AuthState):
         self.selected_aluno_ids = []
         self.selected_study_option = ""
         self.load_alunos()
+
+
+    def set_selected_study_option(self, v: str):
+        """So aceita opcao carregada no estado - nao e setter livre.
+
+        A pertenca fina (o estudo e do ambiente deste coordenador?) e escopo da
+        DEM-202610-010; aqui o requisito e nao aceitar valor arbitrario.
+        """
+        if v == "" or v in self.study_options:
+            self.selected_study_option = v

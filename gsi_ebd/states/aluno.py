@@ -231,3 +231,10 @@ class AlunoState(AuthState):
         )
         self.current_study_id = None
         self.current_version_id = None
+
+    # ── Setters explicitos (state_auto_setters=False) ───────────────
+    # So campo de formulario. Identidade (current_user_*) nao tem setter:
+    # o cliente nao escreve o proprio papel.
+
+    def set_user_answer(self, v: str):
+        self.user_answer = v
