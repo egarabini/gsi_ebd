@@ -222,10 +222,99 @@ def test_fiacao_on_load_das_rotas_guardadas():
         assert guarda.fn in funcoes, f"{rota} sem o guarda no on_load: {funcoes}"
 
 
-def test_guarda_real_bloqueia_e_libera():
-    """O guarda que o app USA (nao uma copia sintetica) barra e libera por papel."""
+# ── 9. a CHAVE de cada evento (nao so a presenca do marcador) ──────────────
+# Sem este mapa, decorar load_leads com a chave errada (catalogo_ler) passava
+# na suite e deixava o REVISOR carregar leads - achado do EVAL (rodada 2, m7).
+CHAVES_ESPERADAS = {
+    "AdminState": {
+        "load_coordenadores": "acao:usuarios",
+        "load_leads": "acao:leads",
+        "load_estudos_pendentes": "acao:catalogo_ler",
+        "load_obras": "acao:catalogo_ler",
+        "load_estudos_aplicados": "acao:catalogo_ler",
+        "create_gestor": "acao:usuarios",
+        "activate_user": "acao:usuarios",
+        "suspend_user": "acao:usuarios",
+        "cancel_user": "acao:usuarios",
+        "update_lead_status": "acao:leads",
+        "aprovar_estudo": "acao:catalogo_aprovar",
+        "aprovar_todos": "acao:catalogo_aprovar",
+        "rejeitar_estudo": "acao:catalogo_aprovar",
+    },
+    "CoordenadorState": {
+        n: "acao:coordenacao"
+        for n in ("load_all", "load_alunos", "load_estudos", "load_turmas",
+                  "toggle_aluno", "select_all_alunos", "clear_selection", "assign_study")
+    },
+    "RevisaoState": {
+        n: "acao:revisao"
+        for n in ("load_fila", "abrir_resposta", "fechar_resposta", "pedir_sugestao",
+                  "usar_sugestao", "descartar_sugestao", "salvar_parecer")
+    },
+}
+
+
+@pytest.mark.parametrize("nome", sorted(CHAVES_ESPERADAS))
+def test_chave_de_cada_evento(nome):
+    estado = next(e for e in ESTADOS if e.__name__ == nome)
+    reais = {
+        n: getattr(getattr(h, "fn", None), "__exige__", None)
+        for n, h in estado.event_handlers.items()
+        if n != "setvar" and not n.startswith("set_")
+    }
+    esperado = CHAVES_ESPERADAS[nome]
+    diff = {k: (reais.get(k), esperado.get(k)) for k in set(reais) | set(esperado) if reais.get(k) != esperado.get(k)}
+    assert not diff, f"{nome}: chave errada em {diff} (real, esperado)"
+
+
+# ── 10. handlers REAIS barrados nao executam ───────────────────────────────
+def test_handlers_reais_barrados_nao_executam():
+    """Chama o handler de verdade (fn) com papel negado: devolve None e nao toca banco.
+
+    O caminho negado do @exige retorna antes do corpo - nenhuma sessao aberta.
+    """
     from types import SimpleNamespace
 
+    casos = (
+        (AdminState.aprovar_estudo, Role.REVISOR),
+        (AdminState.aprovar_todos, Role.REVISOR),
+        (AdminState.rejeitar_estudo, Role.REVISOR),
+        (AdminState.activate_user, Role.REVISOR),
+        (AdminState.update_lead_status, Role.ALUNO),
+        (AdminState.load_leads, Role.ALUNO),
+        (CoordenadorState.assign_study, Role.ALUNO),
+        (RevisaoState.abrir_resposta, Role.COORDENADOR),
+    )
+    for handler, papel in casos:
+        falso = SimpleNamespace(current_user_role=papel)
+        assert handler.fn(falso, 1) is None, f"{handler.fn.__name__} executou para {papel.name}"
+
+
+# ── 11. o guarda de rota: destino do redirect asserido ────────────────────
+def _destino(event_spec):
+    """Extrai o path do EventSpec devolvido por rx.redirect."""
+    for _var, valor in event_spec.args:
+        valor_str = getattr(valor, "_var_value", None)
+        if isinstance(valor_str, str):
+            return valor_str
+    return None
+
+
+def test_guarda_real_bloqueia_e_libera():
+    """O guarda que o app USA barra e libera, e o redirect vai para a CASA do papel.
+
+    Tabela hardcoded de proposito: se o teste usasse `home_do_papel` como oraculo,
+    trocar a casa por /login passaria (achado do EVAL, rodada 2, mutacao m6).
+    """
+    from types import SimpleNamespace
+
+    casas = {
+        Role.ADMIN: "/admin",
+        Role.REVISOR: "/admin",
+        Role.COORDENADOR: "/coordenador",
+        Role.INSTRUTOR: "/revisao",
+        Role.ALUNO: "/aluno",
+    }
     casos = (
         ("/admin", AuthState.guarda_admin),
         ("/coordenador", AuthState.guarda_coordenador),
@@ -234,14 +323,16 @@ def test_guarda_real_bloqueia_e_libera():
     for rota, handler in casos:
         fn = handler.fn
         anon = SimpleNamespace(is_authenticated=False, current_user_role=Role.ALUNO)
-        assert fn(anon) is not None, f"{rota}: anonimo deveria ser barrado"
+        assert _destino(fn(anon)) == "/login", f"{rota}: anonimo deveria ir ao login"
         for papel in Role:
             falso = SimpleNamespace(is_authenticated=True, current_user_role=papel)
             resultado = fn(falso)
             if papel in rbac.PERMISSOES["rota:" + rota]:
                 assert resultado is None, f"{rota}: {papel.name} deveria passar"
             else:
-                assert resultado is not None, f"{rota}: {papel.name} deveria ser barrado"
+                assert _destino(resultado) == casas[papel], (
+                    f"{rota}: {papel.name} deveria ir para {casas[papel]}, foi {_destino(resultado)}"
+                )
 
 
 # ── 6. o decorador realmente barra ─────────────────────────────────────────
