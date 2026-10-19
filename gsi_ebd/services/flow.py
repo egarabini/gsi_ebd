@@ -97,13 +97,13 @@ def _trabalho(sessao, obra_id):
 def _congelar(sessao, versao, momento, capitulos, adendos):
     for capitulo in capitulos:
         sessao.add(ObraVersaoCapitulo(
-            versao_id=versao.id, momento=momento, ordem=capitulo.ordem,
+            versao_id=versao.id, momento=momento, rodada=versao.rodada, ordem=capitulo.ordem,
             titulo=_normalizar(capitulo.titulo), conteudo_md=_normalizar(capitulo.conteudo_md),
             item_hash=hash_capitulo(capitulo),
         ))
     for adendo in adendos:
         sessao.add(ObraVersaoAdendo(
-            versao_id=versao.id, momento=momento, codigo=_normalizar(adendo.codigo),
+            versao_id=versao.id, momento=momento, rodada=versao.rodada, codigo=_normalizar(adendo.codigo),
             titulo=_normalizar(adendo.titulo), texto=_normalizar(adendo.texto),
             item_hash=hash_adendo(adendo),
         ))
@@ -119,7 +119,7 @@ def _hash_itens(capitulos, adendos):
 def _evento(sessao, versao, tipo, autor, **detalhe):
     sessao.add(ObraVersaoEvento(
         versao_id=versao.id, tipo=tipo, autor_id=autor.id, quando=_agora(),
-        detalhe=json.dumps({"hash": versao.conteudo_hash, **detalhe}, ensure_ascii=True),
+        detalhe=json.dumps({"hash": versao.conteudo_hash, "rodada": versao.rodada, **detalhe}, ensure_ascii=True),
     ))
     sessao.flush()
 
@@ -178,6 +178,7 @@ def revisar(sessao, versao, parecer: str, ajustes: list[str], revisor: User,
     capitulos, adendos, atual = _conferir_visto(sessao, versao, hash_esperado)
     if not parecer.strip() or not isinstance(ajustes, list) or not all(isinstance(a, str) for a in ajustes):
         raise FluxoBloqueado("Parecer e lista de ajustes obrigatorios")
+    versao.rodada += 1
     _congelar(sessao, versao, "visto", capitulos, adendos)
     versao.parecer = parecer
     versao.ajustes_propostos = json.dumps(ajustes, ensure_ascii=True)
@@ -330,10 +331,12 @@ def diferenca(sessao, versao, atual: bool = False) -> list[dict]:
         capitulos = sessao.exec(select(ObraVersaoCapitulo).where(
             ObraVersaoCapitulo.versao_id == versao.id,
             ObraVersaoCapitulo.momento == momento,
+            ObraVersaoCapitulo.rodada == versao.rodada,
         )).all()
         adendos = sessao.exec(select(ObraVersaoAdendo).where(
             ObraVersaoAdendo.versao_id == versao.id,
             ObraVersaoAdendo.momento == momento,
+            ObraVersaoAdendo.rodada == versao.rodada,
         )).all()
         return capitulos, adendos
 

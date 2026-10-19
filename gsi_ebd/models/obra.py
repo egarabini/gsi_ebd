@@ -90,6 +90,7 @@ class ObraVersao(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     obra_id: int = Field(foreign_key="obra.id", index=True)
     numero: int = Field(default=1)
+    rodada: int = Field(default=0)
     status: str = Field(default="em_revisao")
     conteudo_hash: str = Field(default="")
     parecer: str = Field(default="")
@@ -105,11 +106,12 @@ class ObraVersao(SQLModel, table=True):
 
 
 class ObraVersaoCapitulo(SQLModel, table=True):
-    __table_args__ = (UniqueConstraint("versao_id", "momento", "ordem"),)
+    __table_args__ = (UniqueConstraint("versao_id", "momento", "rodada", "ordem"),)
 
     id: Optional[int] = Field(default=None, primary_key=True)
     versao_id: int = Field(foreign_key="obraversao.id", index=True)
     momento: str
+    rodada: int
     ordem: int
     titulo: str = Field(default="")
     conteudo_md: str = Field(default="")
@@ -117,11 +119,12 @@ class ObraVersaoCapitulo(SQLModel, table=True):
 
 
 class ObraVersaoAdendo(SQLModel, table=True):
-    __table_args__ = (UniqueConstraint("versao_id", "momento", "codigo"),)
+    __table_args__ = (UniqueConstraint("versao_id", "momento", "rodada", "codigo"),)
 
     id: Optional[int] = Field(default=None, primary_key=True)
     versao_id: int = Field(foreign_key="obraversao.id", index=True)
     momento: str
+    rodada: int
     codigo: str = Field(default="")
     titulo: str = Field(default="")
     texto: str = Field(default="")

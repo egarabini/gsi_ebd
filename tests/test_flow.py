@@ -645,3 +645,136 @@ def test_rf07_inventario_invalido_capturavel_como_fluxo_bloqueado(fluxo, operaca
             flow.importar(sessao, "F-001", Obra(titulo="Outra"), admin)
         else:
             flow.liberar(sessao, versao, "Ajustado", admin)
+
+
+
+@pytest.mark.parametrize("recusar_antes", [False, True])
+def test_rf11_f11_rodada_nova_preserva_historico_e_isola_diferenca(fluxo, recusar_antes):
+    import json
+    from gsi_ebd.models import ObraVersao, ObraVersaoCapitulo, ObraVersaoAdendo, ObraVersaoEvento
+    from sqlmodel import select
+    sessao, flow, admin, revisor, _ = fluxo
+    obra, versao = preparar(fluxo)
+    assert versao.rodada == 0
+    aprovar(fluxo, versao)
+    assert versao.rodada == 1
+    capitulo = sessao.exec(select(ObraCapitulo).where(ObraCapitulo.obra_id == obra.id)).one()
+    adendo = sessao.exec(select(Adendo).where(Adendo.obra_id == obra.id)).one()
+    capitulo.conteudo_md = "Liberado na rodada 1"
+    sessao.add(capitulo)
+    flow.liberar(sessao, versao, "Ajuste da primeira rodada", admin)
+    sessao.commit()
+
+    def historico_rodada_um(modelo):
+        return [item.model_dump() for item in sessao.exec(select(modelo).where(
+            modelo.versao_id == versao.id, modelo.rodada == 1).order_by(modelo.id)).all()]
+
+    caps_antes = historico_rodada_um(ObraVersaoCapitulo)
+    notas_antes = historico_rodada_um(ObraVersaoAdendo)
+    eventos_antes = [e.model_dump() for e in sessao.exec(
+        select(ObraVersaoEvento).order_by(ObraVersaoEvento.id)).all()]
+    assert len(flow.diferenca(sessao, versao)) == 1
+    assert {item["momento"] for item in caps_antes} == {"visto", "liberado"}
+    flow.contestar(sessao, versao, revisor)
+    assert versao.rodada == 1 and obra.versao_liberada_id is None
+    if recusar_antes:
+        flow.recusar(sessao, versao, "Rever novamente", revisor, hash_obra(sessao, obra.id))
+        assert versao.rodada == 1
+        flow.reenviar(sessao, versao, "Pronto para novo parecer", admin)
+        assert versao.rodada == 1
+
+    capitulo.conteudo_md = "Visto na rodada 2"
+    adendo.texto = "Nota vista na rodada 2"
+    sessao.add_all([
+        capitulo, adendo,
+        ObraCapitulo(obra_id=obra.id, ordem=2, titulo="Dois", conteudo_md="Novo capitulo"),
+        Adendo(obra_id=obra.id, codigo="ADO-02", texto="Nova nota"),
+    ])
+    sessao.flush()
+    aprovar(fluxo, versao)
+    assert versao.rodada == 2
+    adendo.texto = "Nota liberada na rodada 2"
+    sessao.add(adendo)
+    sessao.flush()
+    previa = flow.diferenca(sessao, versao, atual=True)
+    assert len(previa) == 1 and previa[0]["item"] == "adendo:ADO-01"
+    assert previa[0]["visto"]["texto"] == "Nota vista na rodada 2"
+    assert previa[0]["liberado"]["texto"] == "Nota liberada na rodada 2"
+    flow.liberar(sessao, versao, "Ajuste da segunda rodada", admin)
+    sessao.commit()
+    sessao.expire_all()
+    assert versao.rodada == 2 and obra.versao_liberada_id == versao.id
+    assert versao.status == obra.status == "liberada"
+    assert len(sessao.exec(select(ObraVersao)).all()) == 1
+    assert flow.diferenca(sessao, versao) == previa
+    assert historico_rodada_um(ObraVersaoCapitulo) == caps_antes
+    assert historico_rodada_um(ObraVersaoAdendo) == notas_antes
+    for modelo in (ObraVersaoCapitulo, ObraVersaoAdendo):
+        segunda = sessao.exec(select(modelo).where(modelo.versao_id == versao.id, modelo.rodada == 2)).all()
+        assert len(segunda) == 4
+        assert {item.momento for item in segunda} == {"visto", "liberado"}
+    eventos = sessao.exec(select(ObraVersaoEvento).order_by(ObraVersaoEvento.id)).all()
+    assert [e.model_dump() for e in eventos[:len(eventos_antes)]] == eventos_antes
+    assert json.loads(eventos[-1].detalhe)["rodada"] == 2
+    assert json.loads(eventos[-1].detalhe)["tamanho_diferenca"] == 1
+    assert [json.loads(e.detalhe)["rodada"] for e in eventos if e.tipo == "vista"] == [1, 2]
+
+
+def test_rf11_f11_revisao_bloqueada_e_rollback_nao_consumem_rodada(fluxo):
+    from gsi_ebd.models import ObraVersaoCapitulo, ObraVersaoEvento
+    from sqlmodel import select
+    sessao, flow, admin, revisor, _ = fluxo
+    obra, versao = preparar(fluxo)
+    aprovar(fluxo, versao)
+    flow.liberar(sessao, versao, "Primeira rodada", admin)
+    flow.contestar(sessao, versao, revisor)
+    sessao.commit()
+    eventos_antes = len(sessao.exec(select(ObraVersaoEvento)).all())
+    with pytest.raises(FluxoBloqueado, match="mudou"):
+        flow.revisar(sessao, versao, "Parecer", [], revisor, "hash-desatualizado")
+    assert versao.rodada == 1
+    aprovar(fluxo, versao)
+    assert versao.rodada == 2
+    sessao.rollback()
+    assert versao.rodada == 1 and versao.status == "em_revisao"
+    assert len(sessao.exec(select(ObraVersaoEvento)).all()) == eventos_antes
+    assert not sessao.exec(select(ObraVersaoCapitulo).where(ObraVersaoCapitulo.rodada == 2)).all()
+
+
+
+def test_rf11_f11_diferenca_nao_inclui_itens_de_rodadas_antigas(fluxo):
+    from gsi_ebd.models import ObraVersaoCapitulo, ObraVersaoAdendo
+    sessao, flow, _, _, _ = fluxo
+    _, versao = preparar(fluxo)
+    versao.rodada = 2
+    sessao.add(versao)
+    # A ordem fisica dos registros nao identifica a rodada corrente.
+    for rodada in (2, 1):
+        for momento in ("visto", "liberado"):
+            cap = ObraVersaoCapitulo(
+                versao_id=versao.id, rodada=rodada, momento=momento, ordem=1,
+                titulo="Titulo", conteudo_md=f"Capitulo {momento} da rodada {rodada}")
+            nota = ObraVersaoAdendo(
+                versao_id=versao.id, rodada=rodada, momento=momento, codigo="ADO-01",
+                titulo="Nota", texto=f"Adendo {momento} da rodada {rodada}")
+            cap.item_hash = hash_capitulo(cap)
+            nota.item_hash = hash_adendo(nota)
+            sessao.add_all([cap, nota])
+    # Itens exclusivamente historicos nao pertencem a rodada corrente.
+    for momento in ("visto", "liberado"):
+        cap = ObraVersaoCapitulo(
+            versao_id=versao.id, rodada=1, momento=momento, ordem=99,
+            titulo="Historico", conteudo_md=f"Antigo {momento}")
+        nota = ObraVersaoAdendo(
+            versao_id=versao.id, rodada=1, momento=momento, codigo="ADO-99",
+            titulo="Historica", texto=f"Antiga {momento}")
+        cap.item_hash = hash_capitulo(cap)
+        nota.item_hash = hash_adendo(nota)
+        sessao.add_all([cap, nota])
+    sessao.commit()
+    mudancas = {item["item"]: item for item in flow.diferenca(sessao, versao)}
+    assert set(mudancas) == {"capitulo:1", "adendo:ADO-01"}
+    assert mudancas["capitulo:1"]["visto"]["texto"] == "Capitulo visto da rodada 2"
+    assert mudancas["capitulo:1"]["liberado"]["texto"] == "Capitulo liberado da rodada 2"
+    assert mudancas["adendo:ADO-01"]["visto"]["texto"] == "Adendo visto da rodada 2"
+    assert mudancas["adendo:ADO-01"]["liberado"]["texto"] == "Adendo liberado da rodada 2"
