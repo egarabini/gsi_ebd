@@ -8,8 +8,8 @@ import unicodedata
 from sqlmodel import Session, select
 
 from gsi_ebd.models import (
-    Adendo, Obra, ObraCapitulo, ObraVersao, ObraVersaoAdendo,
-    ObraVersaoCapitulo, ObraVersaoEvento, Role, User,
+    Adendo, Ambiente, Obra, ObraCapitulo, ObraVersao, ObraVersaoAdendo,
+    ObraVersaoCapitulo, ObraVersaoEvento, Role, User, VinculoObra,
 )
 from gsi_ebd.services.fontes import fonte_decisao
 from gsi_ebd.services.erros_fluxo import FluxoBloqueado
@@ -77,7 +77,7 @@ def _obra(sessao, obra_id):
 def _estado(sessao, versao, esperado):
     obra = _obra(sessao, versao.obra_id)
     atual = sessao.get(ObraVersao, versao.id, populate_existing=True)
-    if atual is None or atual.status != esperado:
+    if atual is None or atual.status not in ((esperado,) if isinstance(esperado, str) else esperado):
         raise FluxoBloqueado("Transicao invalida")
     return obra, atual
 
@@ -117,16 +117,17 @@ def _hash_itens(capitulos, adendos):
 
 
 def _evento(sessao, versao, tipo, autor, **detalhe):
-    sessao.add(ObraVersaoEvento(
+    evento = ObraVersaoEvento(
         versao_id=versao.id, tipo=tipo, autor_id=autor.id, quando=_agora(),
         detalhe=json.dumps({"hash": versao.conteudo_hash, "rodada": versao.rodada, **detalhe}, ensure_ascii=True),
-    ))
+    )
+    sessao.add(evento)
     sessao.flush()
+    return evento
 
 
 def _publicar_estado(sessao, obra, versao):
-    if obra.versao_liberada_id is None:
-        obra.status = versao.status
+    obra.status = versao.status
     obra.updated_at = _agora()
     sessao.add_all([obra, versao])
     sessao.flush()
@@ -194,7 +195,7 @@ def revisar(sessao, versao, parecer: str, ajustes: list[str], revisor: User,
 
 def recusar(sessao, versao, parecer: str, revisor: User, hash_esperado: str) -> ObraVersao:
     _autor(revisor, Role.REVISOR)
-    obra, versao = _estado(sessao, versao, "em_revisao")
+    obra, versao = _estado(sessao, versao, ("em_revisao", "aguardando_admin"))
     _, _, atual = _conferir_visto(sessao, versao, hash_esperado)
     if not parecer.strip():
         raise FluxoBloqueado("Parecer obrigatorio")
@@ -247,6 +248,7 @@ def liberar(sessao, versao, ajustes_descritos: str, admin: User) -> ObraVersao:
         anterior.status = "substituida"
         sessao.add(anterior)
     obra.status = "liberada"
+    obra.disponibilidade = "aberta"
     obra.versao_liberada_id = versao.id
     _publicar_estado(sessao, obra, versao)
     _evento(sessao, versao, "liberada", admin, ajustes=ajustes_descritos,
@@ -282,6 +284,7 @@ def alterar(sessao, obra, conteudo: dict, admin: User) -> ObraVersao:
     if len({c.ordem for c in capitulos}) != len(capitulos) or len({_normalizar(a.codigo) for a in adendos}) != len(adendos):
         raise FluxoBloqueado("Itens duplicados")
     versao = _nova_versao(sessao, obra, admin)
+    _suspender(sessao, obra)
     anteriores, notas = _trabalho(sessao, obra.id)
     # Preserva as identidades usadas pelos adendos de ambiente e mapas de origem.
     por_ordem = {c.ordem: c for c in anteriores}
@@ -312,18 +315,109 @@ def alterar(sessao, obra, conteudo: dict, admin: User) -> ObraVersao:
     return versao
 
 
-def contestar(sessao, versao, revisor: User) -> ObraVersao:
+def _suspender(sessao, obra):
+    obra.disponibilidade = "suspensa_para_novos"
+    obra.status = "em_revisao"
+    obra.updated_at = _agora()
+    sessao.add(obra)
+    sessao.flush()
+
+
+def _solicitacao_pendente(sessao, obra):
+    eventos = sessao.exec(select(ObraVersaoEvento).join(
+        ObraVersao, ObraVersao.id == ObraVersaoEvento.versao_id
+    ).where(ObraVersao.obra_id == obra.id).order_by(ObraVersaoEvento.id)).all()
+    pendentes = {}
+    for evento in eventos:
+        if evento.tipo == "revisao_solicitada":
+            pendentes[evento.id] = evento
+        elif evento.tipo in {"solicitacao_aceita", "solicitacao_dispensada"}:
+            pendentes.pop(json.loads(evento.detalhe)["solicitacao_id"], None)
+    return next(iter(pendentes.values()), None)
+
+
+def solicitar_revisao(sessao, versao, revisor: User, motivo: str) -> ObraVersaoEvento:
     _autor(revisor, Role.REVISOR)
     obra, versao = _estado(sessao, versao, "liberada")
-    if obra.versao_liberada_id != versao.id:
-        raise FluxoBloqueado("Conteste a versao publicada atual")
-    # A contestacao suspende a publicacao da propria versao, sem criar outra.
-    versao.status = "em_revisao"
-    obra.status = "em_revisao"
-    obra.versao_liberada_id = None
-    _publicar_estado(sessao, obra, versao)
-    _evento(sessao, versao, "contestada", revisor)
+    if not isinstance(motivo, str) or not motivo.strip():
+        raise FluxoBloqueado("Motivo obrigatorio")
+    if obra.versao_liberada_id != versao.id or _solicitacao_pendente(sessao, obra):
+        raise FluxoBloqueado("Versao nao vigente ou solicitacao ja pendente")
+    return _evento(sessao, versao, "revisao_solicitada", revisor, motivo=motivo)
+
+
+def aceitar_solicitacao(sessao, obra, admin: User) -> ObraVersao:
+    _autor(admin, Role.ADMIN)
+    obra = _obra(sessao, obra.id)
+    pedido = _solicitacao_pendente(sessao, obra)
+    if pedido is None:
+        raise FluxoBloqueado("Nenhuma solicitacao pendente")
+    nova = _nova_versao(sessao, obra, admin)
+    _suspender(sessao, obra)
+    _evento(sessao, nova, "solicitacao_aceita", admin, solicitacao_id=pedido.id,
+            versao_anterior_id=pedido.versao_id)
+    return nova
+
+
+def dispensar_solicitacao(sessao, obra, admin: User, motivo: str) -> ObraVersaoEvento:
+    _autor(admin, Role.ADMIN)
+    if not isinstance(motivo, str) or not motivo.strip():
+        raise FluxoBloqueado("Motivo da dispensa obrigatorio")
+    obra = _obra(sessao, obra.id)
+    pedido = _solicitacao_pendente(sessao, obra)
+    if pedido is None:
+        raise FluxoBloqueado("Nenhuma solicitacao pendente")
+    return _evento(sessao, sessao.get(ObraVersao, pedido.versao_id), "solicitacao_dispensada",
+                   admin, solicitacao_id=pedido.id, motivo=motivo)
+
+
+def cancelar_ciclo(sessao, obra, admin: User) -> ObraVersao:
+    _autor(admin, Role.ADMIN)
+    obra = _obra(sessao, obra.id)
+    if obra.versao_liberada_id is None:
+        raise FluxoBloqueado("Obra sem versao liberada para retomar")
+    pendentes = sessao.exec(select(ObraVersao).where(
+        ObraVersao.obra_id == obra.id,
+        ObraVersao.status.in_(["em_revisao", "aguardando_admin", "devolvida"]),
+    )).all()
+    if len(pendentes) != 1:
+        raise FluxoBloqueado("Nenhum ciclo unico para cancelar")
+    versao = pendentes[0]
+    # Cancelamento logico preserva as evidencias e impede liberar o ciclo descartado.
+    versao.status = "cancelada"
+    obra.status = "liberada"
+    obra.disponibilidade = "aberta"
+    obra.updated_at = _agora()
+    sessao.add_all([obra, versao])
+    _evento(sessao, versao, "ciclo_cancelado", admin)
     return versao
+
+
+def posicionar(sessao, versao, revisor: User, posicao: str, texto: str) -> ObraVersaoEvento:
+    _autor(revisor, Role.REVISOR)
+    _obra(sessao, versao.obra_id)
+    versao = sessao.get(ObraVersao, versao.id, populate_existing=True)
+    if versao is None or posicao not in {"concordo", "objeto"} or not isinstance(texto, str) or not texto.strip():
+        raise FluxoBloqueado("Posicao ou texto invalido")
+    return _evento(sessao, versao, "posicao", revisor, posicao=posicao, texto=texto)
+
+
+def vincular(sessao, ambiente: Ambiente, obra: Obra, coordenador: User) -> VinculoObra:
+    _autor(coordenador, Role.COORDENADOR)
+    ambiente = sessao.get(Ambiente, ambiente.id)
+    if ambiente is None or ambiente.coordenador_id != coordenador.id:
+        raise FluxoBloqueado("Ambiente fora do escopo do coordenador")
+    obra = _obra(sessao, obra.id)
+    if obra.disponibilidade != "aberta" or obra.versao_liberada_id is None:
+        raise FluxoBloqueado("Obra indisponivel para novas vinculacoes")
+    versao = sessao.get(ObraVersao, obra.versao_liberada_id)
+    if versao.status != "liberada":
+        raise FluxoBloqueado("Versao nao liberada")
+    vinculo = VinculoObra(ambiente_id=ambiente.id, obra_id=obra.id, versao_id=versao.id,
+                         coordenador_id=coordenador.id, created_at=_agora())
+    sessao.add(vinculo)
+    sessao.flush()
+    return vinculo
 
 
 def diferenca(sessao, versao, atual: bool = False) -> list[dict]:

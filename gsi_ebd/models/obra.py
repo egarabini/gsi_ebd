@@ -46,6 +46,7 @@ class Obra(SQLModel, table=True):
     origem: str = Field(default="")
 
     status: str = Field(default="em_revisao")
+    disponibilidade: str = Field(default="aberta")
     versao_liberada_id: Optional[int] = Field(default=None, foreign_key="obraversao.id")
     fonte_id: Optional[str] = Field(default=None, index=True)
     updated_at: Optional[datetime] = Field(default=None)
@@ -138,3 +139,13 @@ class ObraVersaoEvento(SQLModel, table=True):
     autor_id: int = Field(foreign_key="user.id")
     quando: datetime
     detalhe: str = Field(default="{}")
+
+
+class VinculoObra(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    ambiente_id: int = Field(foreign_key="ambiente.id", index=True)
+    obra_id: int = Field(foreign_key="obra.id", index=True)
+    versao_id: int = Field(foreign_key="obraversao.id", index=True)
+    coordenador_id: int = Field(foreign_key="user.id")
+    ativo: bool = Field(default=True)
+    created_at: Optional[datetime] = Field(default=None)

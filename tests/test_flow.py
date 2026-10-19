@@ -189,30 +189,51 @@ def test_rf05_f05_f09_n07_snapshot_liberada_imutavel(fluxo):
     assert notas[0].texto == "Base"
     assert versao.hash_liberado == original
     assert obra.versao_liberada_id == versao.id
-    assert versao.status == obra.status == "liberada"
+    assert versao.status == "liberada" and obra.status == "em_revisao"
     assert nova.numero == 2 and nova.status == "em_revisao"
     assert nova.conteudo_hash == flow.hash_obra(sessao, obra.id) != original
 
 
-def test_rf11_f06_contestar_reabre_mesma_versao_e_suspende_publicacao(fluxo):
-    from gsi_ebd.models import ObraVersao, ObraVersaoEvento
+@pytest.mark.parametrize("papel", [p for p in Role if p != Role.ADMIN])
+def test_rf11_f06_solicitacao_nao_abre_ciclo_e_so_admin_altera(fluxo, papel):
+    from gsi_ebd.models import ObraVersao, ObraVersaoCapitulo, ObraVersaoAdendo
     from sqlmodel import select
     sessao, flow, admin, revisor, _ = fluxo
     obra, versao = preparar(fluxo)
     aprovar(fluxo, versao)
-    flow.liberar(sessao, versao, "Ajustado", admin)
-    antes = versao.hash_liberado
-    versao_id = versao.id
-    retorno = flow.contestar(sessao, versao, revisor)
+    flow.liberar(sessao, versao, "Inicial", admin)
+    sessao.commit()
+    sessao.refresh(versao)
+    anterior = versao.model_dump()
+    caps = [c.model_dump() for c in sessao.exec(select(ObraVersaoCapitulo)).all()]
+    notas = [a.model_dump() for a in sessao.exec(select(ObraVersaoAdendo)).all()]
+    pedido = flow.solicitar_revisao(sessao, versao, revisor, "Reavaliar a fonte")
+    assert pedido.tipo == "revisao_solicitada" and pedido.versao_id == versao.id
+    assert obra.disponibilidade == "aberta" and obra.status == "liberada"
+    assert obra.versao_liberada_id == versao.id
+    assert len(sessao.exec(select(ObraVersao)).all()) == 1
+    usuario = User(id=123, email="outro@example.test", role=papel)
+    with pytest.raises(FluxoBloqueado, match="Papel"):
+        flow.alterar(sessao, obra, novo_conteudo(), usuario)
+    nova = flow.alterar(sessao, obra, novo_conteudo(), admin)
     sessao.commit()
     sessao.expire_all()
-    assert retorno.id == versao_id
-    assert versao.status == obra.status == "em_revisao"
-    assert obra.versao_liberada_id is None
-    assert versao.hash_liberado == antes
-    assert [v.id for v in sessao.exec(select(ObraVersao)).all()] == [versao_id]
-    eventos = sessao.exec(select(ObraVersaoEvento).order_by(ObraVersaoEvento.id)).all()
-    assert eventos[-1].tipo == "contestada" and eventos[-1].versao_id == versao_id
+    assert nova.id != versao.id and nova.numero == 2 and nova.status == "em_revisao"
+    assert obra.disponibilidade == "suspensa_para_novos"
+    assert obra.versao_liberada_id == versao.id
+    assert versao.model_dump() == anterior
+    assert [c.model_dump() for c in sessao.exec(select(ObraVersaoCapitulo)).all()] == caps
+    assert [a.model_dump() for a in sessao.exec(select(ObraVersaoAdendo)).all()] == notas
+    aprovar(fluxo, nova)
+    assert nova.status == "aguardando_admin"
+    assert obra.versao_liberada_id == versao.id
+    assert obra.disponibilidade == "suspensa_para_novos"
+    flow.recusar(sessao, nova, "Rever o parecer", revisor, hash_obra(sessao, obra.id))
+    assert nova.status == "devolvida"
+    assert obra.versao_liberada_id == versao.id
+    assert obra.disponibilidade == "suspensa_para_novos"
+    assert versao.model_dump() == anterior
+    assert not hasattr(flow, "contestar")
 
 
 def test_rf11_f08_c01_c04_c06_diferenca_mostra_texto(fluxo):
@@ -469,8 +490,13 @@ def test_rf08_f10_eventos_append_only_em_todas_as_operacoes(fluxo):
     assert detalhe["versao_anterior_id"] == versao.id
     executar("vista", revisor, lambda: aprovar(fluxo, nova))
     executar("liberada", admin, lambda: flow.liberar(sessao, nova, "Reavaliada", admin))
-    contestada, _ = executar("contestada", revisor, lambda: flow.contestar(sessao, nova, revisor))
-    assert contestada.id == nova.id and obra.versao_liberada_id is None
+    pedido = flow.solicitar_revisao(sessao, nova, revisor, "Reavaliar")
+    sessao.commit()
+    anteriores = [(e.id, e.versao_id, e.tipo, e.autor_id, e.quando, e.detalhe)
+                  for e in sessao.exec(select(ObraVersaoEvento).order_by(ObraVersaoEvento.id)).all()]
+    assert pedido.tipo == "revisao_solicitada"
+    executar("solicitacao_aceita", admin, lambda: flow.aceitar_solicitacao(sessao, obra, admin))
+    assert obra.versao_liberada_id == nova.id and obra.disponibilidade == "suspensa_para_novos"
     assert [json.loads(r[-1])["parecer"] for r in anteriores if r[2] == "recusada"] == ["Recusa 1", "Recusa 2"]
 
 
@@ -545,7 +571,7 @@ def test_rf05_f06b_liberar_v2_substitui_v1_e_atualiza_catalogo(fluxo):
     flow.liberar(sessao, primeira, "Inicial", admin)
     original = primeira.hash_liberado
     segunda = flow.alterar(sessao, obra, novo_conteudo(), admin)
-    assert primeira.status == obra.status == "liberada"
+    assert primeira.status == "liberada" and obra.status == "em_revisao"
     assert obra.versao_liberada_id == primeira.id
     aprovar(fluxo, segunda)
     flow.liberar(sessao, segunda, "Atualizada", admin)
@@ -648,76 +674,43 @@ def test_rf07_inventario_invalido_capturavel_como_fluxo_bloqueado(fluxo, operaca
 
 
 
-@pytest.mark.parametrize("recusar_antes", [False, True])
-def test_rf11_f11_rodada_nova_preserva_historico_e_isola_diferenca(fluxo, recusar_antes):
+def test_rf11_f11_rodada_apos_recusa_reenvio_preserva_historico(fluxo):
     import json
-    from gsi_ebd.models import ObraVersao, ObraVersaoCapitulo, ObraVersaoAdendo, ObraVersaoEvento
+    from gsi_ebd.models import ObraVersaoCapitulo, ObraVersaoAdendo, ObraVersaoEvento
     from sqlmodel import select
     sessao, flow, admin, revisor, _ = fluxo
     obra, versao = preparar(fluxo)
     assert versao.rodada == 0
     aprovar(fluxo, versao)
+    sessao.commit()
+    assert versao.rodada == 1
+    caps = [c.model_dump() for c in sessao.exec(select(ObraVersaoCapitulo)).all()]
+    notas = [a.model_dump() for a in sessao.exec(select(ObraVersaoAdendo)).all()]
+    eventos = [e.model_dump() for e in sessao.exec(select(ObraVersaoEvento).order_by(ObraVersaoEvento.id)).all()]
+    flow.recusar(sessao, versao, "Novo parecer necessario", revisor, hash_obra(sessao, obra.id))
+    flow.reenviar(sessao, versao, "Ajustado pelo admin", admin)
     assert versao.rodada == 1
     capitulo = sessao.exec(select(ObraCapitulo).where(ObraCapitulo.obra_id == obra.id)).one()
-    adendo = sessao.exec(select(Adendo).where(Adendo.obra_id == obra.id)).one()
-    capitulo.conteudo_md = "Liberado na rodada 1"
-    sessao.add(capitulo)
-    flow.liberar(sessao, versao, "Ajuste da primeira rodada", admin)
-    sessao.commit()
-
-    def historico_rodada_um(modelo):
-        return [item.model_dump() for item in sessao.exec(select(modelo).where(
-            modelo.versao_id == versao.id, modelo.rodada == 1).order_by(modelo.id)).all()]
-
-    caps_antes = historico_rodada_um(ObraVersaoCapitulo)
-    notas_antes = historico_rodada_um(ObraVersaoAdendo)
-    eventos_antes = [e.model_dump() for e in sessao.exec(
-        select(ObraVersaoEvento).order_by(ObraVersaoEvento.id)).all()]
-    assert len(flow.diferenca(sessao, versao)) == 1
-    assert {item["momento"] for item in caps_antes} == {"visto", "liberado"}
-    flow.contestar(sessao, versao, revisor)
-    assert versao.rodada == 1 and obra.versao_liberada_id is None
-    if recusar_antes:
-        flow.recusar(sessao, versao, "Rever novamente", revisor, hash_obra(sessao, obra.id))
-        assert versao.rodada == 1
-        flow.reenviar(sessao, versao, "Pronto para novo parecer", admin)
-        assert versao.rodada == 1
-
     capitulo.conteudo_md = "Visto na rodada 2"
-    adendo.texto = "Nota vista na rodada 2"
-    sessao.add_all([
-        capitulo, adendo,
-        ObraCapitulo(obra_id=obra.id, ordem=2, titulo="Dois", conteudo_md="Novo capitulo"),
-        Adendo(obra_id=obra.id, codigo="ADO-02", texto="Nova nota"),
-    ])
+    sessao.add(capitulo)
     sessao.flush()
     aprovar(fluxo, versao)
     assert versao.rodada == 2
-    adendo.texto = "Nota liberada na rodada 2"
-    sessao.add(adendo)
-    sessao.flush()
-    previa = flow.diferenca(sessao, versao, atual=True)
-    assert len(previa) == 1 and previa[0]["item"] == "adendo:ADO-01"
-    assert previa[0]["visto"]["texto"] == "Nota vista na rodada 2"
-    assert previa[0]["liberado"]["texto"] == "Nota liberada na rodada 2"
-    flow.liberar(sessao, versao, "Ajuste da segunda rodada", admin)
+    assert flow.diferenca(sessao, versao, atual=True) == []
+    capitulo.conteudo_md = "Liberado na rodada 2"
+    sessao.add(capitulo)
+    flow.liberar(sessao, versao, "Segunda rodada", admin)
     sessao.commit()
     sessao.expire_all()
-    assert versao.rodada == 2 and obra.versao_liberada_id == versao.id
-    assert versao.status == obra.status == "liberada"
-    assert len(sessao.exec(select(ObraVersao)).all()) == 1
-    assert flow.diferenca(sessao, versao) == previa
-    assert historico_rodada_um(ObraVersaoCapitulo) == caps_antes
-    assert historico_rodada_um(ObraVersaoAdendo) == notas_antes
-    for modelo in (ObraVersaoCapitulo, ObraVersaoAdendo):
-        segunda = sessao.exec(select(modelo).where(modelo.versao_id == versao.id, modelo.rodada == 2)).all()
-        assert len(segunda) == 4
-        assert {item.momento for item in segunda} == {"visto", "liberado"}
-    eventos = sessao.exec(select(ObraVersaoEvento).order_by(ObraVersaoEvento.id)).all()
-    assert [e.model_dump() for e in eventos[:len(eventos_antes)]] == eventos_antes
-    assert json.loads(eventos[-1].detalhe)["rodada"] == 2
-    assert json.loads(eventos[-1].detalhe)["tamanho_diferenca"] == 1
-    assert [json.loads(e.detalhe)["rodada"] for e in eventos if e.tipo == "vista"] == [1, 2]
+    diferenca = flow.diferenca(sessao, versao)
+    assert len(diferenca) == 1 and diferenca[0]["item"] == "capitulo:1"
+    assert diferenca[0]["visto"]["texto"] == "Visto na rodada 2"
+    for modelo, antes in ((ObraVersaoCapitulo, caps), (ObraVersaoAdendo, notas)):
+        antigos = sessao.exec(select(modelo).where(modelo.rodada == 1)).all()
+        assert [item.model_dump() for item in antigos] == antes
+    todos = sessao.exec(select(ObraVersaoEvento).order_by(ObraVersaoEvento.id)).all()
+    assert [e.model_dump() for e in todos[:len(eventos)]] == eventos
+    assert json.loads(todos[-1].detalhe)["tamanho_diferenca"] == 1
 
 
 def test_rf11_f11_revisao_bloqueada_e_rollback_nao_consumem_rodada(fluxo):
@@ -726,8 +719,8 @@ def test_rf11_f11_revisao_bloqueada_e_rollback_nao_consumem_rodada(fluxo):
     sessao, flow, admin, revisor, _ = fluxo
     obra, versao = preparar(fluxo)
     aprovar(fluxo, versao)
-    flow.liberar(sessao, versao, "Primeira rodada", admin)
-    flow.contestar(sessao, versao, revisor)
+    flow.recusar(sessao, versao, "Rever", revisor, hash_obra(sessao, obra.id))
+    flow.reenviar(sessao, versao, "Reenviado", admin)
     sessao.commit()
     eventos_antes = len(sessao.exec(select(ObraVersaoEvento)).all())
     with pytest.raises(FluxoBloqueado, match="mudou"):
@@ -739,7 +732,6 @@ def test_rf11_f11_revisao_bloqueada_e_rollback_nao_consumem_rodada(fluxo):
     assert versao.rodada == 1 and versao.status == "em_revisao"
     assert len(sessao.exec(select(ObraVersaoEvento)).all()) == eventos_antes
     assert not sessao.exec(select(ObraVersaoCapitulo).where(ObraVersaoCapitulo.rodada == 2)).all()
-
 
 
 def test_rf11_f11_diferenca_nao_inclui_itens_de_rodadas_antigas(fluxo):
@@ -778,3 +770,207 @@ def test_rf11_f11_diferenca_nao_inclui_itens_de_rodadas_antigas(fluxo):
     assert mudancas["capitulo:1"]["liberado"]["texto"] == "Capitulo liberado da rodada 2"
     assert mudancas["adendo:ADO-01"]["visto"]["texto"] == "Adendo visto da rodada 2"
     assert mudancas["adendo:ADO-01"]["liberado"]["texto"] == "Adendo liberado da rodada 2"
+
+
+
+def obra_publicada(fluxo):
+    sessao, flow, admin, _, _ = fluxo
+    obra, versao = preparar(fluxo)
+    aprovar(fluxo, versao)
+    flow.liberar(sessao, versao, "Publicacao inicial", admin)
+    sessao.commit()
+    return obra, versao
+
+
+@pytest.mark.parametrize("abertura", ["alterar", "aceitar"])
+@pytest.mark.parametrize("fechamento", ["liberar", "cancelar"])
+def test_rf12_f12_disponibilidade_so_muda_pelo_admin(fluxo, abertura, fechamento):
+    sessao, flow, admin, revisor, _ = fluxo
+    obra, original = obra_publicada(fluxo)
+    flow.solicitar_revisao(sessao, original, revisor, "Revisar a obra")
+    assert obra.disponibilidade == "aberta" and obra.versao_liberada_id == original.id
+    if abertura == "alterar":
+        nova = flow.alterar(sessao, obra, novo_conteudo(), admin)
+    else:
+        nova = flow.aceitar_solicitacao(sessao, obra, admin)
+    assert obra.disponibilidade == "suspensa_para_novos"
+    assert obra.versao_liberada_id == original.id and original.status == "liberada"
+    aprovar(fluxo, nova)
+    assert obra.disponibilidade == "suspensa_para_novos"
+    assert obra.versao_liberada_id == original.id
+    if fechamento == "liberar":
+        flow.liberar(sessao, nova, "Ajustes concluidos", admin)
+        assert obra.versao_liberada_id == nova.id and original.status == "substituida"
+    else:
+        flow.cancelar_ciclo(sessao, obra, admin)
+        assert obra.versao_liberada_id == original.id and original.status == "liberada"
+    sessao.commit()
+    sessao.expire_all()
+    assert obra.disponibilidade == "aberta"
+
+
+def test_rf13_f13_solicitacao_dispensa_com_motivo_visivel_e_novo_pedido(fluxo):
+    import json
+    from gsi_ebd.models import ObraVersao, ObraVersaoEvento
+    from sqlmodel import select
+    sessao, flow, admin, revisor, _ = fluxo
+    obra, original = obra_publicada(fluxo)
+    pedido = flow.solicitar_revisao(sessao, original, revisor, "Checar notas")
+    sessao.commit()
+    sessao.refresh(original)
+    estado = original.model_dump()
+    for motivo in ("", "  ", None):
+        with pytest.raises(FluxoBloqueado, match="Motivo"):
+            flow.dispensar_solicitacao(sessao, obra, admin, motivo)
+    resposta = flow.dispensar_solicitacao(sessao, obra, admin, "Ja verificado na revisao anterior")
+    sessao.commit()
+    sessao.refresh(original)
+    assert original.model_dump() == estado
+    assert obra.disponibilidade == "aberta" and obra.versao_liberada_id == original.id
+    assert len(sessao.exec(select(ObraVersao)).all()) == 1
+    detalhe = json.loads(resposta.detalhe)
+    assert detalhe["solicitacao_id"] == pedido.id
+    assert detalhe["motivo"] == "Ja verificado na revisao anterior"
+    assert sessao.get(ObraVersaoEvento, resposta.id).autor_id == admin.id
+    with pytest.raises(FluxoBloqueado, match="Nenhuma"):
+        flow.aceitar_solicitacao(sessao, obra, admin)
+    novo_pedido = flow.solicitar_revisao(sessao, original, revisor, "Nova evidencia")
+    nova = flow.aceitar_solicitacao(sessao, obra, admin)
+    assert nova.numero == 2 and nova.id != original.id
+    evento = sessao.exec(select(ObraVersaoEvento).where(
+        ObraVersaoEvento.tipo == "solicitacao_aceita")).one()
+    assert json.loads(evento.detalhe)["solicitacao_id"] == novo_pedido.id
+
+
+@pytest.mark.parametrize("operacao", ["aceitar", "dispensar", "cancelar"])
+@pytest.mark.parametrize("papel", [p for p in Role if p != Role.ADMIN])
+def test_rf13_f13_f15_decisoes_de_ciclo_exigem_admin(fluxo, operacao, papel):
+    sessao, flow, admin, revisor, _ = fluxo
+    obra, original = obra_publicada(fluxo)
+    flow.solicitar_revisao(sessao, original, revisor, "Rever")
+    if operacao == "cancelar":
+        flow.aceitar_solicitacao(sessao, obra, admin)
+    usuario = User(id=123, email="outro@example.test", role=papel)
+    with pytest.raises(FluxoBloqueado, match="Papel"):
+        if operacao == "aceitar":
+            flow.aceitar_solicitacao(sessao, obra, usuario)
+        elif operacao == "dispensar":
+            flow.dispensar_solicitacao(sessao, obra, usuario, "Nao procede")
+        else:
+            flow.cancelar_ciclo(sessao, obra, usuario)
+    assert obra.versao_liberada_id == original.id
+
+
+def test_rf13_f13_nao_aceita_pedido_duplicado_ou_ciclo_paralelo(fluxo):
+    sessao, flow, admin, revisor, _ = fluxo
+    obra, original = obra_publicada(fluxo)
+    flow.solicitar_revisao(sessao, original, revisor, "Rever")
+    with pytest.raises(FluxoBloqueado):
+        flow.solicitar_revisao(sessao, original, revisor, "Duplicado")
+    flow.alterar(sessao, obra, novo_conteudo(), admin)
+    with pytest.raises(FluxoBloqueado, match="ciclo pendente"):
+        flow.aceitar_solicitacao(sessao, obra, admin)
+
+
+def test_rf14_f14_vinculo_fixa_versao_e_suspensao_bloqueia_so_novos(fluxo):
+    from gsi_ebd.models import Ambiente, VinculoObra, ObraVersaoCapitulo
+    from sqlmodel import select
+    sessao, flow, admin, _, _ = fluxo
+    obra, original = obra_publicada(fluxo)
+    coordenador = User(email="coord@example.test", role=Role.COORDENADOR)
+    sessao.add(coordenador)
+    sessao.flush()
+    ambiente = Ambiente(nome="Ambiente", coordenador_id=coordenador.id)
+    sessao.add(ambiente)
+    sessao.flush()
+    vinculo = flow.vincular(sessao, ambiente, obra, coordenador)
+    assert vinculo.versao_id == original.id
+    nova = flow.alterar(sessao, obra, novo_conteudo(), admin)
+    with pytest.raises(FluxoBloqueado, match="indisponivel"):
+        flow.vincular(sessao, ambiente, obra, coordenador)
+    assert vinculo.ativo and vinculo.versao_id == original.id
+    aprovar(fluxo, nova)
+    flow.liberar(sessao, nova, "Concluido", admin)
+    novo_vinculo = flow.vincular(sessao, ambiente, obra, coordenador)
+    sessao.commit()
+    sessao.expire_all()
+    assert sessao.get(VinculoObra, vinculo.id).versao_id == original.id
+    assert novo_vinculo.versao_id == nova.id
+    assert original.status == "substituida"
+    publicado = sessao.exec(select(ObraVersaoCapitulo).where(
+        ObraVersaoCapitulo.versao_id == vinculo.versao_id,
+        ObraVersaoCapitulo.momento == "liberado")).one()
+    assert publicado.conteudo_md == "Original"
+    outro = User(email="outro-coord@example.test", role=Role.COORDENADOR)
+    sessao.add(outro)
+    sessao.flush()
+    with pytest.raises(FluxoBloqueado, match="escopo"):
+        flow.vincular(sessao, ambiente, obra, outro)
+
+
+def test_rf15_f15_cancelar_preserva_evidencias_reabre_e_impede_liberar_descartada(fluxo):
+    from gsi_ebd.models import ObraVersaoEvento, ObraVersaoCapitulo
+    from sqlmodel import select
+    sessao, flow, admin, _, _ = fluxo
+    obra, original = obra_publicada(fluxo)
+    nova = flow.alterar(sessao, obra, novo_conteudo(), admin)
+    aprovar(fluxo, nova)
+    antes = len(sessao.exec(select(ObraVersaoCapitulo)).all())
+    flow.cancelar_ciclo(sessao, obra, admin)
+    sessao.commit()
+    assert nova.status == "cancelada" and obra.disponibilidade == "aberta"
+    assert obra.versao_liberada_id == original.id and original.status == "liberada"
+    assert len(sessao.exec(select(ObraVersaoCapitulo)).all()) == antes
+    assert sessao.exec(select(ObraVersaoEvento).where(ObraVersaoEvento.tipo == "ciclo_cancelado")).one()
+    with pytest.raises(FluxoBloqueado):
+        flow.liberar(sessao, nova, "Nao pode", admin)
+    with pytest.raises(FluxoBloqueado):
+        flow.cancelar_ciclo(sessao, obra, admin)
+    proxima = flow.alterar(sessao, obra, novo_conteudo(), admin)
+    assert proxima.id != nova.id and proxima.numero > nova.numero
+
+
+@pytest.mark.parametrize("posicao", ["concordo", "objeto"])
+def test_rf16_f16_posicao_nao_bloqueia_decisao_do_admin(fluxo, posicao):
+    import json
+    sessao, flow, admin, revisor, _ = fluxo
+    obra, original = obra_publicada(fluxo)
+    flow.solicitar_revisao(sessao, original, revisor, "Reavaliar")
+    nova = flow.aceitar_solicitacao(sessao, obra, admin)
+    antes = obra.versao_liberada_id, obra.disponibilidade, nova.status
+    evento = flow.posicionar(sessao, nova, revisor, posicao, "Posicao registrada")
+    assert evento.tipo == "posicao" and evento.autor_id == revisor.id
+    assert json.loads(evento.detalhe)["posicao"] == posicao
+    assert (obra.versao_liberada_id, obra.disponibilidade, nova.status) == antes
+    aprovar(fluxo, nova)
+    flow.liberar(sessao, nova, "Concluido pelo admin", admin)
+    assert nova.status == "liberada" and obra.disponibilidade == "aberta"
+
+
+@pytest.mark.parametrize("operacao", ["solicitar", "posicionar"])
+@pytest.mark.parametrize("papel", [p for p in Role if p != Role.REVISOR])
+def test_rf13_f13_f16_pedidos_e_posicoes_exigem_revisor(fluxo, operacao, papel):
+    sessao, flow, _, _, _ = fluxo
+    _, versao = obra_publicada(fluxo)
+    usuario = User(id=123, email="outro@example.test", role=papel)
+    with pytest.raises(FluxoBloqueado, match="Papel"):
+        if operacao == "solicitar":
+            flow.solicitar_revisao(sessao, versao, usuario, "Reavaliar")
+        else:
+            flow.posicionar(sessao, versao, usuario, "objeto", "Texto")
+
+
+def test_rf13_f13_decisoes_e_pedidos_compartilham_transacao(fluxo):
+    from gsi_ebd.models import ObraVersao, ObraVersaoEvento
+    from sqlmodel import select
+    sessao, flow, admin, revisor, _ = fluxo
+    obra, original = obra_publicada(fluxo)
+    pedido = flow.solicitar_revisao(sessao, original, revisor, "Rever")
+    sessao.commit()
+    flow.aceitar_solicitacao(sessao, obra, admin)
+    sessao.rollback()
+    assert obra.disponibilidade == "aberta" and obra.versao_liberada_id == original.id
+    assert len(sessao.exec(select(ObraVersao)).all()) == 1
+    assert not sessao.exec(select(ObraVersaoEvento).where(ObraVersaoEvento.tipo == "solicitacao_aceita")).all()
+    resposta = flow.dispensar_solicitacao(sessao, obra, admin, "Dispensa apos rollback")
+    assert resposta.versao_id == pedido.versao_id
