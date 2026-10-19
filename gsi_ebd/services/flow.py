@@ -12,10 +12,7 @@ from gsi_ebd.models import (
     ObraVersaoCapitulo, ObraVersaoEvento, Role, User,
 )
 from gsi_ebd.services.fontes import fonte_decisao
-
-
-class FluxoBloqueado(ValueError):
-    pass
+from gsi_ebd.services.erros_fluxo import FluxoBloqueado
 
 
 def exigir_papel(usuario: User, papel: Role) -> None:
@@ -101,13 +98,14 @@ def _congelar(sessao, versao, momento, capitulos, adendos):
     for capitulo in capitulos:
         sessao.add(ObraVersaoCapitulo(
             versao_id=versao.id, momento=momento, ordem=capitulo.ordem,
-            titulo=capitulo.titulo, conteudo_md=capitulo.conteudo_md,
+            titulo=_normalizar(capitulo.titulo), conteudo_md=_normalizar(capitulo.conteudo_md),
             item_hash=hash_capitulo(capitulo),
         ))
     for adendo in adendos:
         sessao.add(ObraVersaoAdendo(
-            versao_id=versao.id, momento=momento, codigo=adendo.codigo,
-            titulo=adendo.titulo, texto=adendo.texto, item_hash=hash_adendo(adendo),
+            versao_id=versao.id, momento=momento, codigo=_normalizar(adendo.codigo),
+            titulo=_normalizar(adendo.titulo), texto=_normalizar(adendo.texto),
+            item_hash=hash_adendo(adendo),
         ))
 
 
@@ -151,7 +149,7 @@ def _nova_versao(sessao, obra, admin):
 
 def importar(sessao: Session, fonte: str, obra: Obra, admin: User) -> ObraVersao:
     _autor(admin, Role.ADMIN)
-    if fonte_decisao(fonte) == "nao_entra":
+    if fonte_decisao(fonte, recarregar=True) == "nao_entra":
         raise FluxoBloqueado("A fonte nao entra")
     if obra.id is not None and sessao.get(Obra, obra.id) is not None:
         raise FluxoBloqueado("Obra ja importada; use alterar")
@@ -243,11 +241,16 @@ def liberar(sessao, versao, ajustes_descritos: str, admin: User) -> ObraVersao:
     versao.hash_liberado = _hash_itens(capitulos, adendos)
     versao.conteudo_hash = versao.hash_liberado
     versao.status = "liberada"
+    if obra.versao_liberada_id is not None and obra.versao_liberada_id != versao.id:
+        anterior = sessao.get(ObraVersao, obra.versao_liberada_id)
+        anterior.status = "substituida"
+        sessao.add(anterior)
     obra.status = "liberada"
     obra.versao_liberada_id = versao.id
     _publicar_estado(sessao, obra, versao)
     _evento(sessao, versao, "liberada", admin, ajustes=ajustes_descritos,
-            hash_visto=versao.hash_visto, hash_liberado=versao.hash_liberado)
+            hash_visto=versao.hash_visto, hash_liberado=versao.hash_liberado,
+            tamanho_diferenca=len(diferenca(sessao, versao)))
     return versao
 
 
@@ -257,15 +260,22 @@ def alterar(sessao, obra, conteudo: dict, admin: User) -> ObraVersao:
     if obra.versao_liberada_id is None:
         raise FluxoBloqueado("Obra ainda nao liberada")
     # Valida todo o conteudo antes de modificar a copia de trabalho.
-    capitulos = [ObraCapitulo.model_validate({
-        "obra_id": obra.id, "ordem": item["ordem"], "titulo": item.get("titulo", ""),
-        "conteudo_md": item.get("conteudo_md", ""),
-    }) for item in conteudo["capitulos"]]
-    adendos = [Adendo.model_validate({
-        "obra_id": obra.id, "autor_id": admin.id, "codigo": item["codigo"],
-        "titulo": item.get("titulo", ""), "texto": item.get("texto", ""),
-        "ambiente_id": item.get("ambiente_id"),
-    }) for item in conteudo["adendos"]]
+    if (not isinstance(conteudo, dict)
+            or not all(isinstance(conteudo.get(k), list) for k in ("capitulos", "adendos"))
+            or not all(isinstance(item, dict) for k in ("capitulos", "adendos") for item in conteudo[k])):
+        raise FluxoBloqueado("Conteudo malformado")
+    try:
+        capitulos = [ObraCapitulo.model_validate({
+            "obra_id": obra.id, "ordem": item["ordem"], "titulo": item.get("titulo", ""),
+            "conteudo_md": item.get("conteudo_md", ""),
+        }) for item in conteudo["capitulos"]]
+        adendos = [Adendo.model_validate({
+            "obra_id": obra.id, "autor_id": admin.id, "codigo": item["codigo"],
+            "titulo": item.get("titulo", ""), "texto": item.get("texto", ""),
+            "ambiente_id": item.get("ambiente_id"),
+        }) for item in conteudo["adendos"]]
+    except (KeyError, TypeError, ValueError) as erro:
+        raise FluxoBloqueado("Conteudo malformado") from erro
     if any(a.ambiente_id is not None for a in adendos):
         raise FluxoBloqueado("Alterar recebe somente adendos da base")
     if len({c.ordem for c in capitulos}) != len(capitulos) or len({_normalizar(a.codigo) for a in adendos}) != len(adendos):
@@ -306,10 +316,13 @@ def contestar(sessao, versao, revisor: User) -> ObraVersao:
     obra, versao = _estado(sessao, versao, "liberada")
     if obra.versao_liberada_id != versao.id:
         raise FluxoBloqueado("Conteste a versao publicada atual")
-    # A assinatura e os instantaneos publicados permanecem como evidencia.
-    nova = _nova_versao(sessao, obra, revisor)
-    _evento(sessao, nova, "contestada", revisor, versao_anterior_id=versao.id)
-    return nova
+    # A contestacao suspende a publicacao da propria versao, sem criar outra.
+    versao.status = "em_revisao"
+    obra.status = "em_revisao"
+    obra.versao_liberada_id = None
+    _publicar_estado(sessao, obra, versao)
+    _evento(sessao, versao, "contestada", revisor)
+    return versao
 
 
 def diferenca(sessao, versao, atual: bool = False) -> list[dict]:

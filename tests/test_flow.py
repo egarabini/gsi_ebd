@@ -194,16 +194,25 @@ def test_rf05_f05_f09_n07_snapshot_liberada_imutavel(fluxo):
     assert nova.conteudo_hash == flow.hash_obra(sessao, obra.id) != original
 
 
-def test_rf11_f06_contestar_preserva_assinaturas(fluxo):
+def test_rf11_f06_contestar_reabre_mesma_versao_e_suspende_publicacao(fluxo):
+    from gsi_ebd.models import ObraVersao, ObraVersaoEvento
+    from sqlmodel import select
     sessao, flow, admin, revisor, _ = fluxo
     obra, versao = preparar(fluxo)
     aprovar(fluxo, versao)
     flow.liberar(sessao, versao, "Ajustado", admin)
     antes = versao.hash_liberado
-    nova = flow.contestar(sessao, versao, revisor)
-    assert nova.id != versao.id and nova.numero == 2 and nova.status == "em_revisao"
-    assert versao.status == "liberada" and versao.hash_liberado == antes
-    assert obra.versao_liberada_id == versao.id
+    versao_id = versao.id
+    retorno = flow.contestar(sessao, versao, revisor)
+    sessao.commit()
+    sessao.expire_all()
+    assert retorno.id == versao_id
+    assert versao.status == obra.status == "em_revisao"
+    assert obra.versao_liberada_id is None
+    assert versao.hash_liberado == antes
+    assert [v.id for v in sessao.exec(select(ObraVersao)).all()] == [versao_id]
+    eventos = sessao.exec(select(ObraVersaoEvento).order_by(ObraVersaoEvento.id)).all()
+    assert eventos[-1].tipo == "contestada" and eventos[-1].versao_id == versao_id
 
 
 def test_rf11_f08_c01_c04_c06_diferenca_mostra_texto(fluxo):
@@ -456,11 +465,12 @@ def test_rf08_f10_eventos_append_only_em_todas_as_operacoes(fluxo):
         assert detalhe["ajustes"] == ajustes
     executar("vista", revisor, lambda: aprovar(fluxo, versao))
     executar("liberada", admin, lambda: flow.liberar(sessao, versao, "Sem ajustes", admin))
-    nova, detalhe = executar("contestada", revisor, lambda: flow.contestar(sessao, versao, revisor))
+    nova, detalhe = executar("alterada", admin, lambda: flow.alterar(sessao, obra, novo_conteudo(), admin))
     assert detalhe["versao_anterior_id"] == versao.id
     executar("vista", revisor, lambda: aprovar(fluxo, nova))
     executar("liberada", admin, lambda: flow.liberar(sessao, nova, "Reavaliada", admin))
-    executar("alterada", admin, lambda: flow.alterar(sessao, obra, novo_conteudo(), admin))
+    contestada, _ = executar("contestada", revisor, lambda: flow.contestar(sessao, nova, revisor))
+    assert contestada.id == nova.id and obra.versao_liberada_id is None
     assert [json.loads(r[-1])["parecer"] for r in anteriores if r[2] == "recusada"] == ["Recusa 1", "Recusa 2"]
 
 
@@ -510,3 +520,128 @@ def test_rf05_delta_alterar_preserva_itens_omitidos_e_hash_completo(fluxo):
     assert len(sessao.exec(select(Adendo).where(Adendo.obra_id == obra.id)).all()) == 2
     assert nova.conteudo_hash == hash_obra(sessao, obra.id)
     assert obra.versao_liberada_id == versao.id
+
+
+
+def test_rf07_n01_importar_rele_inventario_com_cache_quente(fluxo):
+    from gsi_ebd.services import fontes
+    from gsi_ebd.models import ObraVersao, ObraVersaoEvento
+    from sqlmodel import select
+    sessao, flow, admin, _, inventario = fluxo
+    assert fontes.fonte_decisao("F-001") == "entra"
+    inventario.write_text("id;decisao\nF-001;nao_entra\n", encoding="utf-8")
+    assert fontes.fonte_decisao("F-001") == "entra"
+    with pytest.raises(FluxoBloqueado, match="fonte"):
+        flow.importar(sessao, "F-001", Obra(titulo="Bloqueada"), admin)
+    assert sessao.exec(select(Obra)).all() == []
+    assert sessao.exec(select(ObraVersao)).all() == []
+    assert sessao.exec(select(ObraVersaoEvento)).all() == []
+
+
+def test_rf05_f06b_liberar_v2_substitui_v1_e_atualiza_catalogo(fluxo):
+    sessao, flow, admin, _, _ = fluxo
+    obra, primeira = preparar(fluxo)
+    aprovar(fluxo, primeira)
+    flow.liberar(sessao, primeira, "Inicial", admin)
+    original = primeira.hash_liberado
+    segunda = flow.alterar(sessao, obra, novo_conteudo(), admin)
+    assert primeira.status == obra.status == "liberada"
+    assert obra.versao_liberada_id == primeira.id
+    aprovar(fluxo, segunda)
+    flow.liberar(sessao, segunda, "Atualizada", admin)
+    sessao.commit()
+    sessao.expire_all()
+    assert primeira.status == "substituida" and primeira.hash_liberado == original
+    assert obra.status == segunda.status == "liberada"
+    assert obra.versao_liberada_id == segunda.id
+
+
+@pytest.mark.parametrize("alterar_texto", [False, True])
+def test_rf11_liberar_registra_tamanho_diferenca_no_evento(fluxo, alterar_texto):
+    import json
+    from gsi_ebd.models import ObraVersaoEvento
+    from sqlmodel import select
+    sessao, flow, admin, _, _ = fluxo
+    obra, versao = preparar(fluxo)
+    aprovar(fluxo, versao)
+    if alterar_texto:
+        capitulo = sessao.exec(select(ObraCapitulo).where(ObraCapitulo.obra_id == obra.id)).one()
+        adendo = sessao.exec(select(Adendo).where(Adendo.obra_id == obra.id)).one()
+        capitulo.conteudo_md = "Texto ajustado"
+        adendo.texto = "Nota ajustada"
+        sessao.add_all([capitulo, adendo])
+        sessao.flush()
+    flow.liberar(sessao, versao, "Ajustes descritos", admin)
+    sessao.commit()
+    evento = sessao.exec(select(ObraVersaoEvento).where(ObraVersaoEvento.tipo == "liberada")).one()
+    assert json.loads(evento.detalhe)["tamanho_diferenca"] == (2 if alterar_texto else 0)
+
+
+@pytest.mark.parametrize("conteudo", [
+    None, [], {}, {"capitulos": []}, {"capitulos": None, "adendos": []},
+    {"capitulos": "errado", "adendos": []}, {"capitulos": [None], "adendos": []},
+    {"capitulos": [{}], "adendos": []}, {"capitulos": [{"ordem": "errado"}], "adendos": []},
+    {"capitulos": [{"ordem": 1, "titulo": None}], "adendos": []},
+    {"capitulos": [], "adendos": [{}]}, {"capitulos": [], "adendos": [1]},
+    {"capitulos": [], "adendos": [{"codigo": None}]},
+])
+def test_rf05_alterar_conteudo_malformado_bloqueia_sem_mutacao(fluxo, conteudo):
+    from gsi_ebd.models import ObraVersao, ObraVersaoEvento
+    from sqlmodel import select
+    sessao, flow, admin, _, _ = fluxo
+    obra, versao = preparar(fluxo)
+    aprovar(fluxo, versao)
+    flow.liberar(sessao, versao, "Inicial", admin)
+    sessao.commit()
+    antes = hash_obra(sessao, obra.id)
+    with pytest.raises(FluxoBloqueado, match="malformado"):
+        flow.alterar(sessao, obra, conteudo, admin)
+    assert hash_obra(sessao, obra.id) == antes
+    assert len(sessao.exec(select(ObraVersao)).all()) == 1
+    assert len(sessao.exec(select(ObraVersaoEvento)).all()) == 3
+    assert obra.versao_liberada_id == versao.id and obra.status == "liberada"
+
+
+@pytest.mark.parametrize("momento", ["visto", "liberado"])
+def test_rf03_snapshot_persiste_texto_normalizado_e_hash_recomputavel(fluxo, momento):
+    from gsi_ebd.models import ObraVersaoCapitulo, ObraVersaoAdendo
+    from sqlmodel import select
+    sessao, flow, admin, _, _ = fluxo
+    obra, versao = preparar(fluxo)
+    capitulo = sessao.exec(select(ObraCapitulo).where(ObraCapitulo.obra_id == obra.id)).one()
+    adendo = sessao.exec(select(Adendo).where(Adendo.obra_id == obra.id)).one()
+    capitulo.titulo = adendo.titulo = "Cafe\u0301\r\nTitulo"
+    capitulo.conteudo_md = adendo.texto = "Cafe\u0301\rLinha\r\nFim"
+    adendo.codigo = "ADO-Cafe\u0301"
+    sessao.add_all([capitulo, adendo])
+    sessao.flush()
+    aprovar(fluxo, versao)
+    flow.liberar(sessao, versao, "Sem ajustes", admin)
+    sessao.commit()
+    cap = sessao.exec(select(ObraVersaoCapitulo).where(
+        ObraVersaoCapitulo.versao_id == versao.id, ObraVersaoCapitulo.momento == momento)).one()
+    nota = sessao.exec(select(ObraVersaoAdendo).where(
+        ObraVersaoAdendo.versao_id == versao.id, ObraVersaoAdendo.momento == momento)).one()
+    assert cap.titulo == nota.titulo == "Caf\u00e9\nTitulo"
+    assert cap.conteudo_md == nota.texto == "Caf\u00e9\nLinha\nFim"
+    assert nota.codigo == "ADO-Caf\u00e9"
+    assert cap.item_hash == hash_capitulo(cap)
+    assert nota.item_hash == hash_adendo(nota)
+    agregado = hash_canonico({f"capitulo:{cap.ordem}": cap.item_hash,
+                             f"adendo:{nota.codigo}": nota.item_hash})
+    assert agregado == (versao.hash_visto if momento == "visto" else versao.hash_liberado)
+
+
+@pytest.mark.parametrize("operacao", ["importar", "liberar"])
+def test_rf07_inventario_invalido_capturavel_como_fluxo_bloqueado(fluxo, operacao):
+    from gsi_ebd.services.fontes import FonteInvalida
+    sessao, flow, admin, _, inventario = fluxo
+    _, versao = preparar(fluxo)
+    aprovar(fluxo, versao)
+    inventario.write_text("id;decisao\nF-001;invalida\n", encoding="utf-8")
+    assert issubclass(FonteInvalida, FluxoBloqueado)
+    with pytest.raises(FluxoBloqueado):
+        if operacao == "importar":
+            flow.importar(sessao, "F-001", Obra(titulo="Outra"), admin)
+        else:
+            flow.liberar(sessao, versao, "Ajustado", admin)

@@ -4,8 +4,10 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
+from gsi_ebd.services.erros_fluxo import FluxoBloqueado
 
-class FonteInvalida(ValueError):
+
+class FonteInvalida(FluxoBloqueado):
     pass
 
 
