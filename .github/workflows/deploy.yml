@@ -101,7 +101,21 @@ jobs:
               -o UserKnownHostsFile=~/.ssh/known_hosts \
               -o StrictHostKeyChecking=yes \
               -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
-              "$USUARIO@$HOST" "deploy ${{ steps.tag.outputs.tag }}"
+              "$USUARIO@$HOST" "deploy ${{ steps.tag.outputs.tag }}" \
+            | tee "$RUNNER_TEMP/deploy.log"
+
+      - name: Manifesto do backup (artifact)
+        # O DUMP fica na VPS (o comando forcado so devolve stdout; transportar o dump
+        # exigiria um segundo canal e autorizacao propria). O artifact e o manifesto
+        # auditavel: o log do deploy tem o caminho do backup, o tamanho e o sha256 que
+        # o script gerou e verificou ANTES de publicar.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-manifest-${{ github.run_id }}
+          path: ${{ runner.temp }}/deploy.log
+          retention-days: 90
+          if-no-files-found: warn
 
       - name: Apagar a chave da maquina temporaria
         if: always()
