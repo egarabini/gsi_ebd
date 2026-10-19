@@ -27,8 +27,14 @@ from gsi_ebd.models.notification import Notification, NotificationType
 from gsi_ebd.models.progress import UserResponse, Progress
 
 
-DEFAULT_PASSWORD = "senha123"
 ADMIN_EMAIL = "admin@gsi.ebd"
+
+
+def seed_password() -> str:
+    password = os.environ.get("SEED_PASSWORD")
+    if not password:
+        raise SystemExit("Defina SEED_PASSWORD no ambiente para rodar o seed.")
+    return password
 
 
 def hash_password(password: str) -> str:
@@ -224,7 +230,8 @@ def seed_leads(session: Session):
 
 
 def seed_admin(session: Session) -> User:
-    """Cria o Admin padrão (sem assinatura — Admin não paga)."""
+    """Cria o Admin com troca obrigatoria de senha."""
+    password = seed_password()
     existing = session.exec(select(User).where(User.email == ADMIN_EMAIL)).first()
     if existing:
         print("⏭️  Admin já existe — pulando")
@@ -248,8 +255,8 @@ def seed_admin(session: Session) -> User:
         estado="SP",
         email=ADMIN_EMAIL,
         telefone="(11) 00000-0000",
-        password_hash=hash_password(DEFAULT_PASSWORD),
-        must_change_password=False,  # Admin não precisa trocar
+        password_hash=hash_password(password),
+        must_change_password=True,
         role=Role.ADMIN,
         status=UserStatus.ATIVO,  # Admin sempre ATIVO
         assinatura_ativa=True,  # Admin não paga, mas flag ativa para não bloquear acesso
@@ -257,7 +264,7 @@ def seed_admin(session: Session) -> User:
     session.add(admin)
     session.commit()
     session.refresh(admin)
-    print(f"✅ Admin criado: {ADMIN_EMAIL} / {DEFAULT_PASSWORD}")
+    print(f"✅ Admin criado: {ADMIN_EMAIL}")
     return admin
 
 
@@ -293,7 +300,8 @@ def create_subscription(session: Session, user: User, admin_id: int) -> Subscrip
 
 
 def seed_users(session: Session, admin: User):
-    """Cria usuários de exemplo para cada role."""
+    """Cria usuarios de exemplo para cada role."""
+    password = seed_password()
 
 
     # --- COORDENADOR ---
@@ -318,8 +326,8 @@ def seed_users(session: Session, admin: User):
             estado="MG",
             email=coordenador_email,
             telefone="(31) 99999-0003",
-            password_hash=hash_password(DEFAULT_PASSWORD),
-            must_change_password=False,   # usuário de teste — sem troca obrigatória
+            password_hash=hash_password(password),
+            must_change_password=True,
             role=Role.COORDENADOR,
             meta_instrutores=5,
             meta_alunos=50,
@@ -330,7 +338,7 @@ def seed_users(session: Session, admin: User):
         session.add(coordenador)
         session.flush()
         create_subscription(session, coordenador, admin.id)
-        print(f"✅ Coordenador criado: {coordenador_email} / {DEFAULT_PASSWORD}")
+        print(f"✅ Coordenador criado: {coordenador_email}")
     else:
         print("⏭️  Coordenador já existe — pulando")
         coordenador = session.exec(select(User).where(User.email == coordenador_email)).first()
@@ -382,8 +390,8 @@ def seed_users(session: Session, admin: User):
             estado="MG",
             email=instrutor_email,
             telefone="(31) 99999-0004",
-            password_hash=hash_password(DEFAULT_PASSWORD),
-            must_change_password=False,
+            password_hash=hash_password(password),
+            must_change_password=True,
             role=Role.INSTRUTOR,
             coordenador_id=coordenador.id,   # responde ao Coordenador
             ambiente_id=ambiente.id,
@@ -395,7 +403,7 @@ def seed_users(session: Session, admin: User):
         session.add(instrutor)
         session.flush()
         create_subscription(session, instrutor, admin.id)
-        print(f"[ok] Instrutor criado: {instrutor_email} / {DEFAULT_PASSWORD}")
+        print(f"[ok] Instrutor criado: {instrutor_email}")
     else:
         print("[..] Instrutor ja existe - pulando")
 
@@ -450,8 +458,8 @@ def seed_users(session: Session, admin: User):
                 estado="PR",
                 email=email,
                 telefone="(41) 99999-0000",
-                password_hash=hash_password(DEFAULT_PASSWORD),
-                must_change_password=False,   # usuário de teste — sem troca obrigatória
+                password_hash=hash_password(password),
+                must_change_password=True,
                 role=Role.ALUNO,
                 instrutor_id=instrutor.id,       # quem o acompanha e corrige
                 coordenador_id=coordenador.id,
@@ -464,7 +472,7 @@ def seed_users(session: Session, admin: User):
             session.add(aluno)
             session.flush()
             create_subscription(session, aluno, admin.id)
-            print(f"✅ Aluno criado: {email} / {DEFAULT_PASSWORD}")
+            print(f"✅ Aluno criado: {email}")
         else:
             print(f"⏭️  Aluno {email} já existe — pulando")
 
@@ -684,6 +692,7 @@ def seed_turmas(session: Session):
 
 
 def run_seed():
+    seed_password()
     print("\n🌱 Iniciando seed do banco GSI-EBD...\n")
 
     from rxconfig import config
@@ -706,12 +715,7 @@ def run_seed():
         seed_turmas(session)
 
     print("\n🎉 Seed concluído!\n")
-    print("Credenciais de acesso:")
-    print(f"  Admin:      {ADMIN_EMAIL} / {DEFAULT_PASSWORD}")
-    print("  Coordenador:     coordenador@gsi.ebd / senha123")
-    print("  Coordenador: coordenador@gsi.ebd / senha123  (role=COORDENADOR)")
-    print("  Aluno 1:    aluno1@gsi.ebd / senha123")
-    print("  Aluno 2:    aluno2@gsi.ebd / senha123")
+    print("Todos os usuarios novos devem trocar a senha no primeiro acesso.")
 
 
 if __name__ == "__main__":

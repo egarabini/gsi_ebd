@@ -243,7 +243,6 @@ ok "Deploy concluido"
 echo "=============================================="
 echo "Site   : https://didasko.app.br"
 echo "Homena.: https://didasko.app.br/homenagens"
-echo "Login  : https://didasko.app.br/login  (admin@gsi.ebd / senha123)"
 echo
 echo "TROQUE AS SENHAS dos usuarios de demonstracao."
 echo "Se algo falhar: $COMPOSE logs -f app"
