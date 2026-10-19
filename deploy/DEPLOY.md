@@ -109,8 +109,15 @@ docker compose --env-file .env -f deploy/docker-compose.producao.yml exec app \
   python -m gsi_ebd.data.seed
 ```
 
-Depois, **troque as senhas** dos usuarios de demonstracao (o seed cria todos com
-`senha123`).
+O processo que executa o seed deve receber `SEED_PASSWORD` no ambiente, sem valor
+padrão. Ausente ou vazia, a variável faz o seed abortar antes de acessar o banco.
+Todos os usuários novos, inclusive o administrador, devem trocar a senha no
+primeiro acesso; contas existentes não são alteradas.
+
+**Pendência de integração:** o Compose atual não repassa `SEED_PASSWORD` ao serviço
+`app`. Defini-la apenas no `.env` da VPS não a disponibiliza no contêiner. O seed
+em banco novo permanece bloqueado até o PLANNER autorizar esse repasse. Esta DEM
+não altera o Compose nem o `.env` de produção.
 
 ---
 
