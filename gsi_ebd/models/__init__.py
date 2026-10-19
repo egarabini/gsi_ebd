@@ -7,7 +7,8 @@ from .site_content import Testemunho, SiteConfig
 from .notification import Notification, NotificationType
 from .turma import (Ambiente, AmbienteEstudo, Equipe, EquipeInstrutor, Turma, TurmaMembro)
 from .referencia_cruzada import ReferenciaCruzada
-from .obra import Doutrina, Obra, ObraCapitulo, Adendo
+from .obra import (Doutrina, Obra, ObraCapitulo, Adendo, ObraVersao,
+                   ObraVersaoCapitulo, ObraVersaoAdendo, ObraVersaoEvento, VinculoObra)
 from .estudo import Estudo, EstudoCapitulo, EstudoCapituloOrigem
 
 __all__ = [
@@ -32,6 +33,7 @@ __all__ = [
     "ReferenciaCruzada",
     # Obra (fonte) e adendos — a base do estudo
     "Doutrina", "Obra", "ObraCapitulo", "Adendo",
+    "ObraVersao", "ObraVersaoCapitulo", "ObraVersaoAdendo", "ObraVersaoEvento", "VinculoObra",
     # Estudo aplicavel (capitulos proprios + mapa de origem)
     "Estudo", "EstudoCapitulo", "EstudoCapituloOrigem",
 ]
