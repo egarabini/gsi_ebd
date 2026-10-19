@@ -29,6 +29,14 @@ COMPOSE_ARQ="deploy/docker-compose.producao.yml"
 # tudo o que sai vai para o log e para o stdout (a pipeline ve no run).
 # O log() NAO usa tee: o exec abaixo ja espelha stdout/stderr no arquivo. Usar
 # tee nas duas pontas gravaria cada linha duas vezes no log.
+# Ping e pedidos rejeitados nao criam arquivos nem acessam o deploy.
+CMD="${SSH_ORIGINAL_COMMAND:-}"
+case "$CMD" in
+  ping) printf 'ok\n'; exit 0 ;;
+  deploy\ *) ;;
+  *) printf 'comando nao permitido. Use: ping ou deploy <tag>\n' >&2; exit 1 ;;
+esac
+
 exec > >(tee -a "$LOG") 2>&1
 
 log()   { echo "$(date -Is) $*"; }
@@ -66,10 +74,15 @@ sudo -n docker compose --env-file .env -f "$COMPOSE_ARQ" \
   exec -T postgres pg_dump -U "$PGUSER" -d "$PGDB" | gzip > "$ARQ" \
   || morrer "pg_dump falhou - deploy ABORTADO antes de mexer no codigo"
 [ -s "$ARQ" ] || morrer "backup vazio - deploy ABORTADO"
-log "backup ok: $(du -h "$ARQ" | cut -f1)"
-
-# retencao: mantem os 14 backups mais novos
-ls -1t "$BACKUPS"/didasko-*.sql.gz 2>/dev/null | tail -n +15 | xargs -r rm -f
+gzip -t "$ARQ" || morrer "backup gzip invalido - deploy ABORTADO"
+# O checksum usa nome relativo para permitir verificacao apos transporte.
+(
+  cd "$BACKUPS"
+  sha256sum "${ARQ##*/}" > "${ARQ##*/}.sha256"
+  sha256sum -c "${ARQ##*/}.sha256"
+) || morrer "checksum do backup falhou - deploy ABORTADO"
+log "backup ok: $(du -h "$ARQ" | cut -f1); checksum: $ARQ.sha256"
+# Backups existentes sao preservados; retencao exige operacao autorizada.
 
 # ── 3. checkout da tag exata ────────────────────────────────────────────────
 log "buscando tags"
