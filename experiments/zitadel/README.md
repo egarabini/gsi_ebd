@@ -1,6 +1,6 @@
 # DEM-016: experimento isolado de identidade
 
-**Nao adotado. Infraestrutura ainda nao autorizada.** Nenhum comando abaixo deve ser aplicado na VPS antes da aprovacao a-e. Nao altera v0, v1, RF01 ou flow.py.
+**Nao adotado. Infraestrutura autorizada com condicoes em 19/10.** Inicio depende da credencial Basic Auth do ARQUITECT; desmonte exige confirmacao na hora. Nao altera v0, v1, RF01 ou flow.py.
 
 ## Fase 1
 
@@ -19,33 +19,51 @@ Todos os valores em `.env.example` sao vazios. `ISSUER`, `PUBLIC_URL`, `CLIENT_I
 
 Rotas externas: `/experimento/health`, `/login`, `/callback`, `/me`, POST `/logout`, POST `/instructors` (todas sob `/experimento`). O Traefik retira o prefixo e o FastAPI conhece seu root_path. `/instructors` exige coordenador, token CSRF de `/me` em `X-CSRF-Token` e Origin da app, diferente do emissor. JSON: email, first_name, last_name, initial_password. A senha vai somente ao provedor, nao aparece na resposta/log da app. Email de teste marcado verificado: nao ha email real nem convite neste ensaio. O grant instrutor e feito apos criar usuario; erro parcial retorna 502 e exige conciliacao, sem apagar usuario automaticamente.
 
-## Configuracao revisavel da homologacao
+## Configuracao autorizada em 19/10, com condicoes
 
-- Clone: `/home/didasko-deploy/experimentos/didasko/`; projeto obrigatorio `experimento-oidc`.
-- API `ghcr.io/zitadel/zitadel:v4.19.5`, 512 MiB; Login V2 `ghcr.io/zitadel/zitadel-login:v4.19.5`, 256 MiB; cliente 128 MiB. Imagens fixas por tag, digests do indice oficial consultados sem baixar camadas: API sha256:a586456a208e0db4c633db0ba43c427c24b37846138b8b13ff16ad8e003a18d3; Login sha256:2f8e57672fcd4f9a285d99355fae9f85fd7495768c090c07c3bbc2d84fc06617. Confirmar que as tags ainda apontam a estes digests antes de executar. Nenhuma imagem foi baixada/executada para homologacao na fase 1.
-- Rede externa `deploy_didasko`; sem porta publicada, Postgres novo ou volume da v0.
-- API h2c:8080 no host `oidc.homolog.didasko.app.br`; Login V2 HTTP:3000 no mesmo host com prioridade maior em `/ui/v2/login`; app:8000 em `Host(homolog.didasko.app.br) && PathPrefix(/experimento)`. TLS no Traefik, websecure, certresolver `le` existente (httpchallenge; nenhuma alteracao global no Traefik).
-- API executa como 1000:1000; Login V2 como 1001:1001 (UID oficial Next.js). O volume nomeado `experimento-oidc_bootstrap` precisa de diretorio 1000:1001 modo 2750 **antes** do primeiro start; apos a API gerar o PAT, ajustar somente esse arquivo para 1000:1001 modo 0640, antes de iniciar o Login. Preparacao unica e restrita ao volume novo, a aprovar; sem processo root permanente. O PAT do Login fica nesse volume, nunca no repositorio. A compatibilidade destes UIDs e o bootstrap so serao confirmados no ensaio real; se nao funcionar, registrar, nao remover a restricao silenciosamente.
-- Banco/papel `zitadel` no `didasko_postgres`. DSN final com esse papel, nunca admin do Postgres no container. DSN e suportado na tag escolhida e exige banco/usuario ja existentes. **PUBLIC CONNECT pode permitir acesso a didasko**: verificar ACL e HBA. Nao revogar PUBLIC do banco da v0. Se necessario, aprovar regras HBA anteriores as gerais que aceitem o papel apenas em zitadel e rejeitem esse papel nos outros bancos. Sem essa prova, nao iniciar.
+O codigo esta pronto; o veredito depende da homologacao. Nenhuma recomendacao antes das medidas reais. O workflow experiment.yml e temporario e sai junto com o experimento.
 
-## Ordem apos autorizacao explicita
+- Clone `/home/didasko-deploy/experimentos/didasko/`; projeto obrigatorio `experimento-oidc`.
+- Postgres **dedicado**, `postgres:16`, banco/papel zitadel, volume `experimento-oidc_database`, somente rede `internal` marcada `internal: true`, sem portas publicadas. **Nunca conectar ao didasko_postgres**, sem HBA/ACL/DROP no banco existente. Esta decisao substitui integralmente a proposta anterior de banco compartilhado.
+- API v4.19.5: teto `1g`; Login V2 v4.19.5: `256m`; cliente FastAPI: `128m`. Postgres integra a medicao real e aparece discriminado. Teto nao representa consumo nem resultado de E-04.
+- API+Login+app estao na rede interna e na `deploy_didasko` por serem roteados. Postgres nunca entra na rede do Traefik. Nenhum servico adicional ou volume da v0.
+- API em h2c:8080 no host `oidc.homolog.didasko.app.br`; Login V2 HTTP:3000 no mesmo host com prioridade maior em `/ui/v2/login`; app:8000 em `Host(homolog.didasko.app.br) && PathPrefix(/experimento)`. TLS websecure/le, httpchallenge existente. Nenhuma mudanca global no Traefik.
+- A app exige middleware Basic Auth antes do strip-prefix; htpasswd vem exclusivamente do ARQUITECT em `EXPERIMENT_BASIC_AUTH_USERS`. A configuracao falha se ausente. `removeheader=true` evita encaminhar a credencial para a app. Nunca imprimir `compose config` interpolado ou `docker inspect` integral.
+- UID API1000:1000, Login1001:1001. Bootstrap nomeado proprio: diretorio UID1000/GID1001 modo 2750; depois da API gerar PAT, somente esse arquivo recebe UID1000/GID1001 modo0640, antes de iniciar o Login. Nenhum processo root permanente; nenhuma permissao alterada fora desse volume novo. Se algo divergir, parar e devolver ao PLANNER.
+- Digests publicos consultados: API sha256:a586456a208e0db4c633db0ba43c427c24b37846138b8b13ff16ad8e003a18d3; Login sha256:2f8e57672fcd4f9a285d99355fae9f85fd7495768c090c07c3bbc2d84fc06617. Revalidar antes de executar a tag; divergencia nao autoriza atualizar silenciosamente.
 
-1. Registrar a-e na jornada; acesso SSH somente conforme autorizacao especifica do experimento. Confirmar clone, projeto, rede e ausÃªncia de recursos homonimos; nao sobrescrever banco/volume preexistente.
-2. De `experiments/zitadel/`, executar `python -m experiments.tools.generate_env` com PYTHONPATH apontando a raiz. O script so roda no caminho autorizado, nao sobrescreve `.env`, cria 600 e nao imprime segredos. Chave mestra tem exatamente 32 caracteres. Preencher expiracao curta do PAT (ISO UTC), IDs e credenciais do cliente na VPS; nunca enviar valores ao chat/CI. Nao usar `compose config` sem `--quiet` com ambiente real.
-3. Criar papel/banco via sessao local administrativa do Postgres, usando segredo do DSN por entrada padrao, sem linha de comando ou logs. Confirmar negacao de conexao do papel ao banco didasko e acesso ao zitadel. Isolamento nao comprovado = parar infra e registrar bloqueio.
-4. Inicializar exclusivamente o volume novo (diretorio UID1000/GID1001, 2750); subir primeiro `identity-api`, depois conferir a geracao do PAT e permitir leitura apenas ao grupo 1001 (0640), e so entao subir `identity-login`, usando `sudo -n docker compose -p experimento-oidc up -d <servico>` no diretorio da config. Nao rodar compose do deploy.
-5. No console do provedor: criar organizacao de teste, projeto, roles coordenador/instrutor, app Web OIDC code+PKCE e callback exato `https://homolog.didasko.app.br/experimento/callback`; ativar roles no ID token. Criar conta de servico com permissoes de criar usuarios/grants **so nessa organizacao**, emitir PAT curto. Nao usar IAM_OWNER no cliente. Registrar IDs sem tokens.
-6. Preencher ORGANIZATION_ID, PROJECT_ID, CLIENT_ID/SECRET, ENVIRONMENT, PROVISIONING_TOKEN. ORGANIZATION_CLAIM=`urn:zitadel:iam:user:resourceowner:id`; ROLES_CLAIM=`urn:zitadel:iam:org:project:roles` (confirmar token real sem registra-lo). SCOPES=`urn:zitadel:iam:user:resourceowner urn:zitadel:iam:org:id:<ORG> urn:zitadel:iam:org:project:id:<PROJECT>:aud urn:zitadel:iam:org:projects:roles` (openid/profile adicionados pelo cliente). PROVISIONING_ORG_HEADER=`x-zitadel-orgid`.
-7. Construir/subir somente `identity-app`. E-01: login do coordenador e /me; E-02: POST/instructors via app, depois login do instrutor; E-03: confirmar que o provedor exige nova senha antes de voltar ao callback. Evidencia so status/etapas/IDs anonimos, nunca cookies/tokens/senhas.
-8. Medir recursos, OOM/restarts e latencia; registrar falhas, sem aumentar limites sem autorizacao. Encerrar conforme autorizacao e especifica, com listagem previa dos recursos exatos e comprovacao da origem do banco/volume. Nao executar DROP de banco preexistente ou fora do projeto.
+## Ordem operacional, apos receber a credencial e confirmar acesso
 
-## Medicao reproduzivel
+1. Obter do ARQUITECT por canal seguro o htpasswd e a credencial de navegador. Pedir somente o caminho de arquivo 600 na VPS pelo chat, nunca o conteudo. Nao inventar credenciais Basic Auth. Alias SSH autorizado: didasko-vps, usuario didasko-deploy, sudo -n docker. Nenhum recurso esperado ausente autoriza contorno.
+2. Confirmar clone isolado, branch/commit, ausencia de recursos homonimos e rede autorizada. Arquivo `.env` no diretorio da config, 600, dono didasko-deploy. Gerador `experiments.tools.generate_env` usa openssl rand por subprocess, captura diretamente para arquivo exclusivo, nao sobrescreve nem imprime valores. Chave mestra exatamente 32 caracteres. Admin permanece no .env; ARQUITECT le pela propria sessao na VPS.
+3. Preencher expiracao curta do PAT e htpasswd no .env por canal protegido. Criar somente os volumes do projeto, preparar bootstrap como descrito. `sudo -n docker compose -p experimento-oidc up -d identity-db identity-api`; confirmar health e permissao do PAT, depois iniciar identity-login. App e iniciada so apos configuracao OIDC. Nao executar compose do deploy existente.
+4. Criar org/projeto de teste, roles coordenador/instrutor e app Web OIDC code+PKCE no provedor; callback exato `https://homolog.didasko.app.br/experimento/callback`. Roles no ID token; conta de servico com permissoes de criar usuarios/grants somente na org. Configurar IDs/secret/PAT no .env, sem imprimir. Email sintetico verificado neste ensaio, sem SMTP.
+5. Claims/scopes: ORGANIZATION_CLAIM=`urn:zitadel:iam:user:resourceowner:id`; ROLES_CLAIM=`urn:zitadel:iam:org:project:roles` (confirmar no token real sem registra-lo). SCOPES=`urn:zitadel:iam:user:resourceowner urn:zitadel:iam:org:id:<ORG> urn:zitadel:iam:org:project:id:<PROJECT>:aud urn:zitadel:iam:org:projects:roles`; PROVISIONING_ORG_HEADER=`x-zitadel-orgid`. openid/profile adicionados pelo cliente. DSN aponta somente a identity-db.
+6. Subir identity-app. E-01: login coordenador e /me com papel/ambiente. E-02: POST/instructors pela app e login do instrutor criado. E-03: observar troca obrigatoria na UI do provedor antes do callback; a app nao implementa essa troca. Registrar etapas/status anonimos, sem screenshots/tokens/senhas.
+7. E-04/E-05 abaixo. Qualquer divergencia de infraestrutura exige parar e devolver ao PLANNER; nao ampliar limites ou redes silenciosamente.
 
-Depois de aquecer o provedor com um login e aguardar 60s de repouso, colher ao menos 10 amostras. No clone, `python -m experiments.tools.collect_memory --phase idle --output /tmp/dem016-idle.jsonl --samples 10`. Durante login, repetir com `--phase login` em paralelo (60 amostras). Coletor filtra apenas o projeto; guarda bytes por container, provedor (API+Login) e total com app. MB decimal no relatorio, Docker MiB convertido. Limite nao e consumo: 512+256+128 MiB = 939,52 MB de teto agregado; E-04 compara consumo real do provedor a 1.000.000.000 bytes, nao esse teto. Registrar tambem didasko_postgres/host por leitura, para distinguir impacto compartilhado de RSS dos novos containers.
+## Medicao real
 
-E-05: instalar Playwright/Chromium **no ambiente de medicao isolado**, nao nas dependencias runtime nem na v0. Executar `python -m experiments.tools.login_latency --public-url https://homolog.didasko.app.br/experimento --output /tmp/dem016-login.json --username-selector <seletor> --username-submit <seletor> --password-selector <seletor> --password-submit <seletor>`. Seletores devem ser confirmados na UI oficial da tag, nao sao inventados no codigo. Credenciais lidas com getpass, sem screenshot/trace. Cada tentativa usa contexto novo e prompt=login, cronometra navegaÃ§Ã£o inicial ate callback e /me, incluindo render/JS/submissoes automaticas, sem tempo humano de digitacao. Forca uma geracao Ollama e espera o primeiro fragmento antes do login; registra sobreposicao ate o fim. Se geracao acabar antes, E-05 fica NAO_TESTADO, nunca PASS. Rodar geracao somente apos autorizacao do uso de carga na homologacao; se Ollama compartilhado com producao nao puder ser ocupado sem impacto, registrar impossibilidade e nao gerar carga.
+E-04: aquecer com um login, aguardar 60s e coletar >=10 amostras de repouso, e amostrar durante logins. `python -m experiments.tools.collect_memory --phase idle --output /tmp/dem016-idle.jsonl --samples 10`; repetir em paralelo ao login com --phase login e intervalo suficiente. Coletor filtra o projeto, exige os quatro servicos e guarda bytes individuais, conjunto do provedor (API+Login+Postgres) e total com app. Converter bytes para MB decimais; registrar repouso e pico no login, alem de OOM/restarts. Criterio em repouso: provedor <1.000.000.000 bytes. Sem excluir Postgres para melhorar o numero.
 
-Unir o array `trials` do JSON e as linhas idle/login no array `memory` de um JSON de evidencia; `python -m experiments.tools.measure <arquivo>` calcula maximo em repouso, pico no login e p95 nearest-rank de exatamente 3 amostras (o pior valor). Qualquer amostra >5s falha. Sem medicao, nunca preencher com os dados sinteticos dos testes.
+E-05: **>=10 logins**, **mediana <=2s** e **maximo <=5s**, todos com geracao Ollama em andamento. Instalacao de Playwright/Chromium apenas no ambiente de medicao, nao na v0. Ferramenta:
+
+`python -m experiments.tools.login_latency --public-url https://homolog.didasko.app.br/experimento --trials 10 --credentials-file <arquivo-600-na-VPS> --output /tmp/dem016-login.json --username-selector <seletor> --username-submit <seletor> --password-selector <seletor> --password-submit <seletor>`
+
+Arquivo privado JSON com username/password do usuario ja com senha alterada e basic_username/basic_password fornecidos pelo ARQUITECT. Nao versionar nem enviar seu conteudo; opcionalmente a ferramenta le por getpass em sessao humana. Seletores confirmados na UI oficial. Basic Auth do navegador limitada a origem da app, sem envia-la ao host do provedor. Cada tentativa usa contexto novo e prompt=login; verifica subject/role/environment antes de aceitar a medida. Cronometra desde navegacao inicial ate /me com identidade, incluindo redirects, render e submissoes automaticas; sem tempo humano de digitacao. Espera primeiro fragmento da geracao e verifica que continuou ate o fim. Gera 10 medidas; ausencia de sobreposicao impede PASS. Nao executar carga se a infraestrutura divergir da autorizada; parar e devolver ao PLANNER.
+
+Unir `trials` do JSON e linhas de memoria em array `memory`; `python -m experiments.tools.measure <arquivo>` calcula mediana/maximo, maximo em repouso e pico no login. Dados sinteticos dos testes nao viram evidencia real.
+
+## Desmonte: NAO executar sem confirmacao na hora
+
+Antes de pedir confirmacao, listar containers e volumes com filtro `com.docker.compose.project=experimento-oidc`, conferir a origem e listar o comando exato:
+
+```bash
+cd /home/didasko-deploy/experimentos/didasko/experiments/zitadel
+sudo -n docker compose -p experimento-oidc -f docker-compose.yml down -v
+```
+
+Esse comando e um plano, nao uma autorizacao de execucao neste momento. Nao ha DROP no Postgres compartilhado, nem remocao automatica do clone ou de outro projeto. O workflow temporario e os arquivos do experimento serao removidos por revisao no fim, preservando o relatorio/evidencias.
 
 ## Fontes oficiais consultadas
 

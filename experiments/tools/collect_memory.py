@@ -15,10 +15,10 @@ def sample(phase):
     lines = subprocess.check_output(["sudo", "-n", "docker", "stats", "--no-stream", "--format", "{{json .}}", *ids], text=True).splitlines()
     rows = [json.loads(line) for line in lines]
     values = {row["Name"]: memory_bytes(row["MemUsage"].split("/")[0].strip()) for row in rows}
-    if not all(any(name in key for key in values) for name in ("identity-api","identity-login","identity-app")):
+    if not all(any(name in key for key in values) for name in ("identity-api","identity-login","identity-app","identity-db")):
         raise RuntimeError("Conjunto incompleto")
     return {"utc": datetime.now(timezone.utc).isoformat(), "phase": phase,
-            "containers_bytes": values, "provider_bytes": sum(v for k,v in values.items() if "identity-api" in k or "identity-login" in k),
+            "containers_bytes": values, "provider_bytes": sum(v for k,v in values.items() if any(name in k for name in ("identity-api", "identity-login", "identity-db"))),
             "total_experiment_bytes": sum(values.values())}
 
 

@@ -221,9 +221,27 @@ def test_infra_config_isolated():
     assert compose["name"] == "experimento-oidc"
     assert compose["networks"]["edge"] == {"external": True, "name": "deploy_didasko"}
     services = compose["services"]
-    assert [v["mem_limit"] for v in services.values()] == ["512m", "256m", "128m"]
+    assert [v["mem_limit"] for name,v in services.items() if name != "identity-db"] == ["1g", "256m", "128m"]
     assert not any("ports" in v for v in services.values())
     assert services["identity-api"]["labels"]["traefik.http.services.identity-api.loadbalancer.server.scheme"] == "h2c"
     assert services["identity-api"]["image"].endswith(":v4.19.5")
     assert services["identity-login"]["image"].endswith(":v4.19.5")
     assert "didasko:" not in json.dumps(compose)
+
+
+def test_infra_dedicated_postgres_internal_and_basic_auth():
+    compose = yaml.safe_load(Path("experiments/zitadel/docker-compose.yml").read_text())
+    services = compose["services"]
+    db = services["identity-db"]
+    assert db["networks"] == ["internal"]
+    assert db["labels"]["traefik.enable"] == "false"
+    assert compose["networks"]["internal"]["internal"] is True
+    assert "database" in compose["volumes"]
+    assert "didasko_postgres" not in json.dumps(compose)
+    for name, service in services.items():
+        if "edge" in service["networks"]:
+            assert service["labels"]["traefik.enable"] == "true"
+    labels=services["identity-app"]["labels"]
+    assert labels["traefik.http.routers.identity-app.middlewares"].split(",")[0] == "experiment-auth"
+    assert labels["traefik.http.middlewares.experiment-auth.basicauth.users"] == "${EXPERIMENT_BASIC_AUTH_USERS:?architect_credential_required}"
+    assert labels["traefik.http.middlewares.experiment-auth.basicauth.removeheader"] == "true"

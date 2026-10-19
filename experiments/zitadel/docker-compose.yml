@@ -8,7 +8,7 @@ services:
     - ${MASTER_KEY:?required}
     - --tlsMode
     - external
-    mem_limit: 512m
+    mem_limit: 1g
     environment:
       ZITADEL_EXTERNALDOMAIN: oidc.homolog.didasko.app.br
       ZITADEL_EXTERNALPORT: 443
@@ -38,6 +38,7 @@ services:
       timeout: 5s
       retries: 20
     networks:
+    - internal
     - edge
     restart: 'no'
     labels:
@@ -51,6 +52,9 @@ services:
       traefik.http.services.identity-api.loadbalancer.server.port: '8080'
       traefik.http.services.identity-api.loadbalancer.server.scheme: h2c
     user: 1000:1000
+    depends_on:
+      identity-db:
+        condition: service_healthy
   identity-login:
     image: ghcr.io/zitadel/zitadel-login:v4.19.5
     mem_limit: 256m
@@ -66,6 +70,7 @@ services:
       identity-api:
         condition: service_healthy
     networks:
+    - internal
     - edge
     restart: 'no'
     labels:
@@ -99,6 +104,7 @@ services:
       ROLES_CLAIM: ${ROLES_CLAIM:-}
       PROVISIONING_ORG_HEADER: ${PROVISIONING_ORG_HEADER:-}
     networks:
+    - internal
     - edge
     restart: 'no'
     labels:
@@ -111,10 +117,35 @@ services:
       traefik.http.routers.identity-app.service: identity-app
       traefik.http.services.identity-app.loadbalancer.server.port: '8000'
       traefik.http.middlewares.experiment-prefix.stripprefix.prefixes: /experimento
-      traefik.http.routers.identity-app.middlewares: experiment-prefix
+      traefik.http.routers.identity-app.middlewares: experiment-auth,experiment-prefix
+      traefik.http.middlewares.experiment-auth.basicauth.users: ${EXPERIMENT_BASIC_AUTH_USERS:?architect_credential_required}
+      traefik.http.middlewares.experiment-auth.basicauth.removeheader: 'true'
+  identity-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: zitadel
+      POSTGRES_USER: zitadel
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?required}
+    networks:
+    - internal
+    volumes:
+    - database:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U zitadel -d zitadel
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: 'no'
+    labels:
+      traefik.enable: 'false'
 networks:
   edge:
     external: true
     name: deploy_didasko
+  internal:
+    internal: true
 volumes:
   bootstrap: {}
+  database: {}
