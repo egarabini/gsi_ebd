@@ -24,7 +24,7 @@ faltando → pare, registre na jornada e devolva ao PLANNER.
   dependência nova sem justificativa na spec.
 - **Não tocar no corpus** (ADR-002): ele é montado `:ro` e não está no repositório.
 - **Escritura sempre do corpus** (ADR-003); nunca gerar texto bíblico.
-- **Não executar deploy** (ADR-010). Nem `subir.sh`, nem SSH na VPS.
+- **Deploy é do perfil DEPLOY** (ADR-016): pelo pipeline, ou na VPS **pelo procedimento** (`didasko-deploy-entry`: `ping`/`deploy`). Este perfil (DEVS) **não** publica, não roda `subir.sh` e não abre SSH operacional.
 - **Segredos** nunca no repositório (ADR-008).
 - **Não refatorar fora do escopo**; não "melhorar" código adjacente.
 - Toda alteração de página exige `tests/test_paginas.py` passando (um `var + "str"`
