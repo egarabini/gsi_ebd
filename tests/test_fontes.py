@@ -55,3 +55,19 @@ def test_rf07_caminho_configuravel_isola_caches(inventario, tmp_path, monkeypatc
 def test_rf07_caminho_padrao_relativo_ao_projeto(monkeypatch):
     monkeypatch.delenv("CAMINHO_INVENTARIO", raising=False)
     assert fontes.caminho_inventario() == Path(fontes.__file__).resolve().parents[4] / "documentacao/fontes/inventario.csv"
+
+
+def test_rf07_c09_recarregar_ignora_cache_sem_mudar_caminho(inventario):
+    assert fontes.fonte_decisao("F-001") == "entra"
+    inventario.write_text("id;decisao\nF-001;depende\n", encoding="utf-8")
+    assert fontes.fonte_decisao("F-001") == "entra"
+    assert fontes.fonte_decisao("F-001", recarregar=True) == "depende"
+    inventario.write_text("id;decisao\nF-001;nao_entra\n", encoding="utf-8")
+    assert fontes.fonte_decisao("F-001", recarregar=True) == "nao_entra"
+
+
+def test_rf07_c09_recarregar_nao_usa_cache_se_csv_invalido(inventario):
+    assert fontes.fonte_decisao("F-001") == "entra"
+    inventario.write_text("id;decisao\nF-001;talvez\n", encoding="utf-8")
+    with pytest.raises(fontes.FonteInvalida):
+        fontes.fonte_decisao("F-001", recarregar=True)

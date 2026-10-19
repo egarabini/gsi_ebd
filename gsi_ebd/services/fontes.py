@@ -1,4 +1,4 @@
-"""Decisoes do inventario carregadas uma vez por caminho configurado."""
+"""Cache para exibicao e leitura fresca para o gate de liberacao."""
 import csv
 import os
 from functools import lru_cache
@@ -16,8 +16,7 @@ def caminho_inventario() -> Path:
     return Path(__file__).resolve().parents[4] / "documentacao/fontes/inventario.csv"
 
 
-@lru_cache(maxsize=None)
-def _carregar(caminho: Path) -> dict[str, str]:
+def _ler(caminho: Path) -> dict[str, str]:
     with caminho.open(encoding="utf-8-sig", newline="") as arquivo:
         leitor = csv.DictReader(arquivo, delimiter=";")
         if not {"id", "decisao"}.issubset(leitor.fieldnames or []):
@@ -34,8 +33,14 @@ def _carregar(caminho: Path) -> dict[str, str]:
         return fontes
 
 
-def fonte_decisao(fonte_id: str) -> str:
-    fontes = _carregar(caminho_inventario())
+@lru_cache(maxsize=None)
+def _carregar(caminho: Path) -> dict[str, str]:
+    return _ler(caminho)
+
+
+def fonte_decisao(fonte_id: str, recarregar: bool = False) -> str:
+    caminho = caminho_inventario()
+    fontes = _ler(caminho) if recarregar else _carregar(caminho)
     try:
         return fontes[fonte_id]
     except KeyError as erro:

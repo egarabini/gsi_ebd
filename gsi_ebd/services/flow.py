@@ -1,14 +1,15 @@
 """Fluxo editorial da obra; a transacao pertence ao chamador."""
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping
 from hashlib import sha256
 from datetime import datetime, timezone
 import json
+import unicodedata
 
 from sqlmodel import Session, select
 
 from gsi_ebd.models import (
     Adendo, Obra, ObraCapitulo, ObraVersao, ObraVersaoAdendo,
-    ObraVersaoCapitulo, Role, User,
+    ObraVersaoCapitulo, ObraVersaoEvento, Role, User,
 )
 from gsi_ebd.services.fontes import fonte_decisao
 
@@ -22,20 +23,29 @@ def exigir_papel(usuario: User, papel: Role) -> None:
         raise FluxoBloqueado("Papel sem permissao para esta operacao")
 
 
+def _normalizar(texto: str) -> str:
+    return unicodedata.normalize("NFC", texto.replace("\r\n", "\n").replace("\r", "\n"))
+
+
+def _hash_json(campos: dict) -> str:
+    campos = {k: _normalizar(v) if isinstance(v, str) else v for k, v in campos.items()}
+    return sha256(json.dumps(
+        campos, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")).hexdigest()
+
+
 def hash_capitulo(capitulo) -> str:
-    return sha256(
-        f"{capitulo.ordem}|{capitulo.titulo}|{capitulo.conteudo_md}".encode("utf-8")
-    ).hexdigest()
+    return _hash_json({"ordem": capitulo.ordem, "titulo": capitulo.titulo,
+                       "conteudo_md": capitulo.conteudo_md})
 
 
 def hash_adendo(adendo) -> str:
-    return sha256(
-        f"{adendo.codigo}|{adendo.titulo}|{adendo.texto}".encode("utf-8")
-    ).hexdigest()
+    return _hash_json({"codigo": adendo.codigo, "titulo": adendo.titulo, "texto": adendo.texto})
 
 
-def hash_canonico(itens: Iterable[str]) -> str:
-    return sha256(("v1|" + "|".join(sorted(itens))).encode("utf-8")).hexdigest()
+def hash_canonico(itens: Mapping[str, str]) -> str:
+    conteudo = "v1\n" + "\n".join(f"{k}\t{v}" for k, v in sorted(itens.items()))
+    return sha256(conteudo.encode("utf-8")).hexdigest()
 
 
 def tamanho_diferenca(visto: Mapping[str, str], liberado: Mapping[str, str]) -> int:
@@ -47,9 +57,7 @@ def hash_obra(sessao: Session, obra_id: int) -> str:
     adendos = sessao.exec(select(Adendo).where(
         Adendo.obra_id == obra_id, Adendo.ambiente_id.is_(None)
     )).all()
-    return hash_canonico(
-        [hash_capitulo(item) for item in capitulos] + [hash_adendo(item) for item in adendos]
-    )
+    return _hash_itens(capitulos, adendos)
 
 
 def _agora():
@@ -84,7 +92,7 @@ def _trabalho(sessao, obra_id):
     )).all()
     if len({c.ordem for c in capitulos}) != len(capitulos):
         raise FluxoBloqueado("Ordem de capitulo duplicada")
-    if len({a.codigo for a in adendos}) != len(adendos):
+    if len({_normalizar(a.codigo) for a in adendos}) != len(adendos):
         raise FluxoBloqueado("Codigo de adendo duplicado")
     return capitulos, adendos
 
@@ -104,7 +112,18 @@ def _congelar(sessao, versao, momento, capitulos, adendos):
 
 
 def _hash_itens(capitulos, adendos):
-    return hash_canonico([hash_capitulo(c) for c in capitulos] + [hash_adendo(a) for a in adendos])
+    return hash_canonico({
+        **{f"capitulo:{c.ordem}": hash_capitulo(c) for c in capitulos},
+        **{f"adendo:{_normalizar(a.codigo)}": hash_adendo(a) for a in adendos},
+    })
+
+
+def _evento(sessao, versao, tipo, autor, **detalhe):
+    sessao.add(ObraVersaoEvento(
+        versao_id=versao.id, tipo=tipo, autor_id=autor.id, quando=_agora(),
+        detalhe=json.dumps({"hash": versao.conteudo_hash, **detalhe}, ensure_ascii=True),
+    ))
+    sessao.flush()
 
 
 def _publicar_estado(sessao, obra, versao):
@@ -141,7 +160,9 @@ def importar(sessao: Session, fonte: str, obra: Obra, admin: User) -> ObraVersao
     obra.created_at = obra.created_at or _agora()
     sessao.add(obra)
     sessao.flush()
-    return _nova_versao(sessao, obra, admin)
+    versao = _nova_versao(sessao, obra, admin)
+    _evento(sessao, versao, "importada", admin, fonte_id=fonte)
+    return versao
 
 
 def _conferir_visto(sessao, versao, hash_esperado):
@@ -168,6 +189,7 @@ def revisar(sessao, versao, parecer: str, ajustes: list[str], revisor: User,
     versao.conteudo_hash = atual
     versao.status = "aguardando_admin"
     _publicar_estado(sessao, obra, versao)
+    _evento(sessao, versao, "vista", revisor, parecer=parecer, ajustes=ajustes)
     return versao
 
 
@@ -184,6 +206,7 @@ def recusar(sessao, versao, parecer: str, revisor: User, hash_esperado: str) -> 
     versao.conteudo_hash = atual
     versao.status = "devolvida"
     _publicar_estado(sessao, obra, versao)
+    _evento(sessao, versao, "recusada", revisor, parecer=parecer)
     return versao
 
 
@@ -197,6 +220,7 @@ def reenviar(sessao, versao, ajustes: str, admin: User) -> ObraVersao:
     versao.conteudo_hash = hash_obra(sessao, obra.id)
     versao.status = "em_revisao"
     _publicar_estado(sessao, obra, versao)
+    _evento(sessao, versao, "reenviada", admin, ajustes=ajustes)
     return versao
 
 
@@ -207,7 +231,7 @@ def liberar(sessao, versao, ajustes_descritos: str, admin: User) -> ObraVersao:
         raise FluxoBloqueado("Assinatura do revisor ausente")
     if versao.revisado_em is None or not versao.hash_visto:
         raise FluxoBloqueado("Assinatura incompleta")
-    if fonte_decisao(obra.fonte_id) != "entra":
+    if fonte_decisao(obra.fonte_id, recarregar=True) != "entra":
         raise FluxoBloqueado("A fonte nao permite liberacao")
     if not ajustes_descritos.strip():
         raise FluxoBloqueado("Descreva os ajustes")
@@ -222,6 +246,8 @@ def liberar(sessao, versao, ajustes_descritos: str, admin: User) -> ObraVersao:
     obra.status = "liberada"
     obra.versao_liberada_id = versao.id
     _publicar_estado(sessao, obra, versao)
+    _evento(sessao, versao, "liberada", admin, ajustes=ajustes_descritos,
+            hash_visto=versao.hash_visto, hash_liberado=versao.hash_liberado)
     return versao
 
 
@@ -242,13 +268,13 @@ def alterar(sessao, obra, conteudo: dict, admin: User) -> ObraVersao:
     }) for item in conteudo["adendos"]]
     if any(a.ambiente_id is not None for a in adendos):
         raise FluxoBloqueado("Alterar recebe somente adendos da base")
-    if len({c.ordem for c in capitulos}) != len(capitulos) or len({a.codigo for a in adendos}) != len(adendos):
+    if len({c.ordem for c in capitulos}) != len(capitulos) or len({_normalizar(a.codigo) for a in adendos}) != len(adendos):
         raise FluxoBloqueado("Itens duplicados")
     versao = _nova_versao(sessao, obra, admin)
     anteriores, notas = _trabalho(sessao, obra.id)
     # Preserva as identidades usadas pelos adendos de ambiente e mapas de origem.
     por_ordem = {c.ordem: c for c in anteriores}
-    por_codigo = {a.codigo: a for a in notas}
+    por_codigo = {_normalizar(a.codigo): a for a in notas}
     for novo in capitulos:
         existente = por_ordem.pop(novo.ordem, None)
         if existente is None:
@@ -258,7 +284,7 @@ def alterar(sessao, obra, conteudo: dict, admin: User) -> ObraVersao:
             existente.conteudo_md = novo.conteudo_md
             sessao.add(existente)
     for novo in adendos:
-        existente = por_codigo.pop(novo.codigo, None)
+        existente = por_codigo.pop(_normalizar(novo.codigo), None)
         if existente is None:
             sessao.add(novo)
         else:
@@ -266,15 +292,12 @@ def alterar(sessao, obra, conteudo: dict, admin: User) -> ObraVersao:
             existente.texto = novo.texto
             existente.autor_id = admin.id
             sessao.add(existente)
-    for item in por_codigo.values():
-        sessao.delete(item)
+    # Omitir um item nao o remove; a politica de remocao pertence a proxima fatia.
     sessao.flush()
-    for item in por_ordem.values():
-        sessao.delete(item)
-    sessao.flush()
-    versao.conteudo_hash = _hash_itens(capitulos, adendos)
+    versao.conteudo_hash = hash_obra(sessao, obra.id)
     sessao.add(versao)
     sessao.flush()
+    _evento(sessao, versao, "alterada", admin, versao_anterior_id=obra.versao_liberada_id)
     return versao
 
 
@@ -284,7 +307,9 @@ def contestar(sessao, versao, revisor: User) -> ObraVersao:
     if obra.versao_liberada_id != versao.id:
         raise FluxoBloqueado("Conteste a versao publicada atual")
     # A assinatura e os instantaneos publicados permanecem como evidencia.
-    return _nova_versao(sessao, obra, revisor)
+    nova = _nova_versao(sessao, obra, revisor)
+    _evento(sessao, nova, "contestada", revisor, versao_anterior_id=versao.id)
+    return nova
 
 
 def diferenca(sessao, versao, atual: bool = False) -> list[dict]:
@@ -303,7 +328,7 @@ def diferenca(sessao, versao, atual: bool = False) -> list[dict]:
         return {
             **{f"capitulo:{c.ordem}": {"hash": hash_capitulo(c), "titulo": c.titulo,
                                       "texto": c.conteudo_md} for c in capitulos},
-            **{f"adendo:{a.codigo}": {"hash": hash_adendo(a), "titulo": a.titulo,
+            **{f"adendo:{_normalizar(a.codigo)}": {"hash": hash_adendo(a), "titulo": a.titulo,
                                      "texto": a.texto} for a in adendos},
         }
 

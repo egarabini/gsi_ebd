@@ -126,3 +126,12 @@ class ObraVersaoAdendo(SQLModel, table=True):
     titulo: str = Field(default="")
     texto: str = Field(default="")
     item_hash: str = Field(default="")
+
+
+class ObraVersaoEvento(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    versao_id: int = Field(foreign_key="obraversao.id", index=True)
+    tipo: str
+    autor_id: int = Field(foreign_key="user.id")
+    quando: datetime
+    detalhe: str = Field(default="{}")

@@ -11,17 +11,17 @@ from gsi_ebd.services.flow import (
 )
 
 
-def test_rf03_c02_vetor_canonico_v2():
+def test_rf03_c02_vetor_canonico_v4():
     capitulo = ObraCapitulo(obra_id=1, ordem=2, titulo="Titulo", conteudo_md="Linha\nTexto")
     adendo = Adendo(obra_id=1, codigo="ADO-01", titulo="Nota", texto="Texto")
-    cap_hash = sha256(b"2|Titulo|Linha\nTexto").hexdigest()
-    ad_hash = sha256(b"ADO-01|Nota|Texto").hexdigest()
-    esperado = sha256(("v1|" + "|".join(sorted([cap_hash, ad_hash]))).encode()).hexdigest()
+    cap_hash = sha256(b'{"conteudo_md":"Linha\\nTexto","ordem":2,"titulo":"Titulo"}').hexdigest()
+    ad_hash = sha256(b'{"codigo":"ADO-01","texto":"Texto","titulo":"Nota"}').hexdigest()
+    esperado = sha256((f"v1\nadendo:ADO-01\t{ad_hash}\ncapitulo:2\t{cap_hash}").encode()).hexdigest()
     assert hash_capitulo(capitulo) == cap_hash
     assert hash_adendo(adendo) == ad_hash
-    assert hash_canonico([cap_hash, ad_hash]) == esperado
-    assert hash_canonico([ad_hash, cap_hash]) == esperado
-    assert hash_canonico([]) == sha256(b"v1|").hexdigest()
+    assert hash_canonico({"capitulo:2": cap_hash, "adendo:ADO-01": ad_hash}) == esperado
+    assert hash_canonico({"adendo:ADO-01": ad_hash, "capitulo:2": cap_hash}) == esperado
+    assert hash_canonico({}) == sha256(b"v1\n").hexdigest()
 
 
 @pytest.mark.parametrize("campo,valor", [("ordem", 3), ("titulo", "Outro"), ("conteudo_md", "Novo")])
@@ -60,7 +60,7 @@ def test_rf03_c02_hash_obra_exclui_adendo_ambiente_e_outra_obra():
             adendo = Adendo(obra_id=obra.id, codigo="ADO-01", texto="Base")
             sessao.add_all([capitulo, adendo])
             sessao.flush()
-            esperado = hash_canonico([hash_capitulo(capitulo), hash_adendo(adendo)])
+            esperado = hash_canonico({"capitulo:1": hash_capitulo(capitulo), "adendo:ADO-01": hash_adendo(adendo)})
             assert hash_obra(sessao, obra.id) == esperado
             sessao.add_all([
                 Adendo(obra_id=obra.id, ambiente_id=123, codigo="ADO-02", texto="Ambiente"),
@@ -347,3 +347,166 @@ def test_rf03_c07_flow_nao_importa_reflex():
             assert all(n.name.split(".")[0] != "reflex" for n in no.names)
         if isinstance(no, ast.ImportFrom):
             assert (no.module or "").split(".")[0] != "reflex"
+
+
+@pytest.mark.parametrize("trecho", ["|", '|"\n'])
+def test_rf03_c08_json_distingue_campos_com_separadores(trecho):
+    cap_a = ObraCapitulo(obra_id=1, ordem=1, titulo="A" + trecho, conteudo_md="B")
+    cap_b = ObraCapitulo(obra_id=1, ordem=1, titulo="A", conteudo_md=trecho + "B")
+    ad_a = Adendo(obra_id=1, codigo="ADO-01", titulo="A" + trecho, texto="B")
+    ad_b = Adendo(obra_id=1, codigo="ADO-01", titulo="A", texto=trecho + "B")
+    assert hash_capitulo(cap_a) != hash_capitulo(cap_b)
+    assert hash_adendo(ad_a) != hash_adendo(ad_b)
+    assert hash_canonico({"capitulo:1": hash_capitulo(cap_a)}) != hash_canonico({"capitulo:1": hash_capitulo(cap_b)})
+
+
+@pytest.mark.parametrize("campo", ["titulo", "conteudo_md"])
+@pytest.mark.parametrize("texto,equivalente", [("A\nB\nC", "A\r\nB\rC"),
+                                                ("Caf\u00e9", "Cafe\u0301")])
+def test_rf03_c10_normalizacao_capitulo(campo, texto, equivalente):
+    capitulo = ObraCapitulo(obra_id=1, ordem=1, titulo="Titulo", conteudo_md="Texto")
+    setattr(capitulo, campo, texto)
+    antes = hash_capitulo(capitulo)
+    setattr(capitulo, campo, equivalente)
+    assert hash_capitulo(capitulo) == antes
+
+
+@pytest.mark.parametrize("campo", ["codigo", "titulo", "texto"])
+@pytest.mark.parametrize("texto,equivalente", [("A\nB\nC", "A\r\nB\rC"),
+                                                ("Caf\u00e9", "Cafe\u0301")])
+def test_rf03_c10_normalizacao_adendo(campo, texto, equivalente):
+    adendo = Adendo(obra_id=1, codigo="ADO-01", titulo="Nota", texto="Texto")
+    setattr(adendo, campo, texto)
+    antes = hash_adendo(adendo)
+    setattr(adendo, campo, equivalente)
+    assert hash_adendo(adendo) == antes
+
+
+def test_rf03_c10_hash_obra_normaliza_chave_do_adendo(fluxo):
+    from sqlmodel import select
+    sessao, flow, _, _, _ = fluxo
+    obra, _ = preparar(fluxo)
+    nota = sessao.exec(select(Adendo).where(Adendo.obra_id == obra.id)).one()
+    nota.codigo = "Caf\u00e9"
+    sessao.add(nota)
+    sessao.flush()
+    antes = hash_obra(sessao, obra.id)
+    nota.codigo = "Cafe\u0301"
+    sessao.add(nota)
+    sessao.flush()
+    assert hash_obra(sessao, obra.id) == antes
+
+
+@pytest.mark.parametrize("decisao", ["depende", "nao_entra"])
+def test_rf07_c09_liberar_rele_csv_no_mesmo_caminho(fluxo, decisao):
+    from gsi_ebd.services import fontes
+    sessao, flow, admin, _, inventario = fluxo
+    obra, versao = preparar(fluxo)
+    aprovar(fluxo, versao)
+    assert fontes.fonte_decisao(obra.fonte_id) == "entra"
+    inventario.write_text(f"id;decisao\nF-001;{decisao}\n", encoding="utf-8")
+    assert fontes.fonte_decisao(obra.fonte_id) == "entra"
+    with pytest.raises(FluxoBloqueado, match="fonte"):
+        flow.liberar(sessao, versao, "Ajustado", admin)
+    assert versao.status == "aguardando_admin"
+    assert obra.versao_liberada_id is None
+
+
+def test_rf07_c09_fonte_regularizada_libera_sem_limpar_cache(fluxo):
+    sessao, flow, admin, _, inventario = fluxo
+    _, versao = preparar(fluxo, "F-002")
+    aprovar(fluxo, versao)
+    inventario.write_text("id;decisao\nF-002;entra\n", encoding="utf-8")
+    flow.liberar(sessao, versao, "Licenca regularizada", admin)
+    assert versao.status == "liberada"
+
+
+def test_rf08_f10_eventos_append_only_em_todas_as_operacoes(fluxo):
+    import json
+    from sqlmodel import select
+    from gsi_ebd.models import ObraVersaoEvento
+    sessao, flow, admin, revisor, _ = fluxo
+    anteriores = []
+
+    def executar(tipo, autor, operacao):
+        nonlocal anteriores
+        versao = operacao()
+        sessao.commit()
+        sessao.expire_all()
+        eventos = sessao.exec(select(ObraVersaoEvento).order_by(ObraVersaoEvento.id)).all()
+        registro = [(e.id, e.versao_id, e.tipo, e.autor_id, e.quando, e.detalhe) for e in eventos]
+        assert len(registro) == len(anteriores) + 1
+        assert registro[:-1] == anteriores
+        ultimo = eventos[-1]
+        assert ultimo.tipo == tipo and ultimo.autor_id == autor.id
+        assert ultimo.versao_id == versao.id and ultimo.quando
+        assert json.loads(ultimo.detalhe)["hash"] == versao.conteudo_hash
+        anteriores = registro
+        return versao, json.loads(ultimo.detalhe)
+
+    obra = Obra(titulo="Trilha")
+    versao, _ = executar("importada", admin, lambda: flow.importar(sessao, "F-001", obra, admin))
+    for numero in (1, 2):
+        parecer = f"Recusa {numero}"
+        ajustes = f"Reenvio {numero}"
+        _, detalhe = executar("recusada", revisor, lambda: flow.recusar(
+            sessao, versao, parecer, revisor, hash_obra(sessao, obra.id)))
+        assert detalhe["parecer"] == parecer
+        _, detalhe = executar("reenviada", admin, lambda: flow.reenviar(sessao, versao, ajustes, admin))
+        assert detalhe["ajustes"] == ajustes
+    executar("vista", revisor, lambda: aprovar(fluxo, versao))
+    executar("liberada", admin, lambda: flow.liberar(sessao, versao, "Sem ajustes", admin))
+    nova, detalhe = executar("contestada", revisor, lambda: flow.contestar(sessao, versao, revisor))
+    assert detalhe["versao_anterior_id"] == versao.id
+    executar("vista", revisor, lambda: aprovar(fluxo, nova))
+    executar("liberada", admin, lambda: flow.liberar(sessao, nova, "Reavaliada", admin))
+    executar("alterada", admin, lambda: flow.alterar(sessao, obra, novo_conteudo(), admin))
+    assert [json.loads(r[-1])["parecer"] for r in anteriores if r[2] == "recusada"] == ["Recusa 1", "Recusa 2"]
+
+
+def test_rf08_f10_operacao_bloqueada_nao_acrescenta_evento(fluxo):
+    from sqlmodel import select
+    from gsi_ebd.models import ObraVersaoEvento
+    sessao, flow, admin, _, _ = fluxo
+    _, versao = preparar(fluxo)
+    antes = sessao.exec(select(ObraVersaoEvento)).all()
+    with pytest.raises(FluxoBloqueado):
+        flow.liberar(sessao, versao, "Ajustado", admin)
+    assert sessao.exec(select(ObraVersaoEvento)).all() == antes
+
+
+def test_rf08_f10_evento_e_estado_pertencem_a_transacao_do_chamador(fluxo):
+    from sqlmodel import select
+    from gsi_ebd.models import ObraVersaoEvento
+    sessao, flow, _, _, _ = fluxo
+    _, versao = preparar(fluxo)
+    sessao.commit()
+    aprovar(fluxo, versao)
+    assert len(sessao.exec(select(ObraVersaoEvento)).all()) == 2
+    sessao.rollback()
+    assert versao.status == "em_revisao"
+    assert [e.tipo for e in sessao.exec(select(ObraVersaoEvento)).all()] == ["importada"]
+
+
+def test_rf05_delta_alterar_preserva_itens_omitidos_e_hash_completo(fluxo):
+    from sqlmodel import select
+    sessao, flow, admin, _, _ = fluxo
+    obra, versao = preparar(fluxo)
+    extra = ObraCapitulo(obra_id=obra.id, ordem=2, titulo="Preservado", conteudo_md="Original 2")
+    nota = Adendo(obra_id=obra.id, codigo="ADO-02", texto="Preservada")
+    sessao.add_all([extra, nota])
+    sessao.flush()
+    ids = extra.id, nota.id
+    aprovar(fluxo, versao)
+    flow.liberar(sessao, versao, "Sem ajustes", admin)
+    conteudo = novo_conteudo()
+    conteudo["capitulos"].append({"ordem": 3, "titulo": "Adicionado", "conteudo_md": "Novo"})
+    nova = flow.alterar(sessao, obra, conteudo, admin)
+    sessao.commit()
+    sessao.expire_all()
+    assert sessao.get(ObraCapitulo, ids[0]).conteudo_md == "Original 2"
+    assert sessao.get(Adendo, ids[1]).texto == "Preservada"
+    assert len(sessao.exec(select(ObraCapitulo).where(ObraCapitulo.obra_id == obra.id)).all()) == 3
+    assert len(sessao.exec(select(Adendo).where(Adendo.obra_id == obra.id)).all()) == 2
+    assert nova.conteudo_hash == hash_obra(sessao, obra.id)
+    assert obra.versao_liberada_id == versao.id
