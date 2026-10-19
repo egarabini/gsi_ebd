@@ -1,0 +1,120 @@
+name: experimento-oidc
+services:
+  identity-api:
+    image: ghcr.io/zitadel/zitadel:v4.19.5
+    command:
+    - start-from-init
+    - --masterkey
+    - ${MASTER_KEY:?required}
+    - --tlsMode
+    - external
+    mem_limit: 512m
+    environment:
+      ZITADEL_EXTERNALDOMAIN: oidc.homolog.didasko.app.br
+      ZITADEL_EXTERNALPORT: 443
+      ZITADEL_EXTERNALSECURE: true
+      ZITADEL_TLS_ENABLED: false
+      ZITADEL_DATABASE_POSTGRES_DSN: ${DB_DSN:?required}
+      ZITADEL_FIRSTINSTANCE_ORG_NAME: Didasko Experimento
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME: ${ADMIN_USERNAME:?required}
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: ${ADMIN_PASSWORD:?required}
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORDCHANGEREQUIRED: true
+      ZITADEL_FIRSTINSTANCE_LOGINCLIENTPATPATH: /bootstrap/login-client.pat
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_USERNAME: login-client
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_NAME: Login client
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_PAT_EXPIRATIONDATE: ${LOGIN_PAT_EXPIRATION:?required}
+      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: true
+      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_BASEURI: https://oidc.homolog.didasko.app.br/ui/v2/login/
+      ZITADEL_OIDC_DEFAULTLOGINURLV2: https://oidc.homolog.didasko.app.br/ui/v2/login/login?authRequest=
+      ZITADEL_OIDC_DEFAULTLOGOUTURLV2: https://oidc.homolog.didasko.app.br/ui/v2/login/logout?post_logout_redirect=
+    volumes:
+    - bootstrap:/bootstrap
+    healthcheck:
+      test:
+      - CMD
+      - /app/zitadel
+      - ready
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+    - edge
+    restart: 'no'
+    labels:
+      traefik.enable: 'true'
+      traefik.docker.network: deploy_didasko
+      traefik.http.routers.identity-api.rule: Host(`oidc.homolog.didasko.app.br`)
+      traefik.http.routers.identity-api.entrypoints: websecure
+      traefik.http.routers.identity-api.tls.certresolver: le
+      traefik.http.routers.identity-api.priority: '100'
+      traefik.http.routers.identity-api.service: identity-api
+      traefik.http.services.identity-api.loadbalancer.server.port: '8080'
+      traefik.http.services.identity-api.loadbalancer.server.scheme: h2c
+    user: 1000:1000
+  identity-login:
+    image: ghcr.io/zitadel/zitadel-login:v4.19.5
+    mem_limit: 256m
+    environment:
+      ZITADEL_API_URL: http://identity-api:8080
+      NEXT_PUBLIC_BASE_PATH: /ui/v2/login
+      ZITADEL_SERVICE_USER_TOKEN_FILE: /bootstrap/login-client.pat
+      ZITADEL_SESSION_COOKIE_SECRET: ${LOGIN_COOKIE_SECRET:?required}
+      CUSTOM_REQUEST_HEADERS: Host:oidc.homolog.didasko.app.br,X-Forwarded-Proto:https
+    volumes:
+    - bootstrap:/bootstrap:ro
+    depends_on:
+      identity-api:
+        condition: service_healthy
+    networks:
+    - edge
+    restart: 'no'
+    labels:
+      traefik.enable: 'true'
+      traefik.docker.network: deploy_didasko
+      traefik.http.routers.identity-login.rule: Host(`oidc.homolog.didasko.app.br`)
+        && PathPrefix(`/ui/v2/login`)
+      traefik.http.routers.identity-login.entrypoints: websecure
+      traefik.http.routers.identity-login.tls.certresolver: le
+      traefik.http.routers.identity-login.priority: '300'
+      traefik.http.routers.identity-login.service: identity-login
+      traefik.http.services.identity-login.loadbalancer.server.port: '3000'
+    user: 1000:1000
+  identity-app:
+    build:
+      context: ../..
+      dockerfile: experiments/zitadel/Dockerfile
+    mem_limit: 128m
+    environment:
+      ISSUER: ${ISSUER:-}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      CLIENT_ID: ${CLIENT_ID:-}
+      CLIENT_SECRET: ${CLIENT_SECRET:-}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      ORGANIZATION_ID: ${ORGANIZATION_ID:-}
+      PROJECT_ID: ${PROJECT_ID:-}
+      ENVIRONMENT: ${ENVIRONMENT:-}
+      PROVISIONING_TOKEN: ${PROVISIONING_TOKEN:-}
+      SCOPES: ${SCOPES:-}
+      ORGANIZATION_CLAIM: ${ORGANIZATION_CLAIM:-}
+      ROLES_CLAIM: ${ROLES_CLAIM:-}
+      PROVISIONING_ORG_HEADER: ${PROVISIONING_ORG_HEADER:-}
+    networks:
+    - edge
+    restart: 'no'
+    labels:
+      traefik.enable: 'true'
+      traefik.docker.network: deploy_didasko
+      traefik.http.routers.identity-app.rule: Host(`homolog.didasko.app.br`) && PathPrefix(`/experimento`)
+      traefik.http.routers.identity-app.entrypoints: websecure
+      traefik.http.routers.identity-app.tls.certresolver: le
+      traefik.http.routers.identity-app.priority: '300'
+      traefik.http.routers.identity-app.service: identity-app
+      traefik.http.services.identity-app.loadbalancer.server.port: '8000'
+      traefik.http.middlewares.experiment-prefix.stripprefix.prefixes: /experimento
+      traefik.http.routers.identity-app.middlewares: experiment-prefix
+networks:
+  edge:
+    external: true
+    name: deploy_didasko
+volumes:
+  bootstrap: {}
