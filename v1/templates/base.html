@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ titulo }} · Didasko</title><link rel="stylesheet" href="/static/app.css">
+<script src="/static/htmx.min.js" defer></script><script src="/static/app.js" defer></script></head>
+<body hx-boost="true"><header><a class="marca" href="/login">Didasko <span>obras e estudos</span></a>
+<nav aria-label="Principal">{% if usuario %}{% if admin %}<a href="/admin/obras">Obras</a>{% endif %}{% if revisor %}<a href="/revisor/obras">Fila de revisão</a>{% endif %}<a href="/perfil/alterar-senha">Alterar senha</a>
+<form action="/logout" method="post"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="secundario">Sair</button></form>{% endif %}</nav></header>
+<main><div class="cabecalho"><span class="sobretitulo">Biblioteca · fluxo editorial</span><h1>{{ titulo }}</h1></div>{% block conteudo %}{% endblock %}</main>
+<footer>Didasko · revisão com autoria e histórico</footer></body></html>

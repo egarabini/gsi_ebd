@@ -37,11 +37,12 @@ jobs:
           cache-dependency-path: |
             requirements.txt
             requirements-dev.txt
+            v1/requirements.txt
 
       - name: Instalar dependencias (dev = runtime + pytest)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          pip install -r requirements-dev.txt -r v1/requirements.txt
 
       - name: Versoes (ajuda a diagnosticar diferenca de ambiente)
         run: |
@@ -49,6 +50,13 @@ jobs:
           python -c "import importlib.metadata as m; print('reflex', m.version('reflex')); print('pytest', m.version('pytest'))"
 
       - name: Suite de testes
+        env:
+          PYTHONIOENCODING: utf-8
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python -m pytest tests -q
+
+      - name: Suite da v1 (diretorio proprio)
+        working-directory: v1
         env:
           PYTHONIOENCODING: utf-8
           PYTHONDONTWRITEBYTECODE: "1"
