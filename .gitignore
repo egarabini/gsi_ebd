@@ -6,6 +6,7 @@ assets/external/
 # --- Segredos: qualquer variante (o padrao ".env" exato nao pega " - Copia.env") ---
 .env
 *.env
+.env.v1-homolog
 !.env.example
 __pycache__/
 *.pyc

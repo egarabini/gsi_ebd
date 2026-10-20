@@ -94,22 +94,28 @@ semear_estrito() {
 subir_v1() {
   echo " Didasko — homologacao v1"
   # -p separado do projeto "deploy" da producao (o arquivo esta em deploy/).
-  COMPOSE="$DOCKER compose -p homolog-v1 --env-file .env -f deploy/docker-compose.v1-homolog.yml"
+  # O env da v1 fica na raiz do clone, separado do .env da v0.
+  ENV_V1=".env.v1-homolog"
+  COMPOSE="$DOCKER compose -p homolog-v1 --env-file .env.v1-homolog -f deploy/docker-compose.v1-homolog.yml"
   [ -f deploy/docker-compose.v1-homolog.yml ] || morrer "compose da v1 ausente"
-  [ -f .env ] || morrer ".env nao encontrado"
+  [ -f "$ENV_V1" ] || morrer ".env.v1-homolog nao encontrado"
   faltando=()
-  grep -q '^POSTGRES_PASSWORD=.\+' .env || faltando+=("POSTGRES_PASSWORD")
-  grep -q '^POSTGRES_USER=.\+' .env || faltando+=("POSTGRES_USER")
-  grep -q '^SESSION_SECRET=.\+' .env || faltando+=("SESSION_SECRET")
-  grep -q '^TRAEFIK_EDGE_IP=.\+' .env || faltando+=("TRAEFIK_EDGE_IP")
-  [ ${#faltando[@]} -eq 0 ] || morrer "faltam no .env: ${faltando[*]}"
-  SECRET="$(grep '^SESSION_SECRET=' .env | head -1 | cut -d= -f2-)"
+  grep -q '^POSTGRES_PASSWORD=.\+' "$ENV_V1" || faltando+=("POSTGRES_PASSWORD")
+  grep -q '^POSTGRES_USER=didasko_v1$' "$ENV_V1" || faltando+=("POSTGRES_USER")
+  grep -q '^SESSION_SECRET=.\+' "$ENV_V1" || faltando+=("SESSION_SECRET")
+  grep -q '^TRAEFIK_EDGE_IP=.\+' "$ENV_V1" || faltando+=("TRAEFIK_EDGE_IP")
+  grep -q '^SEED_PASSWORD=.\+' "$ENV_V1" || faltando+=("SEED_PASSWORD")
+  [ ${#faltando[@]} -eq 0 ] || morrer "faltam no .env.v1-homolog: ${faltando[*]}"
+  SECRET="$(grep '^SESSION_SECRET=' "$ENV_V1" | head -1 | cut -d= -f2-)"
   [ "${#SECRET}" -ge 32 ] || morrer "SESSION_SECRET precisa de 32 caracteres ou mais"
   unset SECRET
+  # A senha dos 5 usuarios da v1 sai deste arquivo, nao do .env da v0.
+  SEED_PASSWORD="$(grep '^SEED_PASSWORD=' "$ENV_V1" | head -1 | cut -d= -f2-)"
+  export SEED_PASSWORD
 
   echo; echo "4. Postgres proprio da v1 (didasko_v1)"
   $COMPOSE up -d --build postgres-v1
-  PGUSER="$(grep '^POSTGRES_USER=' .env | cut -d= -f2)"
+  PGUSER="$(grep '^POSTGRES_USER=' "$ENV_V1" | cut -d= -f2)"
   for i in $(seq 1 40); do
     if $COMPOSE exec -T postgres-v1 pg_isready -U "$PGUSER" -d didasko_v1 >/dev/null 2>&1 < /dev/null; then
       ok "banco didasko_v1 pronto"; break

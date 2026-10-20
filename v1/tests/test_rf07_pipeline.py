@@ -19,6 +19,10 @@ def test_rf07_rf13_rf14_compose_da_v1_nao_mexe_no_traefik():
     assert "container_name: didasko_traefik" not in compose
     assert "exec -T -e SEED_PASSWORD" in script
     assert "-p homolog-v1" in script
+    assert "--env-file .env.v1-homolog" in script
+    assert "--env-file .env -f deploy/docker-compose.producao.yml" in script
+    exemplo = (RAIZ / "deploy" / ".env.v1-homolog.example").read_text(encoding="utf-8")
+    assert "POSTGRES_USER=didasko_v1" in exemplo
     assert "--force-recreate --no-deps app-v1" in script
     assert "$COMPOSE up -d --build\n" in script
     assert "restart didasko_traefik" not in script
