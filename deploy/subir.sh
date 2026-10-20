@@ -4,6 +4,8 @@
 #
 # Uso (na VPS, dentro de ~/didasko):
 #     bash deploy/subir.sh
+# Homologacao da v1 (compose proprio; nao reinicia o Traefik):
+#     bash deploy/subir.sh --v1
 #
 # Faz tudo com verificacao em cada passo e PARA no primeiro erro, em vez de
 # seguir e deixar o site meio no ar.
@@ -44,16 +46,116 @@ COMPOSE="$DOCKER compose --env-file .env -f deploy/docker-compose.producao.yml"
 #   --forcar-seed    roda o seed mesmo com o banco ja populado
 #   --importar       aplica a importacao do conteudo sem perguntar
 #   --pular-import   nao importa (e o padrao quando nao ha terminal)
+#   --v1             sobe so a homologacao da v1
 FORCAR_SEED=0
 IMPORTAR=""
+ALVO_V1=0
 for arg in "$@"; do
   case "$arg" in
     --forcar-seed)  FORCAR_SEED=1 ;;
     --importar)     IMPORTAR="s" ;;
     --pular-import) IMPORTAR="n" ;;
+    --v1)           ALVO_V1=1 ;;
     *) aviso "argumento ignorado: $arg" ;;
   esac
 done
+
+# A-2: a senha do seed vem do ambiente do script. Nao entra no environment: do compose.
+carregar_seed_password() {
+  if [ -n "${SEED_PASSWORD:-}" ]; then
+    return 0
+  fi
+  if [ -f .env ] && grep -q '^SEED_PASSWORD=.\+' .env; then
+    SEED_PASSWORD="$(grep '^SEED_PASSWORD=' .env | head -1 | cut -d= -f2-)"
+    export SEED_PASSWORD
+  fi
+}
+
+semear() {
+  local servico="$1"
+  carregar_seed_password
+  if [ -z "${SEED_PASSWORD:-}" ]; then
+    morrer "SEED_PASSWORD ausente no ambiente deste script. Nao grave a senha no environment do compose."
+  fi
+  # A v0 trata falha do seed como aviso: o site da producao nao pode cair por isso.
+  $COMPOSE exec -T -e SEED_PASSWORD "$servico" python -m gsi_ebd.data.seed < /dev/null || aviso "seed falhou"
+}
+
+semear_estrito() {
+  local servico="$1"
+  carregar_seed_password
+  if [ -z "${SEED_PASSWORD:-}" ]; then
+    morrer "SEED_PASSWORD ausente no ambiente deste script. Nao grave a senha no environment do compose."
+  fi
+  $COMPOSE exec -T -e SEED_PASSWORD "$servico" python -m gsi_ebd.data.seed < /dev/null \
+    || morrer "seed da v1 falhou"
+}
+
+subir_v1() {
+  echo " Didasko — homologacao v1"
+  COMPOSE="$DOCKER compose --env-file .env -f deploy/docker-compose.v1-homolog.yml"
+  [ -f deploy/docker-compose.v1-homolog.yml ] || morrer "compose da v1 ausente"
+  [ -f .env ] || morrer ".env nao encontrado"
+  faltando=()
+  grep -q '^POSTGRES_PASSWORD=.\+' .env || faltando+=("POSTGRES_PASSWORD")
+  grep -q '^POSTGRES_USER=.\+' .env || faltando+=("POSTGRES_USER")
+  grep -q '^SESSION_SECRET=.\+' .env || faltando+=("SESSION_SECRET")
+  grep -q '^TRAEFIK_EDGE_IP=.\+' .env || faltando+=("TRAEFIK_EDGE_IP")
+  [ ${#faltando[@]} -eq 0 ] || morrer "faltam no .env: ${faltando[*]}"
+  SECRET="$(grep '^SESSION_SECRET=' .env | head -1 | cut -d= -f2-)"
+  [ "${#SECRET}" -ge 32 ] || morrer "SESSION_SECRET precisa de 32 caracteres ou mais"
+  unset SECRET
+
+  echo; echo "4. Postgres proprio da v1 (didasko_v1)"
+  $COMPOSE up -d --build postgres-v1
+  PGUSER="$(grep '^POSTGRES_USER=' .env | cut -d= -f2)"
+  for i in $(seq 1 40); do
+    if $COMPOSE exec -T postgres-v1 pg_isready -U "$PGUSER" -d didasko_v1 >/dev/null 2>&1 < /dev/null; then
+      ok "banco didasko_v1 pronto"; break
+    fi
+    [ "$i" -eq 40 ] && morrer "o postgres da v1 nao respondeu em 80s"
+    sleep 2
+  done
+
+  # force-recreate so da app. Recriar o compose da v0 reiniciaria o Traefik.
+  echo; echo "5. App da v1"
+  $COMPOSE up -d --build --force-recreate --no-deps app-v1
+  URL="$($COMPOSE exec -T app-v1 printenv DATABASE_URL < /dev/null || true)"
+  case "$URL" in
+    *didasko_v1*) ok "DATABASE_URL aponta para didasko_v1" ;;
+    *) unset URL; morrer "DATABASE_URL da v1 nao aponta para didasko_v1" ;;
+  esac
+  unset URL
+
+  echo; echo "7. Seed da v1 (so se o banco estiver vazio)"
+  USUARIOS="$(
+    $COMPOSE exec -T postgres-v1 psql -U "$PGUSER" -d didasko_v1 \
+      -tAc 'select count(*) from "user";' 2>/dev/null < /dev/null | tr -d '[:space:]' || true
+  )"
+  if [ "${USUARIOS:-0}" = "0" ] || [ "$FORCAR_SEED" = "1" ]; then
+    semear_estrito app-v1
+    ok "seed da v1 concluido"
+  else
+    aviso "banco ja tem ${USUARIOS} usuarios — pulando o seed"
+  fi
+
+  echo; echo "10. HTTP da homologacao"
+  for i in $(seq 1 12); do
+    CODIGO="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 https://homolog.didasko.app.br/login || echo 000)"
+    if [ "$CODIGO" = "200" ]; then
+      ok "https://homolog.didasko.app.br/login respondeu 200"
+      return 0
+    fi
+    aviso "tentativa $i/12: HTTP $CODIGO"
+    sleep 10
+  done
+  morrer "sem HTTP 200. O script ja recriou so a app-v1. Se persistir, pare e devolva ao PLANNER. Nao reinicie o Traefik."
+}
+
+if [ "$ALVO_V1" = "1" ]; then
+  subir_v1
+  exit 0
+fi
 
 # ── 1. pre-requisitos ───────────────────────────────────────────────────────
 echo; echo "1. Pre-requisitos"
@@ -166,7 +268,7 @@ USUARIOS=$(
     -tAc 'select count(*) from "user";' 2>/dev/null < /dev/null | tr -d '[:space:]' || true
 )
 if [ "${USUARIOS:-0}" = "0" ]; then
-  $COMPOSE exec -T app python -m gsi_ebd.data.seed < /dev/null || aviso "seed falhou"
+  semear app
   ok "banco populado"
 else
   # O titulo desta secao sempre disse "so se estiver vazio", mas o comando rodava
@@ -177,7 +279,7 @@ else
   aviso "banco ja tem ${USUARIOS} usuarios — pulando o seed (use --forcar-seed para rodar assim mesmo)"
   if [ "$FORCAR_SEED" = "1" ]; then
     aviso "forcando o seed"
-    $COMPOSE exec -T app python -m gsi_ebd.data.seed < /dev/null || aviso "seed falhou"
+    semear app
   fi
 fi
 

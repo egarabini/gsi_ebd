@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block titulo %}Início — Didasko{% endblock %}
+{% block conteudo %}
+<h1 data-rota="/">Olá, {{ usuario.nome_base or usuario.nome_completo }}</h1>
+<p>Papel: {{ papel_nome }}</p>
+<p>Ambiente: {% if ambiente %}{{ ambiente.nome }}{% else %}Sem ambiente{% endif %}</p>
+<p><a href="/perfil/alterar-senha">Trocar a senha</a></p>
+{% endblock %}
