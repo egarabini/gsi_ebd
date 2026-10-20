@@ -90,6 +90,7 @@ services:
       dockerfile: experiments/zitadel/Dockerfile
     mem_limit: 128m
     environment:
+      CA_BUNDLE: ${CA_BUNDLE:-}
       ISSUER: ${ISSUER:-}
       PUBLIC_URL: ${PUBLIC_URL:-}
       CLIENT_ID: ${CLIENT_ID:-}

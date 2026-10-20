@@ -18,6 +18,7 @@ class Settings:
     roles_claim: str
     provisioning_org_header: str
     provisioning_token: str = field(default="", repr=False)
+    ca_bundle: str = ""
 
     def __post_init__(self):
         issuer = urlsplit(self.issuer)

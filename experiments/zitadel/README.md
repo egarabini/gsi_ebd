@@ -75,3 +75,14 @@ Esse comando e um plano, nao uma autorizacao de execucao neste momento. Nao ha D
 - https://github.com/zitadel/zitadel/blob/v4.19.5/apps/login/LICENSE
 
 Arquitetura API+Login V2 e h2c confirmada. Config final adaptada ao proxy/Postgres existentes, nao copia a infraestrutura inteira do exemplo oficial. Licenca do nucleo AGPL-3.0-only; excecao MIT para apps/login. Servicos nao modificados, comunicacao OIDC/HTTP, nenhum codigo do provedor incorporado ao Didasko. Interpretacao tecnica: a separacao evita criar obra derivada por incorporar o nucleo; nao representa dispensa geral das obrigacoes AGPL. Se houver modificacao do nucleo oferecida pela rede, oferecer fonte correspondente conforme secao 13; distribuicao de imagens exige preservar avisos/licenca e cumprir oferta de fonte aplicavel. MIT permite uso/modificacao/distribuicao preservando aviso e licenca. Decisao juridica/adocao e do ARQUITECT.
+
+
+## CA local autorizada em 20/10
+
+CA e certificado oidc.homolog gerados somente na VPS, tls/ fora do Git, todos os arquivos600. CA de dois dias. Nenhuma chave privada faz parte do contexto Docker. CA_BUNDLE configura um arquivo PEM de confianca explicita no Authlib e no adaptador de provisao. SSLContext usa CERT_REQUIRED e verificacao de hostname; CA ausente/invalida falha, nunca cai em verify=False. Sem CA_BUNDLE, preserva a confianca normal do sistema para execucoes que usam certificado publico.
+
+O caminho PEM configurado precisa existir e ser legivel pelo usuario da app dentro do container; o caminho do host nao e automaticamente um caminho do container. O CA e publico, mas suas chaves privadas jamais devem ser montadas no cliente. Montagem/publicacao do terminador ainda depende da definicao da rota pelo ARQUITECT.
+
+Leitura confirmou Traefik da v0 ocupando443 publico e certificado default tambem para homolog.didasko.app.br, sem SAN homolog. Um terminador apenas interno para oidc pode atender clientes na rede interna por alias, mas nao muda o certificado apresentado ao navegador externo pelo Traefik. A CA autorizada para oidc nao valida homolog/experimento. Ponto devolvido ao ARQUITECT para definir rota e confianca dos dois hosts, sem modificar o Traefik/DNS/certificados da v0. Nenhum bypass TLS, terminador ou app iniciado nessa preparacao.
+
+Quando houver medidas reais, o relatorio deve registrar: "o E-05 medido com a CA do experimento; a producao usara o LE; o bloqueio do LE e um risco do marco 1 (a emissao do homolog.didasko.app.br)". Enquanto nao medidas, registrar apenas que esse e o metodo previsto, sem afirmar que E-05 foi medido.

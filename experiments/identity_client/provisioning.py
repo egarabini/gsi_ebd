@@ -1,5 +1,7 @@
 import httpx
 
+from .tls import tls_context
+
 
 class ProvisioningError(Exception):
     pass
@@ -19,7 +21,7 @@ class ProvisioningClient:
                           "email": {"email": data.email, "isVerified": True},
                           "password": {"password": data.initial_password.get_secret_value(),
                                        "changeRequired": True}}}
-        async with httpx.AsyncClient(transport=self.transport, timeout=15) as api:
+        async with httpx.AsyncClient(transport=self.transport, timeout=15, verify=tls_context(cfg.ca_bundle)) as api:
             try:
                 response = await api.post(cfg.issuer + "/v2/users/new", headers=headers, json=body)
                 response.raise_for_status()

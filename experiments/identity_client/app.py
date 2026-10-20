@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, SecretStr
 from starlette.middleware.sessions import SessionMiddleware
 
 from .config import Settings
+from .tls import tls_context
 from .identity import IdentityDenied, IdentityProvider, TokenIdentityProvider
 
 
@@ -34,7 +35,7 @@ def create_app(settings: Settings, identity_provider: IdentityProvider | None = 
         settings.organization_claim, settings.roles_claim)
     sessions = {}
     oauth = OAuth()
-    kwargs = {"scope": " ".join((
+    kwargs = {"verify": tls_context(settings.ca_bundle), "scope": " ".join((
         "openid", "profile", *settings.scopes.split(),
     )), "code_challenge_method": "S256",
         "token_endpoint_auth_method": "client_secret_basic" if settings.client_secret else "none"}
