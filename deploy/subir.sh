@@ -93,7 +93,8 @@ semear_estrito() {
 
 subir_v1() {
   echo " Didasko — homologacao v1"
-  COMPOSE="$DOCKER compose --env-file .env -f deploy/docker-compose.v1-homolog.yml"
+  # -p separado do projeto "deploy" da producao (o arquivo esta em deploy/).
+  COMPOSE="$DOCKER compose -p homolog-v1 --env-file .env -f deploy/docker-compose.v1-homolog.yml"
   [ -f deploy/docker-compose.v1-homolog.yml ] || morrer "compose da v1 ausente"
   [ -f .env ] || morrer ".env nao encontrado"
   faltando=()
@@ -120,12 +121,15 @@ subir_v1() {
   # force-recreate so da app. Recriar o compose da v0 reiniciaria o Traefik.
   echo; echo "5. App da v1"
   $COMPOSE up -d --build --force-recreate --no-deps app-v1
-  URL="$($COMPOSE exec -T app-v1 printenv DATABASE_URL < /dev/null || true)"
-  case "$URL" in
-    *didasko_v1*) ok "DATABASE_URL aponta para didasko_v1" ;;
-    *) unset URL; morrer "DATABASE_URL da v1 nao aponta para didasko_v1" ;;
-  esac
-  unset URL
+  for i in $(seq 1 30); do
+    URL="$($COMPOSE exec -T app-v1 printenv DATABASE_URL < /dev/null || true)"
+    case "$URL" in
+      *didasko_v1*) ok "DATABASE_URL aponta para didasko_v1"; unset URL; break ;;
+    esac
+    unset URL
+    [ "$i" -eq 30 ] && morrer "DATABASE_URL da v1 nao aponta para didasko_v1"
+    sleep 2
+  done
 
   echo; echo "7. Seed da v1 (so se o banco estiver vazio)"
   USUARIOS="$(

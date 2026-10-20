@@ -1,5 +1,9 @@
 # Homologacao da v1. Nao declara Traefik e nao usa o postgres da v0.
 #
+# O nome do projeto e explicito. O arquivo mora em deploy/, e sem este nome
+# o Compose adotaria o projeto "deploy" — o mesmo da producao.
+name: homolog-v1
+#
 # O roteador entra pelas labels. O Traefik da v0, ja em execucao na rede de
 # borda, observa o container. Nao reinicie esse Traefik.
 #

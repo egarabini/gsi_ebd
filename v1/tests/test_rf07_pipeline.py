@@ -8,6 +8,7 @@ def test_rf07_rf13_rf14_compose_da_v1_nao_mexe_no_traefik():
     script = (RAIZ / "deploy" / "subir.sh").read_text(encoding="utf-8")
     imagem = (RAIZ / "deploy" / "app-v1.Dockerfile").read_text(encoding="utf-8")
     producao = (RAIZ / "deploy" / "docker-compose.producao.yml").read_text(encoding="utf-8")
+    assert "name: homolog-v1" in compose
     assert "didasko_v1" in compose
     assert "extra_hosts:" in compose
     assert "oidc.homolog.didasko.app.br" in compose
@@ -17,6 +18,7 @@ def test_rf07_rf13_rf14_compose_da_v1_nao_mexe_no_traefik():
     assert "traefik:" not in compose
     assert "container_name: didasko_traefik" not in compose
     assert "exec -T -e SEED_PASSWORD" in script
+    assert "-p homolog-v1" in script
     assert "--force-recreate --no-deps app-v1" in script
     assert "$COMPOSE up -d --build\n" in script
     assert "restart didasko_traefik" not in script
