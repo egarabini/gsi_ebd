@@ -1,0 +1,8 @@
+**
+!experiments/
+!experiments/identity_client/
+!experiments/identity_client/*.py
+!experiments/zitadel/
+!experiments/zitadel/requirements.txt
+!experiments/zitadel/Dockerfile
+!experiments/zitadel/Dockerfile.dockerignore
