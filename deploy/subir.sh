@@ -101,7 +101,6 @@ subir_v1() {
   [ -f "$ENV_V1" ] || morrer ".env.v1-homolog nao encontrado"
   faltando=()
   grep -q '^POSTGRES_PASSWORD=.\+' "$ENV_V1" || faltando+=("POSTGRES_PASSWORD")
-  grep -q '^POSTGRES_USER=didasko_v1$' "$ENV_V1" || faltando+=("POSTGRES_USER")
   grep -q '^SESSION_SECRET=.\+' "$ENV_V1" || faltando+=("SESSION_SECRET")
   grep -q '^TRAEFIK_EDGE_IP=.\+' "$ENV_V1" || faltando+=("TRAEFIK_EDGE_IP")
   grep -q '^SEED_PASSWORD=.\+' "$ENV_V1" || faltando+=("SEED_PASSWORD")
@@ -113,9 +112,13 @@ subir_v1() {
   SEED_PASSWORD="$(grep '^SEED_PASSWORD=' "$ENV_V1" | head -1 | cut -d= -f2-)"
   export SEED_PASSWORD
 
+  # O banco da v1 so sobe com este usuario. A checagem fica antes de qualquer up.
+  POSTGRES_USER="$(grep '^POSTGRES_USER=' "$ENV_V1" | head -1 | cut -d= -f2- || true)"
+  [ "$POSTGRES_USER" = "didasko_v1" ] || { echo "ERRO: o .env.v1-homolog precisa de POSTGRES_USER=didasko_v1" >&2; exit 1; }
+
   echo; echo "4. Postgres proprio da v1 (didasko_v1)"
   $COMPOSE up -d --build postgres-v1
-  PGUSER="$(grep '^POSTGRES_USER=' "$ENV_V1" | cut -d= -f2)"
+  PGUSER="$POSTGRES_USER"
   for i in $(seq 1 40); do
     if $COMPOSE exec -T postgres-v1 pg_isready -U "$PGUSER" -d didasko_v1 >/dev/null 2>&1 < /dev/null; then
       ok "banco didasko_v1 pronto"; break

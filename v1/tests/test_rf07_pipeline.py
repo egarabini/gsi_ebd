@@ -32,6 +32,17 @@ def test_rf07_rf13_rf14_compose_da_v1_nao_mexe_no_traefik():
     assert "image: traefik:latest" in producao
 
 
+def test_rf07_fail_fast_se_postgres_user_nao_for_didasko_v1():
+    script = (RAIZ / "deploy" / "subir.sh").read_text(encoding="utf-8")
+    checagem = (
+        '[ "$POSTGRES_USER" = "didasko_v1" ] || '
+        '{ echo "ERRO: o .env.v1-homolog precisa de POSTGRES_USER=didasko_v1" >&2; exit 1; }'
+    )
+    assert checagem in script
+    antes_do_up = script.split("$COMPOSE up -d --build postgres-v1", 1)[0]
+    assert checagem in antes_do_up
+
+
 def test_rf07_seed_nao_entra_no_environment_da_v0():
     producao = (RAIZ / "deploy" / "docker-compose.producao.yml").read_text(encoding="utf-8")
     assert "SEED_PASSWORD" not in producao
