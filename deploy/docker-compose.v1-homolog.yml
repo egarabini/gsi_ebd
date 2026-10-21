@@ -1,0 +1,71 @@
+# Homologacao da v1. Nao declara Traefik e nao usa o postgres da v0.
+#
+# O nome do projeto e explicito. O arquivo mora em deploy/, e sem este nome
+# o Compose adotaria o projeto "deploy" — o mesmo da producao.
+name: homolog-v1
+#
+# O roteador entra pelas labels. O Traefik da v0, ja em execucao na rede de
+# borda, observa o container. Nao reinicie esse Traefik.
+#
+# Hairpin (RF13): o IP do Traefik na rede de borda muda. Ele fica no .env da
+# VPS (TRAEFIK_EDGE_IP), nao no git. A chave extra_hosts e que e versionada.
+
+services:
+  postgres-v1:
+    image: postgres:16-alpine
+    container_name: didasko_v1_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?defina POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      POSTGRES_DB: didasko_v1
+    volumes:
+      - didasko_v1_data:/var/lib/postgresql/data
+    networks:
+      - interna
+    mem_limit: 512m
+    cpus: 0.50
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d didasko_v1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app-v1:
+    build:
+      context: ..
+      dockerfile: deploy/app-v1.Dockerfile
+    container_name: didasko_v1_app
+    restart: unless-stopped
+    depends_on:
+      postgres-v1:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-v1:5432/didasko_v1
+      SESSION_SECRET: ${SESSION_SECRET:?defina SESSION_SECRET}
+      COOKIE_SECURE: "1"
+    extra_hosts:
+      - "oidc.homolog.didasko.app.br:${TRAEFIK_EDGE_IP:?defina TRAEFIK_EDGE_IP}"
+    networks:
+      - interna
+      - borda
+    mem_limit: 512m
+    cpus: 0.50
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${BORDA_NETWORK:-deploy_didasko}
+      - traefik.http.routers.didasko-v1.rule=Host(`homolog.didasko.app.br`)
+      - traefik.http.routers.didasko-v1.entrypoints=websecure
+      - traefik.http.routers.didasko-v1.tls=true
+      - traefik.http.routers.didasko-v1.tls.certresolver=le
+      - traefik.http.services.didasko-v1.loadbalancer.server.port=8000
+
+networks:
+  interna:
+    internal: true
+  borda:
+    external: true
+    name: ${BORDA_NETWORK:-deploy_didasko}
+
+volumes:
+  didasko_v1_data:

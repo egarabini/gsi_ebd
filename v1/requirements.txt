@@ -1,0 +1,5 @@
+-r ../requirements.txt
+# Jinja2 e a dependencia de tela da v1 (ADR-014). O Reflex nao a declara.
+jinja2==3.1.6
+# SessionMiddleware. O Starlette 1.9 nao puxa mais este pacote sozinho.
+itsdangerous==2.2.0

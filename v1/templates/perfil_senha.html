@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block titulo %}Trocar a senha — Didasko{% endblock %}
+{% block conteudo %}
+<h1 data-rota="/perfil/alterar-senha">Trocar a senha</h1>
+{% if erro %}<p class="erro">{{ erro }}</p>{% endif %}
+{% if ok %}<p>{{ ok }}</p>{% endif %}
+<form method="post" action="/perfil/alterar-senha">
+  <input type="hidden" name="csrf_token" value="{{ csrf }}">
+  <label>Senha atual
+    <input type="password" name="senha_atual" autocomplete="current-password" required>
+  </label>
+  <label>Nova senha
+    <input type="password" name="nova_senha" autocomplete="new-password" required>
+  </label>
+  <label>Confirme a nova senha
+    <input type="password" name="confirma_senha" autocomplete="new-password" required>
+  </label>
+  <button type="submit">Salvar</button>
+</form>
+{% endblock %}
