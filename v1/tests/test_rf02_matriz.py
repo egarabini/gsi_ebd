@@ -1,8 +1,11 @@
 import pytest
+from fastapi import Depends
+from fastapi.responses import PlainTextResponse
 from fastapi.routing import APIRoute
 
-from gsi_ebd.models import Role
-from gsi_ebd.utils.rbac import PERMISSOES, pode
+from gsi_ebd.models import Role, User
+from gsi_ebd.utils.rbac import PERMISSOES
+from v1.auth import exigir
 from v1.tests.conftest import NOVA, SENHA, csrf, entrar
 
 # Chave None: rota publica, sem dependencia de papel.
@@ -10,10 +13,36 @@ ESPERADO = {
     ("GET", "/login"): None,
     ("POST", "/login"): None,
     ("GET", "/"): "rota:/",
-    ("POST", "/logout"): "rota:/perfil/alterar-senha",
+    ("POST", "/logout"): "rota:/logout",
     ("GET", "/perfil/alterar-senha"): "rota:/perfil/alterar-senha",
     ("POST", "/perfil/alterar-senha"): "rota:/perfil/alterar-senha",
 }
+
+# HTTP esperado, fixo. Nao consulte pode(): o teste repetiria a matriz.
+LIBERADOS = {
+    ("GET", "/"): {
+        Role.ADMIN,
+        Role.REVISOR,
+        Role.COORDENADOR,
+        Role.INSTRUTOR,
+        Role.ALUNO,
+    },
+    ("GET", "/perfil/alterar-senha"): {
+        Role.ADMIN,
+        Role.REVISOR,
+        Role.COORDENADOR,
+        Role.INSTRUTOR,
+        Role.ALUNO,
+    },
+}
+
+PAPEIS_DO_LOGOUT = (
+    Role.ADMIN,
+    Role.REVISOR,
+    Role.COORDENADOR,
+    Role.INSTRUTOR,
+    Role.ALUNO,
+)
 
 
 def _chaves(rota: APIRoute) -> list[str]:
@@ -57,8 +86,9 @@ def test_rf02_inventario_e_dependencia_da_matriz(sistema):
         else:
             assert achadas == [chave]
             assert chave in PERMISSOES
-    assert pode("rota:/admin", Role.ALUNO) is False
-    assert pode("rota:/admin", Role.ADMIN) is True
+    assert PERMISSOES["rota:/logout"] == PAPEIS_DO_LOGOUT
+    assert Role.ALUNO not in PERMISSOES["rota:/admin"]
+    assert Role.ADMIN in PERMISSOES["rota:/admin"]
 
 
 @pytest.mark.parametrize("papel", list(Role))
@@ -73,12 +103,34 @@ def test_rf02_render_por_papel(sistema, papel, metodo, rota):
         return
     entrar(client, papel)
     resposta = client.request(metodo, rota, follow_redirects=False)
-    if pode(chave, papel):
+    if papel in LIBERADOS[(metodo, rota)]:
         assert resposta.status_code == 200, resposta.text
         assert "Didasko" in resposta.text
         assert f'data-rota="{rota}"' in resposta.text
     else:
         assert resposta.status_code == 403
+
+
+def test_rf02_aluno_recebe_403_na_rota_admin(sistema):
+    """O ALUNO nao passa em rota:/admin. Sem o pode() no exigir, este teste falha."""
+    app = sistema["app"]
+
+    @app.get("/sonda-admin")
+    def sonda(usuario: User = Depends(exigir("rota:/admin"))):
+        return PlainTextResponse(f"ok:{int(usuario.role)}")
+
+    client = sistema["client"]
+    anonimo = client.get("/sonda-admin", follow_redirects=False)
+    assert anonimo.status_code in {401, 403}
+
+    entrar(client, Role.ALUNO)
+    aluno = client.get("/sonda-admin", follow_redirects=False)
+    assert aluno.status_code == 403
+
+    entrar(client, Role.ADMIN)
+    admin = client.get("/sonda-admin", follow_redirects=False)
+    assert admin.status_code == 200
+    assert admin.text == f"ok:{int(Role.ADMIN)}"
 
 
 def test_rf02_post_protegido_respeita_a_matriz(sistema):

@@ -64,7 +64,7 @@ def entrar(
 
 
 @router.post("/logout")
-def sair(request: Request, usuario: User = Depends(exigir("rota:/perfil/alterar-senha"))):
+def sair(request: Request, usuario: User = Depends(exigir("rota:/logout"))):
     request.app.state.sessoes.revogar_usuario(usuario.id)
     request.app.state.sessoes.renovar(request)
     return RedirectResponse("/login", status_code=303)

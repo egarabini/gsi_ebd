@@ -1,5 +1,7 @@
 import pytest
 import secrets
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 from jinja2 import StrictUndefined, UndefinedError
 from sqlmodel import Session, select
@@ -8,6 +10,16 @@ from gsi_ebd.models import Ambiente, Role, User, UserStatus
 from v1.auth import caminhos_da_app, destino
 from v1.main import create_app
 from v1.tests.conftest import SENHA, csrf, entrar
+
+
+def test_rf01_htmx_defer_anexa_o_csrf():
+    raiz = Path(__file__).resolve().parents[2]
+    base = (raiz / "v1" / "templates" / "base.html").read_text(encoding="utf-8")
+    js = (raiz / "v1" / "static" / "app.js").read_text(encoding="utf-8")
+    assert '<script src="/static/htmx.min.js" defer></script>' in base
+    assert '<script src="/static/app.js" defer></script>' in base
+    assert 'headers["X-CSRF-Token"]' in js
+    assert "htmx:configRequest" in js
 
 
 def test_rf01_destino_enxerga_rota_incluida_e_cai_na_raiz(sistema):
