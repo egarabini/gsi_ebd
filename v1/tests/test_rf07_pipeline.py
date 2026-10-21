@@ -24,12 +24,31 @@ def test_rf07_rf13_rf14_compose_da_v1_nao_mexe_no_traefik():
     exemplo = (RAIZ / "deploy" / ".env.v1-homolog.example").read_text(encoding="utf-8")
     assert "POSTGRES_USER=didasko_v1" in exemplo
     assert "--force-recreate --no-deps app-v1" in script
+    assert "--force-recreate --no-deps landing" in script
     assert "$COMPOSE up -d --build\n" in script
     assert "restart didasko_traefik" not in script
     assert "compose restart traefik" not in script
     assert "FROM python:3.12-slim" in imagem
     assert "nodejs" not in imagem
     assert "image: traefik:latest" in producao
+
+
+def test_rf_landing_compose_sem_banco_sem_rede_interna():
+    compose = (RAIZ / "deploy" / "docker-compose.v1-homolog.yml").read_text(encoding="utf-8")
+    script = (RAIZ / "deploy" / "subir.sh").read_text(encoding="utf-8")
+    bloco = compose.split("  landing:", 1)[1].split("\nnetworks:", 1)[0]
+    assert "DATABASE_URL" not in bloco
+    assert "SESSION_SECRET" not in bloco
+    assert "postgres-v1" not in bloco
+    assert "interna" not in bloco
+    assert "- borda" in bloco
+    assert "v1.landing:create_app" in bloco
+    assert "priority=100" in bloco
+    assert "Path(`/homenagens`)" in bloco
+    assert "PathPrefix(`/static/landing`)" in bloco
+    assert "a landing nao pode receber DATABASE_URL" in script
+    assert "https://homolog.didasko.app.br/" in script
+    assert "https://homolog.didasko.app.br/homenagens" in script
 
 
 def test_rf07_fail_fast_se_postgres_user_nao_for_didasko_v1():

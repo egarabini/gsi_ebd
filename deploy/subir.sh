@@ -140,6 +140,13 @@ subir_v1() {
     sleep 2
   done
 
+  echo; echo "5b. Landing da v1 (sem banco)"
+  $COMPOSE up -d --build --force-recreate --no-deps landing
+  LANDING_DB="$($COMPOSE exec -T landing printenv DATABASE_URL < /dev/null || true)"
+  [ -z "$LANDING_DB" ] || morrer "a landing nao pode receber DATABASE_URL"
+  unset LANDING_DB
+  ok "landing sem DATABASE_URL"
+
   echo; echo "7. Seed da v1 (so se o banco estiver vazio)"
   USUARIOS="$(
     $COMPOSE exec -T postgres-v1 psql -U "$PGUSER" -d didasko_v1 \
@@ -155,14 +162,18 @@ subir_v1() {
   echo; echo "10. HTTP da homologacao"
   for i in $(seq 1 12); do
     CODIGO="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 https://homolog.didasko.app.br/login || echo 000)"
-    if [ "$CODIGO" = "200" ]; then
+    CODIGO_RAIZ="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 https://homolog.didasko.app.br/ || echo 000)"
+    CODIGO_HOM="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 https://homolog.didasko.app.br/homenagens || echo 000)"
+    if [ "$CODIGO" = "200" ] && [ "$CODIGO_RAIZ" = "200" ] && [ "$CODIGO_HOM" = "200" ]; then
       ok "https://homolog.didasko.app.br/login respondeu 200"
+      ok "https://homolog.didasko.app.br/ respondeu 200"
+      ok "https://homolog.didasko.app.br/homenagens respondeu 200"
       return 0
     fi
-    aviso "tentativa $i/12: HTTP $CODIGO"
+    aviso "tentativa $i/12: login=$CODIGO raiz=$CODIGO_RAIZ homenagens=$CODIGO_HOM"
     sleep 10
   done
-  morrer "sem HTTP 200. O script ja recriou so a app-v1. Se persistir, pare e devolva ao PLANNER. Nao reinicie o Traefik."
+  morrer "sem HTTP 200 na landing e no login. O script ja recriou a app-v1 e a landing. Se persistir, pare e devolva ao PLANNER. Nao reinicie o Traefik."
 }
 
 if [ "$ALVO_V1" = "1" ]; then

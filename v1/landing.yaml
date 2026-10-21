@@ -1,0 +1,41 @@
+# ============================================================
+# A landing da v1 — o conteudo condicional (versionado; SEM banco).
+#
+# O ARQUITECT preenche os dados reais; o que estiver vazio NAO aparece na pagina.
+# O template (o Jinja2) le este arquivo no servico — a landing nao recebe
+# DATABASE_URL, nao tem rede para o banco e nao le nada da v0.
+#
+# As regras (o ARQUITECT, 21/10):
+# - depoimentos: a secao so renderiza com pelo menos um item com `ativo: true`;
+#   um depoimento so entra com o CONSENTIMENTO de quem o deu — registrado na jornada;
+# - contato: cada canal (email, whatsapp) so aparece se existir;
+# - hero/sobre: o texto base esta no template; este arquivo pode sobrepo-lo;
+# - homenagens: a lista da pagina /homenagens; vazia, a pagina mostra o convite;
+# - nenhum dado de teste: este arquivo entra vazio ate o ARQUITECT fornecer os dados reais.
+# ============================================================
+
+# - nome: "Maria"
+#   texto: "O acompanhamento do instrutor mudou o meu estudo."
+#   cidade: "Sao Paulo"
+#   estado: "SP"
+#   profissao_fe: "Batista"
+#   foto: "depoimentos/nome.webp"   # opcional; sem imagem de terceiros sem direito
+#   ativo: true
+#   ordem: 1
+depoimentos: []
+
+# email: "contato@didasko.app.br"
+# whatsapp: "5511999999999"   # so digitos, com o DDI
+contato: {}
+
+# titulo: "..."      # opcional
+# subtitulo: "..."   # opcional
+hero: {}
+
+# texto: "..."       # opcional
+sobre: {}
+
+# - titulo: "O homenageado"
+#   descricao: "Uma vida dedicada ao ensino da Palavra."
+#   referencia: "a referencia"
+homenagens: []
