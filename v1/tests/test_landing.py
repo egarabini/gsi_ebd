@@ -1,4 +1,6 @@
 import os
+import hashlib
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
@@ -7,6 +9,58 @@ from fastapi.testclient import TestClient
 from v1.landing import create_app
 
 RAIZ = Path(__file__).resolve().parents[2]
+
+
+class _Elementos(HTMLParser):
+    def __init__(self, html):
+        super().__init__()
+        self.elementos = []
+        self.feed(html)
+
+    def handle_starttag(self, tag, attrs):
+        self.elementos.append((tag, dict(attrs)))
+
+
+@pytest.mark.parametrize("rota", ["/", "/homenagens"])
+def test_rf_landing_logo_recortado_topo_45_rodape_34(vazio, rota):
+    resposta = vazio.get(rota)
+    elementos = _Elementos(resposta.text).elementos
+    imagens = [attrs for tag, attrs in elementos if tag == "img"]
+    topo = next(attrs for attrs in imagens if attrs.get("class") == "marca__logo")
+    rodape = next(attrs for attrs in imagens if attrs.get("sizes") == "34px")
+    imagem = (RAIZ / "v1/static/landing/logo-88.webp").read_bytes()
+    versao = hashlib.sha256(imagem).hexdigest()[:16]
+    url = f"/static/landing/logo-88.webp?v={versao}"
+    for attrs, tamanho in ((topo, "45"), (rodape, "34")):
+        assert attrs["src"] == url
+        assert attrs["srcset"] == f"{url} 90w"
+        assert attrs["sizes"] == f"{tamanho}px"
+        assert attrs["width"] == attrs["height"] == tamanho
+    css = vazio.get("/static/landing/landing.css").text
+    assert ".marca__logo { width: 45px; height: 45px;" in css
+    assert len(imagem) == 7866
+
+
+@pytest.mark.parametrize("rota", ["/", "/homenagens"])
+def test_rf_landing_cache_html_css_revalida_webp_versionado(vazio, rota):
+    resposta = vazio.get(rota)
+    assert resposta.headers["cache-control"] == "no-cache"
+    elementos = _Elementos(resposta.text).elementos
+    css_url = next(attrs["href"] for tag, attrs in elementos if tag == "link")
+    css = vazio.get(css_url)
+    assert css.headers["cache-control"] == "no-cache"
+    revalidado = vazio.get(css_url, headers={"If-None-Match": css.headers["etag"]})
+    assert revalidado.status_code == 304
+    assert revalidado.headers["cache-control"] == "no-cache"
+    urls = {attrs["src"] for tag, attrs in elementos if tag == "img"}
+    for url in urls:
+        assert "?v=" in url
+        imagem = vazio.get(url)
+        assert imagem.status_code == 200
+        assert imagem.headers["cache-control"] == "public, max-age=31536000, immutable"
+        nome = url.split("?")[0].rsplit("/", 1)[1]
+        assert url.endswith(hashlib.sha256(imagem.content).hexdigest()[:16])
+        assert vazio.get(f"/static/landing/{nome}?v=antigo").headers["cache-control"] == "no-cache"
 YAML_PREENCHIDO = """
 depoimentos:
   - nome: Ana

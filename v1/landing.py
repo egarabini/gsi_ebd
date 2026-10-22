@@ -1,4 +1,5 @@
 """Landing publica da v1. Sem banco, sem sessao, sem login."""
+import hashlib
 import os
 from pathlib import Path
 
@@ -25,6 +26,30 @@ def create_app(conteudo_path=None, login_url=None) -> FastAPI:
         autoescape=select_autoescape(),
         undefined=StrictUndefined,
     )
+    assets = {
+        path.name: hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+        for path in (RAIZ / "static" / "landing").iterdir()
+        if path.is_file()
+    }
+    env.globals["asset_url"] = lambda nome: f"/static/landing/{nome}?v={assets[nome]}"
+
+    @app.middleware("http")
+    async def cache_landing(request: Request, call_next):
+        response = await call_next(request)
+        nome = request.url.path.removeprefix("/static/landing/")
+        # Cache longo so para a URL que identifica o conteudo desta imagem.
+        if (
+            response.status_code in (200, 304)
+            and request.url.path.startswith("/static/landing/")
+            and nome.endswith(".webp")
+            and nome in assets
+            and request.query_params.get("v") == assets[nome]
+        ):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
     app.state.templates = Jinja2Templates(env=env)
     app.state.landing = dados
     app.state.login_url = entrar

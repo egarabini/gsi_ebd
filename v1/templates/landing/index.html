@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Didasko — estudos bíblicos dirigidos, com acompanhamento personalizado para cada etapa da sua jornada de fé.">
   <title>{{ titulo }}</title>
-  <link rel="stylesheet" href="/static/landing/landing.css?v=20261021-menu2">
+  <link rel="stylesheet" href="{{ asset_url("landing.css") }}">
 </head>
 <body>
   <a class="pular" href="#conteudo">Pular para o conteúdo</a>
@@ -18,7 +18,7 @@
       </label>
 
       <a class="marca" href="#inicio" aria-label="Didasko — início">
-        <img class="marca__logo" src="/static/landing/logo-88.webp?v=20261021-menu2" srcset="/static/landing/logo-88.webp?v=20261021-menu2 90w" sizes="45px" alt="" width="45" height="45" loading="eager">
+        <img class="marca__logo" src="{{ asset_url("logo-88.webp") }}" srcset="{{ asset_url("logo-88.webp") }} 90w" sizes="45px" alt="" width="45" height="45" loading="eager">
         <span class="marca__nome">Didasko</span>
       </a>
 
@@ -62,7 +62,7 @@
           </ul>
         </div>
         <div class="hero__visual">
-          <img class="hero__logo" src="/static/landing/logo-440.webp" srcset="/static/landing/logo-440.webp 440w, /static/landing/logo-880.webp 880w" sizes="(max-width: 960px) 70vw, 440px" width="440" height="440" loading="eager" fetchpriority="high"
+          <img class="hero__logo" src="{{ asset_url("logo-440.webp") }}" srcset="{{ asset_url("logo-440.webp") }} 440w, {{ asset_url("logo-880.webp") }} 880w" sizes="(max-width: 960px) 70vw, 440px" width="440" height="440" loading="eager" fetchpriority="high"
                alt="Logotipo do Didasko: um livro aberto com linhas de circuito e a letra t em destaque, em azul, roxo e laranja.">
         </div>
       </div>
@@ -236,7 +236,7 @@
   <footer class="rodape">
     <div class="rodape__interno">
       <div class="rodape__marca">
-        <img src="/static/landing/logo-88.webp?v=20261021-menu2" srcset="/static/landing/logo-88.webp?v=20261021-menu2 90w" sizes="34px" alt="" width="34" height="34" loading="lazy">
+        <img src="{{ asset_url("logo-88.webp") }}" srcset="{{ asset_url("logo-88.webp") }} 90w" sizes="34px" alt="" width="34" height="34" loading="lazy">
         <span>Didasko — Estudos Bíblicos Dirigidos</span>
       </div>
       <nav class="rodape__links" aria-label="Links do rodapé">
