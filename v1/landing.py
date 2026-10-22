@@ -1,5 +1,6 @@
 """Landing publica da v1. Sem banco, sem sessao, sem login."""
 import hashlib
+import mimetypes
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -23,6 +24,10 @@ from v1.landing_conteudo import carregar
 RAIZ = Path(__file__).resolve().parent
 CACHE_IMUTAVEL = "public, max-age=31536000, immutable"
 CACHE_REVALIDA = "no-cache"
+
+# Sem isto, o mimetypes do sistema (a imagem slim) nao conhece .webp e o
+# StaticFiles serve application/octet-stream.
+mimetypes.add_type("image/webp", ".webp")
 
 
 def create_app(conteudo_path=None, login_url=None, static_dir=None) -> FastAPI:

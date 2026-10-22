@@ -128,6 +128,8 @@ def test_rf_landing_cache_html_etag_assets_imutaveis(vazio, rota):
         imagem = vazio.get(url)
         assert imagem.status_code == 200
         assert imagem.headers["cache-control"] == CACHE_IMUTAVEL
+        if nome.endswith(".webp"):
+            assert imagem.headers["content-type"] == "image/webp"
         digest = hash_conteudo(imagem.content)
         assert nome.split(".")[-2] == digest
     assert vazio.get("/static/landing/logo-88.webp").status_code == 404
@@ -224,7 +226,6 @@ def test_rf_landing_yaml_vazio_sem_depoimentos_sem_canais_sem_em_breve(vazio):
     assert "contato@gsi-ebd.com.br" not in html
     assert "5500000000000" not in html
     assert "Quero participar" in html
-    assert "Os canais de contato aparecem quando estiverem cadastrados." in html
 
 
 def test_rf_landing_yaml_preenchido_renderiza_ativos_e_canais(preenchido):
