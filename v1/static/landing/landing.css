@@ -58,7 +58,7 @@ a { color: inherit; }
   position: relative;
 }
 .marca { display: flex; align-items: center; gap: .6rem; text-decoration: none; flex-shrink: 0; }
-.marca__logo { width: 44px; height: 44px; object-fit: contain; }
+.marca__logo { width: 45px; height: 45px; object-fit: contain; }
 .marca__nome { font-family: var(--serifa); font-weight: 700; font-size: 1.35rem; letter-spacing: .2px; white-space: nowrap; }
 
 .menu { display: flex; align-items: center; gap: 1.2rem; }
@@ -229,10 +229,11 @@ a { color: inherit; }
   .menu > a:not(.botao) { font-size: .9rem; }
 }
 @media (max-width: 1000px) {
-  /* O hamburguer a ESQUERDA (o padrao de menu). */
+  /* Mantem o hamburguer e a marca juntos a esquerda. */
+  .topo__interno { justify-content: flex-start; }
   .menu__botao {
     display: flex; flex-direction: column; justify-content: center; gap: 5px;
-    width: 44px; height: 44px; border-radius: 12px; cursor: pointer;
+    width: 40px; height: 40px; border-radius: 12px; cursor: pointer;
     border: 1px solid var(--borda); background: #fff; flex-shrink: 0;
     order: -1;
   }
