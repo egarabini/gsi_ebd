@@ -194,12 +194,13 @@ a { color: inherit; }
 .secao--homenagens { background: linear-gradient(160deg, var(--azul-claro), #fff 70%); }
 .secao--contato { padding-bottom: 6rem; }
 .contato__cartao {
-  background: linear-gradient(125deg, var(--roxo), var(--indigo) 60%, var(--ciano));
+  /* as duas pontas escuras, como o botao — sem o ciano atras do texto */
+  background: linear-gradient(125deg, #3B1470, #4B1E8C);
   color: #fff; border-radius: 26px; padding: 3rem 2.4rem; text-align: center;
   box-shadow: var(--sombra-forte);
 }
 .contato__cartao h2 { font-family: var(--serifa); font-size: clamp(1.7rem, 3.2vw, 2.3rem); margin: 0 0 .6rem; }
-.contato__cartao p { margin: 0 auto 1.6rem; max-width: 46ch; opacity: .92; }
+.contato__cartao p { margin: 0 auto 1.6rem; max-width: 46ch; opacity: 1; }
 .contato__acoes { display: flex; flex-wrap: wrap; gap: .8rem; justify-content: center; }
 .contato__cartao .botao--primario { background: #fff; color: var(--roxo); }
 .contato__cartao .botao--texto { color: #fff; }

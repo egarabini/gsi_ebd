@@ -62,6 +62,8 @@ services:
 
   # Landing publica: sem banco, sem SESSION_SECRET, sem rede interna.
   # O Traefik da v0 observa as labels; prioridade 100 ganha do Host da app-v1.
+  # /homenagens: a homologacao mantem a rota. Fora do roteador de PRODUCAO da v1
+  # ate o ARQUITECT autorizar (homenagens reais). Nao remover a pagina da app.
   landing:
     build:
       context: ..
