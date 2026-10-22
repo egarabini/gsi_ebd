@@ -1,5 +1,5 @@
 import os
-import hashlib
+import shutil
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -7,60 +7,13 @@ import pytest
 from fastapi.testclient import TestClient
 
 from v1.landing import create_app
+from v1.landing_assets import HASH_NOME, hash_conteudo, nome_versionado
 
 RAIZ = Path(__file__).resolve().parents[2]
+CACHE_IMUTAVEL = "public, max-age=31536000, immutable"
+CACHE_REVALIDA = "no-cache"
+LOGO_88 = RAIZ / "v1/static/landing/logo-88.webp"
 
-
-class _Elementos(HTMLParser):
-    def __init__(self, html):
-        super().__init__()
-        self.elementos = []
-        self.feed(html)
-
-    def handle_starttag(self, tag, attrs):
-        self.elementos.append((tag, dict(attrs)))
-
-
-@pytest.mark.parametrize("rota", ["/", "/homenagens"])
-def test_rf_landing_logo_recortado_topo_45_rodape_34(vazio, rota):
-    resposta = vazio.get(rota)
-    elementos = _Elementos(resposta.text).elementos
-    imagens = [attrs for tag, attrs in elementos if tag == "img"]
-    topo = next(attrs for attrs in imagens if attrs.get("class") == "marca__logo")
-    rodape = next(attrs for attrs in imagens if attrs.get("sizes") == "34px")
-    imagem = (RAIZ / "v1/static/landing/logo-88.webp").read_bytes()
-    versao = hashlib.sha256(imagem).hexdigest()[:16]
-    url = f"/static/landing/logo-88.webp?v={versao}"
-    for attrs, tamanho in ((topo, "45"), (rodape, "34")):
-        assert attrs["src"] == url
-        assert attrs["srcset"] == f"{url} 90w"
-        assert attrs["sizes"] == f"{tamanho}px"
-        assert attrs["width"] == attrs["height"] == tamanho
-    css = vazio.get("/static/landing/landing.css").text
-    assert ".marca__logo { width: 45px; height: 45px;" in css
-    assert len(imagem) == 7866
-
-
-@pytest.mark.parametrize("rota", ["/", "/homenagens"])
-def test_rf_landing_cache_html_css_revalida_webp_versionado(vazio, rota):
-    resposta = vazio.get(rota)
-    assert resposta.headers["cache-control"] == "no-cache"
-    elementos = _Elementos(resposta.text).elementos
-    css_url = next(attrs["href"] for tag, attrs in elementos if tag == "link")
-    css = vazio.get(css_url)
-    assert css.headers["cache-control"] == "no-cache"
-    revalidado = vazio.get(css_url, headers={"If-None-Match": css.headers["etag"]})
-    assert revalidado.status_code == 304
-    assert revalidado.headers["cache-control"] == "no-cache"
-    urls = {attrs["src"] for tag, attrs in elementos if tag == "img"}
-    for url in urls:
-        assert "?v=" in url
-        imagem = vazio.get(url)
-        assert imagem.status_code == 200
-        assert imagem.headers["cache-control"] == "public, max-age=31536000, immutable"
-        nome = url.split("?")[0].rsplit("/", 1)[1]
-        assert url.endswith(hashlib.sha256(imagem.content).hexdigest()[:16])
-        assert vazio.get(f"/static/landing/{nome}?v=antigo").headers["cache-control"] == "no-cache"
 YAML_PREENCHIDO = """
 depoimentos:
   - nome: Ana
@@ -90,6 +43,20 @@ homenagens:
 BASTIDOR = ("n+1", "snapshot", "padrão visual desta casa", "hash do", "versão n+1")
 
 
+class _Elementos(HTMLParser):
+    def __init__(self, html):
+        super().__init__()
+        self.elementos = []
+        self.feed(html)
+
+    def handle_starttag(self, tag, attrs):
+        self.elementos.append((tag, dict(attrs)))
+
+
+def _url_logo(dados: bytes) -> str:
+    return "/static/landing/" + nome_versionado("logo-88.webp", dados)
+
+
 @pytest.fixture
 def vazio(monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
@@ -108,6 +75,99 @@ def preenchido(tmp_path, monkeypatch):
     app = create_app(conteudo_path=caminho, login_url="/login")
     with TestClient(app) as client:
         yield client
+
+
+@pytest.mark.parametrize("rota", ["/", "/homenagens"])
+def test_rf_landing_logo_recortado_topo_45_rodape_34(vazio, rota):
+    resposta = vazio.get(rota)
+    elementos = _Elementos(resposta.text).elementos
+    imagens = [attrs for tag, attrs in elementos if tag == "img"]
+    topo = next(attrs for attrs in imagens if attrs.get("class") == "marca__logo")
+    rodape = next(attrs for attrs in imagens if attrs.get("sizes") == "34px")
+    imagem = LOGO_88.read_bytes()
+    url = _url_logo(imagem)
+    assert HASH_NOME.match(url.rsplit("/", 1)[1])
+    for attrs, tamanho in ((topo, "45"), (rodape, "34")):
+        assert attrs["src"] == url
+        assert attrs["srcset"] == f"{url} 90w"
+        assert attrs["sizes"] == f"{tamanho}px"
+        assert attrs["width"] == attrs["height"] == tamanho
+    css_url = next(attrs["href"] for tag, attrs in elementos if tag == "link")
+    css = vazio.get(css_url)
+    assert css.status_code == 200
+    assert ".marca__logo { width: 45px; height: 45px;" in css.text
+    assert len(imagem) == 7866
+
+
+@pytest.mark.parametrize("rota", ["/", "/homenagens"])
+def test_rf_landing_cache_html_etag_assets_imutaveis(vazio, rota):
+    resposta = vazio.get(rota)
+    assert resposta.status_code == 200
+    assert resposta.headers["cache-control"] == CACHE_REVALIDA
+    assert resposta.headers["etag"]
+    revalidado = vazio.get(rota, headers={"If-None-Match": resposta.headers["etag"]})
+    assert revalidado.status_code == 304
+    assert revalidado.headers["cache-control"] == CACHE_REVALIDA
+    assert revalidado.headers["etag"] == resposta.headers["etag"]
+    elementos = _Elementos(resposta.text).elementos
+    css_url = next(attrs["href"] for tag, attrs in elementos if tag == "link")
+    assert HASH_NOME.match(css_url.rsplit("/", 1)[1])
+    css = vazio.get(css_url)
+    assert css.status_code == 200
+    assert css.headers["cache-control"] == CACHE_IMUTAVEL
+    urls = {attrs["src"] for tag, attrs in elementos if tag == "img"}
+    urls.update(
+        parte.strip().split()[0]
+        for attrs in (a for t, a in elementos if t == "img")
+        for parte in (attrs.get("srcset") or "").split(",")
+        if parte.strip()
+    )
+    for url in urls:
+        nome = url.rsplit("/", 1)[1]
+        assert HASH_NOME.match(nome), url
+        imagem = vazio.get(url)
+        assert imagem.status_code == 200
+        assert imagem.headers["cache-control"] == CACHE_IMUTAVEL
+        digest = hash_conteudo(imagem.content)
+        assert nome.split(".")[-2] == digest
+    assert vazio.get("/static/landing/logo-88.webp").status_code == 404
+    assert vazio.get("/static/landing/logo-88." + ("0" * 16) + ".webp").status_code == 404
+
+
+def test_rf_landing_url_muda_quando_conteudo_muda(tmp_path, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("SESSION_SECRET", raising=False)
+    origem = RAIZ / "v1/static/landing"
+    pasta = tmp_path / "static"
+    pasta.mkdir()
+    for arquivo in origem.iterdir():
+        if arquivo.is_file():
+            shutil.copy2(arquivo, pasta / arquivo.name)
+    logo = pasta / "logo-88.webp"
+    url_antes = _url_logo(logo.read_bytes())
+    with TestClient(create_app(login_url="/login", static_dir=pasta)) as client:
+        html = client.get("/").text
+        assert url_antes in html
+        assert f"{url_antes} 90w" in html
+    logo.write_bytes(logo.read_bytes() + b"\x00")
+    url_depois = _url_logo(logo.read_bytes())
+    assert url_antes != url_depois
+    with TestClient(create_app(login_url="/login", static_dir=pasta)) as client:
+        html = client.get("/").text
+        assert url_depois in html
+        assert f"{url_depois} 90w" in html
+        assert url_antes not in html
+        assert client.get(url_depois).status_code == 200
+        assert client.get(url_antes).status_code == 404
+
+
+def test_rf_landing_nome_versionado_deriva_do_conteudo():
+    um = nome_versionado("logo-88.webp", b"aaa")
+    outro = nome_versionado("logo-88.webp", b"bbb")
+    assert um != outro
+    assert um.startswith("logo-88.") and um.endswith(".webp")
+    assert HASH_NOME.match(um) and HASH_NOME.match(outro)
+    assert hash_conteudo(b"aaa") in um
 
 
 def test_landing_sobe_sem_database_url_nem_session_secret(monkeypatch):
@@ -238,7 +298,7 @@ def test_rf_landing_menu_hamburguer_abaixo_de_1000px():
 
 
 def test_rf_landing_modulo_nao_importa_banco():
-    for nome in ("landing.py", "landing_conteudo.py"):
+    for nome in ("landing.py", "landing_conteudo.py", "landing_assets.py"):
         texto = (RAIZ / "v1" / nome).read_text(encoding="utf-8")
         assert "v1.db" not in texto
         assert "v1.auth" not in texto

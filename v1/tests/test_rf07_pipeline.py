@@ -29,6 +29,7 @@ def test_rf07_rf13_rf14_compose_da_v1_nao_mexe_no_traefik():
     assert "restart didasko_traefik" not in script
     assert "compose restart traefik" not in script
     assert "FROM python:3.12-slim" in imagem
+    assert "python -m v1.landing_assets" in imagem
     assert "nodejs" not in imagem
     assert "image: traefik:latest" in producao
 
