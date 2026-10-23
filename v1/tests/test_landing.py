@@ -338,6 +338,9 @@ def test_rf_landing_menu_hamburguer_abaixo_de_1000px():
     assert ".menu__alternador:checked ~ .menu" in css
     assert ".menu .botao--primario { color: #fff; }" in css
     assert ".menu .botao--contorno { color: var(--roxo); }" in css
+    bloco = css.split("@media (max-width: 1000px)", 1)[1].split("@media", 1)[0]
+    assert "top: calc(100% - 13px)" in bloco
+    assert "top: 100%;" not in bloco
 
 
 def test_rf_landing_modulo_nao_importa_banco():

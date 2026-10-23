@@ -96,7 +96,9 @@ a { color: inherit; }
 .secao__interno { max-width: var(--max); margin: 0 auto; padding: 0 1.4rem; }
 .rotulo {
   display: inline-block; text-transform: uppercase; letter-spacing: .16em;
-  font-size: .72rem; font-weight: 700; color: var(--laranja); margin: 0 0 .6rem;
+  font-size: .72rem; font-weight: 700; margin: 0 0 .6rem;
+  /* #E87722 no fundo claro falhava AA (2,42-2,96). #9A3412 passa 4,5 inclusive no azul-claro. */
+  color: #9A3412;
 }
 .secao__titulo {
   font-family: var(--serifa); font-size: clamp(1.7rem, 3.4vw, 2.5rem); line-height: 1.18;
@@ -184,7 +186,8 @@ a { color: inherit; }
 .trilha__passo span {
   display: inline-flex; align-items: center; justify-content: center;
   width: 38px; height: 38px; border-radius: 50%; font-weight: 700; font-size: .85rem;
-  color: #fff; background: linear-gradient(140deg, var(--roxo), var(--ciano));
+  /* duas pontas escuras, como o botao/o cartao — o ciano no fim caia a 2,62:1 */
+  color: #fff; background: linear-gradient(140deg, var(--roxo-escuro), var(--roxo));
   margin-bottom: .7rem;
 }
 .trilha__passo h3 { font-family: var(--serifa); font-size: 1.05rem; margin: 0 0 .3rem; }
@@ -247,9 +250,11 @@ a { color: inherit; }
     order: -1;
   }
   .menu__botao span { display: block; width: 20px; height: 2px; background: var(--texto); margin: 0 auto; }
-  /* O menu: um PAINEL LATERAL, escondido; abre no hover do hamburguer ou do proprio painel. */
+  /* O menu: um PAINEL LATERAL, escondido; abre no hover do hamburguer ou do proprio painel.
+     top 100% deixava 13,7px de vao (label em y=53,7, painel em y=67,4) e o hover fechava.
+     calc(100% - 13px) encosta o painel, ainda abaixo do label. */
   .menu {
-    position: absolute; top: 100%; left: 0;
+    position: absolute; top: calc(100% - 13px); left: 0;
     width: min(320px, 86vw);
     max-height: calc(100vh - 76px); overflow-y: auto;
     flex-direction: column; align-items: stretch; gap: .15rem;

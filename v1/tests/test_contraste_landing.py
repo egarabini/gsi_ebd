@@ -151,3 +151,38 @@ def test_rf_landing_contraste_detecta_ciano_atras_do_texto():
     """
     pior = pior_contraste(css, ".contato__cartao", ".contato__cartao p")
     assert pior < LIMIAR, f"o ciano deveria reprovar, veio {pior:.2f}:1"
+
+
+def test_rf_landing_contraste_rotulo_texto_pequeno_aa():
+    """O .rotulo e texto pequeno (0,72rem) sobre fundos claros da pagina."""
+    variaveis = _variaveis(CSS)
+    cor = _resolve(_decl(_bloco(CSS, ".rotulo"), "color").split()[0], variaveis)
+    fundos = (
+        _hex_rgb("#FFFFFF"),
+        _resolve("var(--branco)", variaveis),
+        _resolve("var(--superficie)", variaveis),
+        _resolve("var(--azul-claro)", variaveis),
+    )
+    for bg in fundos:
+        atual = razao(cor, bg)
+        assert atual >= LIMIAR, f".rotulo {atual:.2f}:1 em {bg} (limiar {LIMIAR})"
+
+
+def test_rf_landing_contraste_numero_niveis_pior_ponto_aa():
+    pior = pior_contraste(CSS, ".trilha__passo span")
+    assert pior >= LIMIAR, f".trilha__passo span pior ponto {pior:.2f}:1 (limiar {LIMIAR})"
+
+
+def test_rf_landing_contraste_detecta_rotulo_laranja_claro():
+    css = """
+    :root { --branco: #F8F9FA; --azul-claro: #DDEAF7; }
+    .rotulo { color: #E87722; }
+    """
+    variaveis = _variaveis(css)
+    cor = _hex_rgb("#E87722")
+    pior = min(
+        razao(cor, _resolve("var(--branco)", variaveis)),
+        razao(cor, _resolve("var(--azul-claro)", variaveis)),
+        razao(cor, _hex_rgb("#FFFFFF")),
+    )
+    assert pior < LIMIAR, f"o laranja #E87722 deveria reprovar, veio {pior:.2f}:1"
