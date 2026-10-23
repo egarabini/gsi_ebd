@@ -12,7 +12,7 @@ from starlette.templating import Jinja2Templates
 
 from v1.auth import Sessoes
 from v1.db import criar_engine, iniciar_banco
-from v1.routers import login, raiz
+from v1.routers import admin_obras, login, obra_detalhe, raiz, revisor_obras
 from v1.views import render
 
 RAIZ = Path(__file__).resolve().parent
@@ -49,6 +49,9 @@ def create_app(engine=None, secret_key: str | None = None, secure: bool | None =
     app.mount("/static", StaticFiles(directory=str(RAIZ / "static")), name="static")
     app.include_router(login.router)
     app.include_router(raiz.router)
+    app.include_router(admin_obras.router)
+    app.include_router(revisor_obras.router)
+    app.include_router(obra_detalhe.router)
 
     @app.exception_handler(HTTPException)
     async def http_erro(request: Request, exc: HTTPException):

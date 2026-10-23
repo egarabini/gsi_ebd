@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% from "conteudo_form.html" import campos %}
+{% block titulo %}Importar obra — Didasko{% endblock %}
+{% block conteudo %}
+<h1 data-rota="/admin/obras/nova">Importar obra</h1>
+<section class="cartao">
+  {% if erro %}<p class="erro" role="alert">{{ erro }}</p>{% endif %}
+  <form action="/admin/obras" method="post">
+    <input name="csrf_token" type="hidden" value="{{ csrf }}">
+    <label>Título da obra<input name="titulo" required></label>
+    <label>Fonte no inventário<input name="fonte_id" placeholder="F-004" required></label>
+    <label>Origem<input name="origem"></label>
+    <label>Descrição<textarea name="descricao" rows="3"></textarea></label>
+    {{ campos([], []) }}
+    <p class="aviso">A fonte será conferida antes da importação.</p>
+    <button>Importar e abrir revisão</button>
+  </form>
+</section>
+{% endblock %}

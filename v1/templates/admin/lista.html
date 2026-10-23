@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block titulo %}Obras — Didasko{% endblock %}
+{% block conteudo %}
+<h1 data-rota="/admin/obras">Obras</h1>
+<div class="barra">
+  <p>Importe, acompanhe o parecer e libere cada versão.</p>
+  <a class="botao" href="/admin/obras/nova">Importar obra</a>
+</div>
+<section class="cartao">
+  <table>
+    <thead>
+      <tr><th>Obra</th><th>Editorial</th><th>Disponibilidade</th><th>Versão publicada</th></tr>
+    </thead>
+    <tbody>
+      {% for obra in obras %}
+      <tr>
+        <td><a href="/admin/obras/{{ obra.id }}">{{ obra.titulo }}</a></td>
+        <td>{{ obra.status }}</td>
+        <td>{{ obra.disponibilidade }}</td>
+        <td>{{ obra.versao_liberada_id or "Ainda não publicada" }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">Nenhuma obra cadastrada.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -31,6 +31,10 @@ PERMISSOES: dict[str, tuple[int, ...]] = {
     "rota:/aluno/pareceres": _TODOS,
     "rota:/perfil/alterar-senha": _TODOS,
     "rota:/logout": _TODOS,
+    # Rotas da v1 (DEM-011 fatia 2): Admin publica; Revisor e editorial; /obras os dois.
+    "rota:/admin/obras": (Role.ADMIN,),
+    "rota:/revisor/obras": (Role.REVISOR,),
+    "rota:/obras": (Role.ADMIN, Role.REVISOR),
     # rotas guardadas (usadas pelos handlers de on_load)
     "rota:/admin": (Role.ADMIN, Role.REVISOR),
     "rota:/coordenador": (Role.ADMIN, Role.COORDENADOR),
