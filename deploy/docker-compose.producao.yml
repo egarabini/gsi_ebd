@@ -22,7 +22,7 @@
 # Landing da v1 (ARQUITECT, 22-23/10): etapa (b) concluida - o roteador
 # landing-prod cobre Host(didasko.app.br) && (Path(/) || PathPrefix(/static/landing/)),
 # priority=200. O /homenagens, o /login, o /aluno, o /admin e o resto
-# seguem no roteador da v0 (sem priority explicita, abaixo de 200).
+# seguem na v0 (sem priority explicita, abaixo de 200).
 
 services:
   traefik:
