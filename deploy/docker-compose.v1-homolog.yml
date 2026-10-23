@@ -62,8 +62,10 @@ services:
 
   # Landing publica: sem banco, sem SESSION_SECRET, sem rede interna.
   # O Traefik da v0 observa as labels; prioridade 100 ganha do Host da app-v1.
-  # /homenagens: a homologacao mantem a rota. Fora do roteador de PRODUCAO da v1
-  # ate o ARQUITECT autorizar (homenagens reais). Nao remover a pagina da app.
+  # Homologacao: Path / , /homenagens e /static/landing (a pagina existe para o
+  # ARQUITECT conferir). Producao da v1 (proposta de autorizacao): so Path /
+  # e PathPrefix /static/landing; /homenagens, /login e o resto ficam na v0.
+  # O link da home so aparece com homenagem ativa no landing.yaml.
   landing:
     build:
       context: ..

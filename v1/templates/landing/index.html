@@ -27,7 +27,9 @@
         <a href="#obras">Obras e estudos</a>
         <a href="#quem">Quem participa</a>
         <a href="#niveis">Níveis</a>
+        {% if homenagens %}
         <a href="#homenagens">Homenagens</a>
+        {% endif %}
         <a class="botao botao--contorno" href="{{ login_url }}" data-entrar>Entrar</a>
         <a class="botao botao--primario" href="#contato">Quero participar</a>
       </nav>
@@ -202,6 +204,7 @@
     </section>
     {% endif %}
 
+    {% if homenagens %}
     <section class="secao secao--homenagens" id="homenagens">
       <div class="secao__interno">
         <p class="rotulo">Homenagens</p>
@@ -210,6 +213,7 @@
         <a class="botao botao--contorno botao--homenagens" href="/homenagens">Conhecer as homenagens →</a>
       </div>
     </section>
+    {% endif %}
 
     <section class="secao secao--contato" id="contato">
       <div class="secao__interno">
@@ -240,7 +244,9 @@
       <nav class="rodape__links" aria-label="Links do rodapé">
         <a href="#didasko">O Didasko</a>
         <a href="#obras">Obras e estudos</a>
+        {% if homenagens %}
         <a href="/homenagens">Homenagens</a>
+        {% endif %}
         <a href="{{ login_url }}" data-entrar>Entrar</a>
       </nav>
       <p class="rodape__legal">© 2026 Didasko — Todos os direitos reservados.</p>

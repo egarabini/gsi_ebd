@@ -40,7 +40,9 @@ def _depoimento(item) -> dict | None:
 
 
 def _homenagem(item) -> dict | None:
-    if not isinstance(item, dict):
+    # Mesma regra dos depoimentos: so entra com ativo. Sem item ativo, a home
+    # nao renderiza o link nem a secao (ARQUITECT, 22-23/10).
+    if not isinstance(item, dict) or not item.get("ativo"):
         return None
     titulo = _texto(item.get("titulo") or item.get("nome"))
     if not titulo:

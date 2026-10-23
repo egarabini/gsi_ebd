@@ -10,7 +10,10 @@
 #   um depoimento so entra com o CONSENTIMENTO de quem o deu — registrado na jornada;
 # - contato: cada canal (email, whatsapp) so aparece se existir;
 # - hero/sobre: o texto base esta no template; este arquivo pode sobrepo-lo;
-# - homenagens: a lista da pagina /homenagens; vazia, a pagina mostra o convite;
+# - homenagens: a secao da home e o link do menu so renderizam com pelo menos um
+#   item com `ativo: true` (a mesma regra dos depoimentos); vazia, nada aparece;
+#   quando o ARQUITECT preencher, o link volta sozinho. A pagina /homenagens
+#   existe na app (homologacao); producao da v1 nao a roteia — fica na v0.
 # - nenhum dado de teste: este arquivo entra vazio ate o ARQUITECT fornecer os dados reais.
 # ============================================================
 
@@ -38,4 +41,5 @@ sobre: {}
 # - titulo: "O homenageado"
 #   descricao: "Uma vida dedicada ao ensino da Palavra."
 #   referencia: "a referencia"
+#   ativo: true
 homenagens: []

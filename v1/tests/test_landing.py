@@ -39,6 +39,10 @@ homenagens:
   - titulo: Quem ensinou
     descricao: Um legado de ensino.
     referencia: o primeiro instrutor
+    ativo: true
+  - titulo: Homenagem inativa
+    descricao: Esta homenagem nao deve aparecer.
+    ativo: false
 """
 BASTIDOR = ("n+1", "snapshot", "padrão visual desta casa", "hash do", "versão n+1")
 
@@ -198,7 +202,6 @@ def test_rf_landing_raiz_200_secoes_lang_alt(vazio):
     assert 'id="obras"' in html
     assert 'id="quem"' in html
     assert 'id="niveis"' in html
-    assert 'id="homenagens"' in html
     assert 'id="contato"' in html
     assert "Administrador" in html and "Revisor" in html and "Coordenador" in html
     assert "Instrutor" in html and "Aluno" in html
@@ -228,6 +231,41 @@ def test_rf_landing_yaml_vazio_sem_depoimentos_sem_canais_sem_em_breve(vazio):
     assert "Quero participar" in html
 
 
+def test_rf_landing_sem_homenagens_html_da_raiz_nao_tem_link(vazio):
+    html = vazio.get("/").text
+    assert 'href="/homenagens"' not in html
+    assert "#homenagens" not in html
+    assert 'id="homenagens"' not in html
+
+
+def test_rf_landing_com_homenagem_ativa_html_da_raiz_tem_link(preenchido):
+    html = preenchido.get("/").text
+    assert 'href="/homenagens"' in html
+    assert "#homenagens" in html
+    assert 'id="homenagens"' in html
+
+
+def test_rf_landing_homenagem_inativa_nao_abre_link(tmp_path, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("SESSION_SECRET", raising=False)
+    caminho = tmp_path / "landing.yaml"
+    caminho.write_text(
+        "homenagens:\n"
+        "  - titulo: Homenagem inativa\n"
+        "    descricao: Esta homenagem nao deve aparecer.\n"
+        "    ativo: false\n",
+        encoding="utf-8",
+    )
+    app = create_app(conteudo_path=caminho, login_url="/login")
+    with TestClient(app) as client:
+        html = client.get("/").text
+        hom = client.get("/homenagens").text
+        assert 'href="/homenagens"' not in html
+        assert "#homenagens" not in html
+        assert "Homenagem inativa" not in hom
+        assert "Esta homenagem nao deve aparecer." not in hom
+
+
 def test_rf_landing_yaml_preenchido_renderiza_ativos_e_canais(preenchido):
     html = preenchido.get("/").text
     hom = preenchido.get("/homenagens").text
@@ -244,9 +282,13 @@ def test_rf_landing_yaml_preenchido_renderiza_ativos_e_canais(preenchido):
     assert "Titulo sobreposto" in html
     assert "Sub sobreposto" in html
     assert "Texto sobreposto do sobre." in html
+    assert 'href="/homenagens"' in html
+    assert 'id="homenagens"' in html
     assert "Quem ensinou" in hom
     assert "Um legado de ensino." in hom
     assert "o primeiro instrutor" in hom
+    assert "Homenagem inativa" not in hom
+    assert "Esta homenagem nao deve aparecer." not in hom
 
 
 def test_rf_landing_obras_tem_as_duas_definicoes(vazio):

@@ -53,17 +53,23 @@ def test_rf_landing_compose_sem_banco_sem_rede_interna():
 
 
 def test_rf_landing_homenagens_existe_homolog_fora_do_roteador_de_producao():
-    """A pagina permanece na app e na homologacao. Producao da v1 nao a roteia
-    ate o ARQUITECT autorizar (homenagens reais). Nao remover nem esconder.
+    """A pagina permanece na app e na homologacao. O roteador de producao da v1
+    (proposta de autorizacao) cobre so Path / e PathPrefix /static/landing;
+    /homenagens, /login e o resto seguem na v0 (ARQUITECT, 22-23/10).
     """
     homolog = (RAIZ / "deploy" / "docker-compose.v1-homolog.yml").read_text(encoding="utf-8")
     producao = (RAIZ / "deploy" / "docker-compose.producao.yml").read_text(encoding="utf-8")
     app = (RAIZ / "v1" / "landing.py").read_text(encoding="utf-8")
     bloco = homolog.split("  landing:", 1)[1].split("\nnetworks:", 1)[0]
+    assert 'Path(`/`)' in bloco
     assert 'Path(`/homenagens`)' in bloco
+    assert "PathPrefix(`/static/landing`)" in bloco
     assert '@app.get("/homenagens")' in app
     assert "didasko-v1-landing" not in producao
     assert "Path(`/homenagens`)" not in producao
+    assert "PathPrefix(`/static/landing`)" not in producao
+    assert "so Path /" in homolog
+    assert "seguem na v0" in producao
 
 
 def test_rf07_fail_fast_se_postgres_user_nao_for_didasko_v1():
