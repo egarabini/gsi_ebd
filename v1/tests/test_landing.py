@@ -339,8 +339,21 @@ def test_rf_landing_menu_hamburguer_abaixo_de_1000px():
     assert ".menu .botao--primario { color: #fff; }" in css
     assert ".menu .botao--contorno { color: var(--roxo); }" in css
     bloco = css.split("@media (max-width: 1000px)", 1)[1].split("@media", 1)[0]
-    assert "top: calc(100% - 13px)" in bloco
+    assert "top: calc(100% - 14px)" in bloco
     assert "top: 100%;" not in bloco
+    assert "top: calc(100% - 13px)" not in bloco
+
+
+def test_rf_landing_hero_visual_oculto_abaixo_de_960px():
+    css = (RAIZ / "v1" / "static" / "landing" / "landing.css").read_text(encoding="utf-8")
+    base = css.split("@media", 1)[0]
+    assert ".hero__visual { display: flex" in base
+    bloco_960 = css.split("@media (max-width: 960px)", 1)[1].split("@media", 1)[0]
+    assert ".hero__visual { display: none; }" in bloco_960
+    for trecho in css.split("@media")[1:]:
+        condicao = trecho.split("{", 1)[0]
+        if "1024" in condicao or "1440" in condicao:
+            assert "display: none" not in trecho
 
 
 def test_rf_landing_modulo_nao_importa_banco():
@@ -357,7 +370,13 @@ def test_rf_landing_yaml_commitado_esta_vazio():
     texto = (RAIZ / "v1" / "landing.yaml").read_text(encoding="utf-8")
     assert "depoimentos: []" in texto
     assert "contato: {}" in texto
+    assert "hero: {}" in texto
+    assert "sobre: {}" in texto
     assert "homenagens: []" in texto
     assert "mailto:" not in texto
     assert "wa.me" not in texto
+    assert "@" not in texto
+    assert "contato@didasko.app.br" not in texto
     assert "contato@gsi-ebd.com.br" not in texto
+    assert "5511999999999" not in texto
+    assert "5500000000000" not in texto

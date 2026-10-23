@@ -15,31 +15,20 @@
 #   quando o ARQUITECT preencher, o link volta sozinho. A pagina /homenagens
 #   existe na app (homologacao); producao da v1 nao a roteia — fica na v0.
 # - nenhum dado de teste: este arquivo entra vazio ate o ARQUITECT fornecer os dados reais.
+#   Sem e-mail, telefone ou item de exemplo (mesmo comentado).
 # ============================================================
 
-# - nome: "Maria"
-#   texto: "O acompanhamento do instrutor mudou o meu estudo."
-#   cidade: "Sao Paulo"
-#   estado: "SP"
-#   profissao_fe: "Batista"
-#   foto: "depoimentos/nome.webp"   # opcional; sem imagem de terceiros sem direito
-#   ativo: true
-#   ordem: 1
+# depoimentos[]: nome, texto, cidade, estado, profissao_fe, foto (opcional), ativo, ordem
 depoimentos: []
 
-# email: "contato@didasko.app.br"
-# whatsapp: "5511999999999"   # so digitos, com o DDI
+# contato: email, whatsapp (so digitos, com DDI)
 contato: {}
 
-# titulo: "..."      # opcional
-# subtitulo: "..."   # opcional
+# hero: titulo, subtitulo (opcionais)
 hero: {}
 
-# texto: "..."       # opcional
+# sobre: texto (opcional)
 sobre: {}
 
-# - titulo: "O homenageado"
-#   descricao: "Uma vida dedicada ao ensino da Palavra."
-#   referencia: "a referencia"
-#   ativo: true
+# homenagens[]: titulo, descricao, referencia, ativo
 homenagens: []

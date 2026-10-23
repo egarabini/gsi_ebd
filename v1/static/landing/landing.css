@@ -252,9 +252,9 @@ a { color: inherit; }
   .menu__botao span { display: block; width: 20px; height: 2px; background: var(--texto); margin: 0 auto; }
   /* O menu: um PAINEL LATERAL, escondido; abre no hover do hamburguer ou do proprio painel.
      top 100% deixava 13,7px de vao (label em y=53,7, painel em y=67,4) e o hover fechava.
-     calc(100% - 13px) encosta o painel, ainda abaixo do label. */
+     calc(100% - 14px) zera o vao sub-pixel (13px deixava 0,7px). */
   .menu {
-    position: absolute; top: calc(100% - 13px); left: 0;
+    position: absolute; top: calc(100% - 14px); left: 0;
     width: min(320px, 86vw);
     max-height: calc(100vh - 76px); overflow-y: auto;
     flex-direction: column; align-items: stretch; gap: .15rem;
@@ -277,7 +277,8 @@ a { color: inherit; }
 }
 @media (max-width: 960px) {
   .hero__interno { grid-template-columns: 1fr; }
-  .hero__visual { order: -1; }
+  /* A marca do topo (45px) ja mostra o Didasko; o logo grande e redundante na 1a dobra. */
+  .hero__visual { display: none; }
   .hero__logo { width: min(70%, 340px); }
   .duas-colunas { grid-template-columns: 1fr; }
   .grade--3 { grid-template-columns: repeat(2, 1fr); }
