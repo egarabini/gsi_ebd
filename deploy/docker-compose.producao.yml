@@ -18,6 +18,11 @@
 #
 # Requisitos: DNS de didasko.app.br apontando para o IP desta VPS, e as portas
 # 80 e 443 liberadas.
+#
+# Landing da v1 (ARQUITECT, 22-23/10): etapa (b) concluida - o roteador
+# landing-prod cobre Host(didasko.app.br) && (Path(/) || PathPrefix(/static/landing/)),
+# priority=200. O /homenagens, o /login, o /aluno, o /admin e o resto
+# seguem na v0 (sem priority explicita, abaixo de 200).
 
 services:
   traefik:
@@ -118,6 +123,30 @@ services:
       - traefik.http.services.didasko.loadbalancer.server.port=3000
     networks:
       - didasko
+
+  # Landing da v1, etapa (a): sem banco, sem SESSION_SECRET, sem depends_on.
+  # traefik.enable=false — o Traefik nao a enxerga; sobe isolada da v0.
+  # container_name distinto do didasko_v1_landing (a homologacao, no mesmo host).
+  landing:
+    build:
+      context: ..
+      dockerfile: deploy/app-v1.Dockerfile
+    container_name: didasko_landing
+    restart: unless-stopped
+    command: ["python", "-m", "uvicorn", "v1.landing:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      LANDING_LOGIN_URL: /login
+    networks:
+      - didasko
+    mem_limit: 128m
+    cpus: 0.25
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=deploy_didasko
+      - traefik.http.routers.landing-prod.rule=Host(`didasko.app.br`) && (Path(`/`) || PathPrefix(`/static/landing/`))
+      - traefik.http.routers.landing-prod.priority=200
+      - traefik.http.routers.landing-prod.entrypoints=websecure
+      - traefik.http.routers.landing-prod.tls=true
 
   postgres:
     image: postgres:16-alpine

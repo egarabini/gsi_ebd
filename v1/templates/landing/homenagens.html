@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Homenagens — pessoas que serviram no ensino da Palavra e cujo legado sustenta o Didasko.">
+  <title>{{ titulo }}</title>
+  <link rel="stylesheet" href="{{ asset_url("landing.css") }}">
+</head>
+<body class="pagina-homenagens">
+  <a class="pular" href="#conteudo">Pular para o conteúdo</a>
+
+  <header class="topo">
+    <div class="topo__interno">
+      <input class="menu__alternador" type="checkbox" id="menu" aria-label="Abrir o menu">
+      <label class="menu__botao" for="menu" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </label>
+
+      <a class="marca" href="/" aria-label="Didasko — início">
+        <img class="marca__logo" src="{{ asset_url("logo-88.webp") }}" srcset="{{ asset_url("logo-88.webp") }} 90w" sizes="45px" alt="" width="45" height="45" loading="eager">
+        <span class="marca__nome">Didasko</span>
+      </a>
+
+      <nav class="menu" aria-label="Navegação principal">
+        <a href="/#didasko">O Didasko</a>
+        <a href="/#obras">Obras e estudos</a>
+        <a href="/#quem">Quem participa</a>
+        <a href="/#niveis">Níveis</a>
+        <a class="botao botao--contorno" href="{{ login_url }}" data-entrar>Entrar</a>
+        <a class="botao botao--primario" href="#contato">Quero participar</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="conteudo">
+    <section class="hero hero--curto">
+      <div class="hero__brilho" aria-hidden="true"></div>
+      <div class="hero__interno hero__interno--texto">
+        <div>
+          <p class="rotulo">Homenagens</p>
+          <h1 class="hero__titulo">Gente que serviu <em>antes de nós</em></h1>
+          <p class="hero__sub">Pessoas que dedicaram a vida ao ensino da Palavra e cujo legado
+            sustenta o que fazemos hoje.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="secao">
+      <div class="secao__interno">
+        {% if homenagens %}
+        <div class="grade grade--2 homenagens">
+          {% for h in homenagens %}
+          <article class="cartao cartao--homenagem">
+            <h3>{{ h.titulo }}</h3>
+            {% if h.descricao %}<p>{{ h.descricao }}</p>{% endif %}
+            {% if h.referencia %}<p class="referencia">{{ h.referencia }}</p>{% endif %}
+          </article>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="secao secao--contato" id="contato">
+      <div class="secao__interno">
+        <div class="contato__cartao">
+          <h2>Quero participar</h2>
+          <p>Fale com a nossa equipe e conheça a plataforma e as próximas turmas.</p>
+          {% if contato.email or contato.whatsapp %}
+          <div class="contato__acoes">
+            {% if contato.email %}
+            <a class="botao botao--primario botao--grande" href="mailto:{{ contato.email }}">Falar por e-mail</a>
+            {% endif %}
+            {% if contato.whatsapp %}
+            <a class="botao botao--texto" href="https://wa.me/{{ contato.whatsapp }}">Falar no WhatsApp →</a>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="rodape">
+    <div class="rodape__interno">
+      <div class="rodape__marca">
+        <img src="{{ asset_url("logo-88.webp") }}" srcset="{{ asset_url("logo-88.webp") }} 90w" sizes="34px" alt="" width="34" height="34" loading="lazy">
+        <span>Didasko — Estudos Bíblicos Dirigidos</span>
+      </div>
+      <nav class="rodape__links" aria-label="Links do rodapé">
+        <a href="/#didasko">O Didasko</a>
+        <a href="/#obras">Obras e estudos</a>
+        <a href="/">Início</a>
+        <a href="{{ login_url }}" data-entrar>Entrar</a>
+      </nav>
+      <p class="rodape__legal">© 2026 Didasko — Todos os direitos reservados.</p>
+    </div>
+  </footer>
+</body>
+</html>

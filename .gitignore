@@ -21,3 +21,13 @@ _msg.txt
 # clone do repo EVANGELICOS com a arvore de conteudo (nao versionar aqui:
 # e outro repositorio, e o texto e obra protegida por direitos autorais)
 conteudo/
+
+# assets da landing com hash no nome (gerados no build / na subida)
+v1/static/landing-versionado/
+
+# artefatos de auditoria do EVAL (fora do versionamento)
+.eval*/
+.eval4-tmp/
+
+# temporarios locais de sessao
+.tmp-*/

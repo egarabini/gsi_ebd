@@ -60,6 +60,35 @@ services:
       - traefik.http.routers.didasko-v1.tls.certresolver=le
       - traefik.http.services.didasko-v1.loadbalancer.server.port=8000
 
+  # Landing publica: sem banco, sem SESSION_SECRET, sem rede interna.
+  # O Traefik da v0 observa as labels; prioridade 100 ganha do Host da app-v1.
+  # Homologacao: Path / , /homenagens e /static/landing (a pagina existe para o
+  # ARQUITECT conferir). Producao da v1 (proposta de autorizacao): so Path /
+  # e PathPrefix /static/landing; /homenagens, /login e o resto ficam na v0.
+  # O link da home so aparece com homenagem ativa no landing.yaml.
+  landing:
+    build:
+      context: ..
+      dockerfile: deploy/app-v1.Dockerfile
+    container_name: didasko_v1_landing
+    restart: unless-stopped
+    command: ["python", "-m", "uvicorn", "v1.landing:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      LANDING_LOGIN_URL: /login
+    networks:
+      - borda
+    mem_limit: 128m
+    cpus: 0.25
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${BORDA_NETWORK:-deploy_didasko}
+      - traefik.http.routers.didasko-v1-landing.rule=Host(`homolog.didasko.app.br`) && (Path(`/`) || Path(`/homenagens`) || PathPrefix(`/static/landing`))
+      - traefik.http.routers.didasko-v1-landing.priority=100
+      - traefik.http.routers.didasko-v1-landing.entrypoints=websecure
+      - traefik.http.routers.didasko-v1-landing.tls=true
+      - traefik.http.routers.didasko-v1-landing.tls.certresolver=le
+      - traefik.http.services.didasko-v1-landing.loadbalancer.server.port=8000
+
 networks:
   interna:
     internal: true

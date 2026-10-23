@@ -1,0 +1,34 @@
+# ============================================================
+# A landing da v1 — o conteudo condicional (versionado; SEM banco).
+#
+# O ARQUITECT preenche os dados reais; o que estiver vazio NAO aparece na pagina.
+# O template (o Jinja2) le este arquivo no servico — a landing nao recebe
+# DATABASE_URL, nao tem rede para o banco e nao le nada da v0.
+#
+# As regras (o ARQUITECT, 21/10):
+# - depoimentos: a secao so renderiza com pelo menos um item com `ativo: true`;
+#   um depoimento so entra com o CONSENTIMENTO de quem o deu — registrado na jornada;
+# - contato: cada canal (email, whatsapp) so aparece se existir;
+# - hero/sobre: o texto base esta no template; este arquivo pode sobrepo-lo;
+# - homenagens: a secao da home e o link do menu so renderizam com pelo menos um
+#   item com `ativo: true` (a mesma regra dos depoimentos); vazia, nada aparece;
+#   quando o ARQUITECT preencher, o link volta sozinho. A pagina /homenagens
+#   existe na app (homologacao); producao da v1 nao a roteia — fica na v0.
+# - nenhum dado de teste: este arquivo entra vazio ate o ARQUITECT fornecer os dados reais.
+#   Sem e-mail, telefone ou item de exemplo (mesmo comentado).
+# ============================================================
+
+# depoimentos[]: nome, texto, cidade, estado, profissao_fe, foto (opcional), ativo, ordem
+depoimentos: []
+
+# contato: email, whatsapp (so digitos, com DDI)
+contato: {}
+
+# hero: titulo, subtitulo (opcionais)
+hero: {}
+
+# sobre: texto (opcional)
+sobre: {}
+
+# homenagens[]: titulo, descricao, referencia, ativo
+homenagens: []

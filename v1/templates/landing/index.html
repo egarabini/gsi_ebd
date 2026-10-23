@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Didasko — estudos bíblicos dirigidos, com acompanhamento personalizado para cada etapa da sua jornada de fé.">
+  <title>{{ titulo }}</title>
+  <link rel="stylesheet" href="{{ asset_url("landing.css") }}">
+</head>
+<body>
+  <a class="pular" href="#conteudo">Pular para o conteúdo</a>
+
+  <header class="topo">
+    <div class="topo__interno">
+      <input class="menu__alternador" type="checkbox" id="menu" aria-label="Abrir o menu">
+      <label class="menu__botao" for="menu" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </label>
+
+      <a class="marca" href="#inicio" aria-label="Didasko — início">
+        <img class="marca__logo" src="{{ asset_url("logo-88.webp") }}" srcset="{{ asset_url("logo-88.webp") }} 90w" sizes="45px" alt="" width="45" height="45" loading="eager">
+        <span class="marca__nome">Didasko</span>
+      </a>
+
+      <nav class="menu" aria-label="Navegação principal">
+        <a href="#didasko">O Didasko</a>
+        <a href="#obras">Obras e estudos</a>
+        <a href="#quem">Quem participa</a>
+        <a href="#niveis">Níveis</a>
+        {% if homenagens %}
+        <a href="#homenagens">Homenagens</a>
+        {% endif %}
+        <a class="botao botao--contorno" href="{{ login_url }}" data-entrar>Entrar</a>
+        <a class="botao botao--primario" href="#contato">Quero participar</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="conteudo">
+    <section class="hero" id="inicio">
+      <div class="hero__brilho" aria-hidden="true"></div>
+      <div class="hero__interno">
+        <div class="hero__texto">
+          <p class="rotulo">Plataforma de estudos bíblicos dirigidos</p>
+          {% if hero.titulo %}
+          <h1 class="hero__titulo">{{ hero.titulo }}</h1>
+          {% else %}
+          <h1 class="hero__titulo">Cresça na Palavra —<br><em>a qualquer hora, em qualquer lugar.</em></h1>
+          {% endif %}
+          {% if hero.subtitulo %}
+          <p class="hero__sub">{{ hero.subtitulo }}</p>
+          {% else %}
+          <p class="hero__sub">Uma plataforma de estudos bíblicos dirigidos, com acompanhamento
+            personalizado para cada etapa da sua jornada de fé.</p>
+          {% endif %}
+          <div class="hero__acoes">
+            <a class="botao botao--primario botao--grande" href="#contato">Quero participar</a>
+            <a class="botao botao--texto" href="#didasko">Conhecer o Didasko →</a>
+          </div>
+          <ul class="hero__marcas">
+            <li>Estudo <strong>estruturado</strong></li>
+            <li>Ensino <strong>guiado</strong></li>
+            <li>Escritura <strong>verificada</strong></li>
+          </ul>
+        </div>
+        <div class="hero__visual">
+          <img class="hero__logo" src="{{ asset_url("logo-440.webp") }}" srcset="{{ asset_url("logo-440.webp") }} 440w, {{ asset_url("logo-880.webp") }} 880w" sizes="(max-width: 960px) 70vw, 440px" width="440" height="440" loading="eager" fetchpriority="high"
+               alt="Logotipo do Didasko: um livro aberto com linhas de circuito e a letra t em destaque, em azul, roxo e laranja.">
+        </div>
+      </div>
+    </section>
+
+    <section class="secao" id="didasko">
+      <div class="secao__interno">
+        <p class="rotulo">O nome</p>
+        <h2 class="secao__titulo">Um nome que vem do próprio chamado</h2>
+        <div class="duas-colunas">
+          <div>
+            {% if sobre.texto %}
+            <p class="destaque">{{ sobre.texto }}</p>
+            {% else %}
+            <p class="destaque">Didasko é o verbo grego que significa <em>ensinar</em> — a palavra
+              que Jesus usa na Grande Comissão, quando diz: “fazei discípulos… ensinando-os a
+              guardar todas as coisas que vos tenho ordenado”.</p>
+            <p>A Didasko é uma plataforma criada para facilitar o crescimento espiritual de forma
+              <strong>estruturada, guiada e progressiva</strong>.</p>
+            <p><strong>A missão:</strong> conectar pessoas à Palavra de Deus por meio de estudos
+              estruturados e acompanhamento personalizado.</p>
+            {% endif %}
+          </div>
+          <div class="cartao cartao--citacao">
+            <p class="citacao">“Fazei discípulos… ensinando-os a guardar todas as coisas que vos
+              tenho ordenado.”</p>
+            <p class="citacao__fonte">Mateus 28.19-20</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="secao secao--fundo" id="obras">
+      <div class="secao__interno">
+        <p class="rotulo">O fundamento</p>
+        <h2 class="secao__titulo">Da obra ao estudo</h2>
+        <div class="grade grade--2 definicoes">
+          <article class="cartao cartao--definicao">
+            <h3>A obra</h3>
+            <p>É a fonte: um livro ou texto de referência.</p>
+          </article>
+          <article class="cartao cartao--definicao">
+            <h3>O estudo dirigido</h3>
+            <p>É a obra aplicada: dividida em capítulos, com questões e acompanhamento de um instrutor.</p>
+          </article>
+        </div>
+        <div class="grade grade--2">
+          <article class="cartao cartao--icone">
+            <span class="icone" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 11l3 3 5-6"/><circle cx="12" cy="12" r="9"/></svg>
+            </span>
+            <h3>Toda obra é avaliada antes de chegar às turmas</h3>
+            <p>Cada obra passa por uma avaliação cuidadosa antes de ser estudada — o compromisso com
+              a verdade que o estudo exige.</p>
+          </article>
+          <article class="cartao cartao--icone">
+            <span class="icone" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5h7v14H4zM13 5h7v14h-7z"/></svg>
+            </span>
+            <h3>A Escritura vem sempre de texto bíblico verificado</h3>
+            <p>Nunca é gerada por IA. O estudo é guiado por quem ensina, não por um modelo.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="secao" id="quem">
+      <div class="secao__interno">
+        <p class="rotulo">Quem participa</p>
+        <h2 class="secao__titulo">Cada um no seu lugar</h2>
+        <div class="grade grade--3">
+          <article class="cartao cartao--papel">
+            <h3>Administrador</h3>
+            <p>Cuida da plataforma e do catálogo de estudos.</p>
+          </article>
+          <article class="cartao cartao--papel">
+            <h3>Revisor</h3>
+            <p>Lê e avalia as obras <strong>antes</strong> de chegarem às turmas.</p>
+          </article>
+          <article class="cartao cartao--papel">
+            <h3>Coordenador</h3>
+            <p>Organiza o estudo no seu grupo e acompanha os instrutores.</p>
+          </article>
+          <article class="cartao cartao--papel">
+            <h3>Instrutor</h3>
+            <p>Ensina, acompanha e corrige os alunos.</p>
+          </article>
+          <article class="cartao cartao--papel">
+            <h3>Aluno</h3>
+            <p>Estuda no seu ritmo, com a orientação de quem ensina.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="secao secao--fundo" id="niveis">
+      <div class="secao__interno">
+        <p class="rotulo">Os níveis</p>
+        <h2 class="secao__titulo">Uma jornada progressiva</h2>
+        <p class="secao__sub">Do fundamento ao aprofundamento — cada etapa pensada para quem está
+          começando e para quem já caminha há mais tempo.</p>
+        <div class="trilha" role="list">
+          <div class="trilha__passo" role="listitem">
+            <span>01</span><h3>Básico</h3><p>Fundamentos da fé — ideal para quem está iniciando.</p>
+          </div>
+          <div class="trilha__passo" role="listitem">
+            <span>02</span><h3>Médio</h3><p>Aprofundamento doutrinário — para quem já domina os fundamentos.</p>
+          </div>
+          <div class="trilha__passo" role="listitem">
+            <span>03</span><h3>Avançado</h3><p>Hermenêutica e teologia — estudo avançado e contextualização.</p>
+          </div>
+          <div class="trilha__passo" role="listitem">
+            <span>04</span><h3>Master</h3><p>Especialização e liderança — para a formação de líderes.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {% if depoimentos %}
+    <section class="secao" id="depoimentos">
+      <div class="secao__interno">
+        <p class="rotulo">Depoimentos</p>
+        <h2 class="secao__titulo">O que dizem nossos alunos</h2>
+        <p class="secao__sub">Histórias reais de transformação através do estudo da Palavra.</p>
+        <div class="grade grade--2">
+          {% for d in depoimentos %}
+          <article class="cartao cartao--depoimento">
+            {% if d.foto %}
+            <img class="depoimento__foto" src="{{ d.foto }}" alt="" width="56" height="56" loading="lazy">
+            {% endif %}
+            <p class="citacao">{{ d.texto }}</p>
+            <p class="citacao__fonte">{% if d.nome %}{{ d.nome }}{% endif %}{% if d.cidade %} — {{ d.cidade }}{% if d.estado %}/{{ d.estado }}{% endif %}{% endif %}{% if d.profissao_fe %} · {{ d.profissao_fe }}{% endif %}</p>
+          </article>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if homenagens %}
+    <section class="secao secao--homenagens" id="homenagens">
+      <div class="secao__interno">
+        <p class="rotulo">Homenagens</p>
+        <h2 class="secao__titulo">Gente que serviu antes de nós</h2>
+        <p class="secao__sub">Uma página dedicada a quem abriu caminho para o ensino da Palavra.</p>
+        <a class="botao botao--contorno botao--homenagens" href="/homenagens">Conhecer as homenagens →</a>
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="secao secao--contato" id="contato">
+      <div class="secao__interno">
+        <div class="contato__cartao">
+          <h2>Quero participar</h2>
+          <p>Fale com a nossa equipe e conheça a plataforma e as próximas turmas.</p>
+          {% if contato.email or contato.whatsapp %}
+          <div class="contato__acoes">
+            {% if contato.email %}
+            <a class="botao botao--primario botao--grande" href="mailto:{{ contato.email }}">Falar por e-mail</a>
+            {% endif %}
+            {% if contato.whatsapp %}
+            <a class="botao botao--texto" href="https://wa.me/{{ contato.whatsapp }}">Falar no WhatsApp →</a>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="rodape">
+    <div class="rodape__interno">
+      <div class="rodape__marca">
+        <img src="{{ asset_url("logo-88.webp") }}" srcset="{{ asset_url("logo-88.webp") }} 90w" sizes="34px" alt="" width="34" height="34" loading="lazy">
+        <span>Didasko — Estudos Bíblicos Dirigidos</span>
+      </div>
+      <nav class="rodape__links" aria-label="Links do rodapé">
+        <a href="#didasko">O Didasko</a>
+        <a href="#obras">Obras e estudos</a>
+        {% if homenagens %}
+        <a href="/homenagens">Homenagens</a>
+        {% endif %}
+        <a href="{{ login_url }}" data-entrar>Entrar</a>
+      </nav>
+      <p class="rodape__legal">© 2026 Didasko — Todos os direitos reservados.</p>
+    </div>
+  </footer>
+</body>
+</html>
