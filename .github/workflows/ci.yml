@@ -3,12 +3,15 @@ name: CI
 # Etapa 1 da DEM-202610-004: a suite roda em todo PR e todo push nas branches de
 # integracao e producao. O porteiro de merge da ADR-009 depende deste check.
 #
+# Opcao A (ARQUITECT, 23/10): pull_request SEM filtro de branches. Todo PR
+# dispara o CI, inclusive quando a base e feature/* — senao a protecao exige
+# o check e o merge so passa com --admin.
+#
 # Sem segredos, sem acesso a VPS, sem corpus: os testes usam dubles. A instalacao
 # do Reflex e a parte lenta, por isso o cache de pip.
 
 on:
   pull_request:
-    branches: [develop, main]
   push:
     branches: [develop, main]
   workflow_dispatch:
