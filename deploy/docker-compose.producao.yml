@@ -19,9 +19,11 @@
 # Requisitos: DNS de didasko.app.br apontando para o IP desta VPS, e as portas
 # 80 e 443 liberadas.
 #
-# Landing da v1 (ARQUITECT, 22-23/10): este arquivo NAO tem o servico landing.
-# Quando a autorizacao entrar, o roteador cobre SO Path / e PathPrefix
-# /static/landing. O /homenagens, o /login e o resto seguem na v0.
+# Landing da v1 (ARQUITECT, 22-23/10): etapa (a) - o servico landing sobe
+# com traefik.enable=false (sem rotulos de rota); o Traefik nao o enxerga.
+# A etapa (b) - os rotulos (Path / e PathPrefix /static/landing; o
+# /homenagens, o /login e o resto seguem na v0) - e ato separado do
+# ARQUITECT.
 
 services:
   traefik:
@@ -122,6 +124,25 @@ services:
       - traefik.http.services.didasko.loadbalancer.server.port=3000
     networks:
       - didasko
+
+  # Landing da v1, etapa (a): sem banco, sem SESSION_SECRET, sem depends_on.
+  # traefik.enable=false — o Traefik nao a enxerga; sobe isolada da v0.
+  # container_name distinto do didasko_v1_landing (a homologacao, no mesmo host).
+  landing:
+    build:
+      context: ..
+      dockerfile: deploy/app-v1.Dockerfile
+    container_name: didasko_landing
+    restart: unless-stopped
+    command: ["python", "-m", "uvicorn", "v1.landing:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      LANDING_LOGIN_URL: /login
+    networks:
+      - didasko
+    mem_limit: 128m
+    cpus: 0.25
+    labels:
+      - traefik.enable=false
 
   postgres:
     image: postgres:16-alpine
