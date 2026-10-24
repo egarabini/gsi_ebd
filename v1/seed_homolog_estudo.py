@@ -78,10 +78,18 @@ def _aluno(session: Session, dados: dict, hash_senha: str) -> User:
     return aluno
 
 
-def _estudo_da_obra_liberada(session: Session) -> tuple[Estudo, Study, StudyVersion] | None:
+def _exigir_obra_liberada(session: Session) -> Obra:
     obra = session.exec(select(Obra).where(Obra.versao_liberada_id.is_not(None))).first()
     if obra is None:
-        return None
+        raise RuntimeError(
+            "o seed de alunos fake exige ao menos uma Obra com versao_liberada_id no "
+            "didasko_v1; libere a obra no fluxo do Admin/Revisor antes de rodar o seed"
+        )
+    return obra
+
+
+def _estudo_da_obra_liberada(session: Session) -> tuple[Estudo, Study, StudyVersion]:
+    obra = _exigir_obra_liberada(session)
     estudo = session.exec(select(Estudo).where(Estudo.obra_id == obra.id)).first()
     if estudo is None:
         estudo = Estudo(
@@ -129,13 +137,11 @@ def _estudo_da_obra_liberada(session: Session) -> tuple[Estudo, Study, StudyVers
 
 
 def popular(session: Session) -> None:
+    _exigir_obra_liberada(session)
     hash_senha = _senha()
     aluno_a = _aluno(session, ALUNOS_FAKE[0], hash_senha)
     _aluno(session, ALUNOS_FAKE[1], hash_senha)
-    artefatos = _estudo_da_obra_liberada(session)
-    if artefatos is None:
-        return
-    _, catalogo, versao = artefatos
+    _, catalogo, versao = _estudo_da_obra_liberada(session)
     ja = session.exec(
         select(StudyAssignment).where(
             StudyAssignment.user_id == aluno_a.id,

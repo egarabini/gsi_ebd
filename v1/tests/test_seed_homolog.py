@@ -5,7 +5,7 @@ import bcrypt
 import pytest
 from sqlmodel import Session, select
 
-from gsi_ebd.models import Adendo, Obra, ObraCapitulo, Role, StudyAssignment, User, UserStatus
+from gsi_ebd.models import Adendo, Estudo, Obra, ObraCapitulo, Role, Study, StudyAssignment, User, UserStatus
 from gsi_ebd.services import flow, fontes
 from v1.db import assert_banco_v1, criar_engine, iniciar_banco
 from v1.seed_homolog_estudo import ALUNOS_FAKE, popular, recusar_producao, run
@@ -118,6 +118,8 @@ def test_popular_e_run_no_sqlite_didasko_v1(tmp_path, monkeypatch):
             assert ALUNOS_FAKE[1]["email"] in emails
             aluno_a = session.exec(select(User).where(User.email == ALUNOS_FAKE[0]["email"])).one()
             aluno_b = session.exec(select(User).where(User.email == ALUNOS_FAKE[1]["email"])).one()
+            assert session.exec(select(Estudo)).first() is not None
+            assert session.exec(select(Study)).first() is not None
             assert session.exec(select(StudyAssignment).where(StudyAssignment.user_id == aluno_a.id)).first()
             assert session.exec(select(StudyAssignment).where(StudyAssignment.user_id == aluno_b.id)).first() is None
     finally:
@@ -129,5 +131,23 @@ def test_popular_e_run_no_sqlite_didasko_v1(tmp_path, monkeypatch):
         with Session(engine) as session:
             aluno_a = session.exec(select(User).where(User.email == ALUNOS_FAKE[0]["email"])).one()
             assert session.exec(select(StudyAssignment).where(StudyAssignment.user_id == aluno_a.id)).first()
+    finally:
+        engine.dispose()
+
+
+def test_popular_recusa_sem_obra_liberada(tmp_path, monkeypatch):
+    monkeypatch.setenv("DIDASKO_AMBIENTE", "homologacao")
+    monkeypatch.setenv("SEED_PASSWORD", "Senha-homolog-123!")
+    db = tmp_path / "didasko_v1.db"
+    url = "sqlite:///" + db.resolve().as_posix()
+    recusar_producao(url=url, ambiente="homologacao")
+    engine = criar_engine(url, connect_args={"check_same_thread": False})
+    try:
+        iniciar_banco(engine)
+        with Session(engine) as session:
+            with pytest.raises(RuntimeError, match="versao_liberada_id"):
+                popular(session)
+            assert session.exec(select(User).where(User.email == ALUNOS_FAKE[0]["email"])).first() is None
+            assert session.exec(select(StudyAssignment)).first() is None
     finally:
         engine.dispose()
