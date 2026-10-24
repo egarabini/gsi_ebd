@@ -16,6 +16,27 @@ ESPERADO = {
     ("POST", "/logout"): "rota:/logout",
     ("GET", "/perfil/alterar-senha"): "rota:/perfil/alterar-senha",
     ("POST", "/perfil/alterar-senha"): "rota:/perfil/alterar-senha",
+    ("GET", "/admin/obras"): "rota:/admin/obras",
+    ("GET", "/admin/obras/nova"): "rota:/admin/obras",
+    ("POST", "/admin/obras"): "rota:/admin/obras",
+    ("GET", "/admin/obras/{obra_id}"): "rota:/admin/obras",
+    ("POST", "/admin/obras/{obra_id}/liberar"): "rota:/admin/obras",
+    ("POST", "/admin/obras/{obra_id}/alterar"): "rota:/admin/obras",
+    ("POST", "/admin/obras/{obra_id}/reenviar"): "rota:/admin/obras",
+    ("POST", "/admin/obras/{obra_id}/aceitar"): "rota:/admin/obras",
+    ("POST", "/admin/obras/{obra_id}/dispensar"): "rota:/admin/obras",
+    ("POST", "/admin/obras/{obra_id}/cancelar"): "rota:/admin/obras",
+    ("GET", "/revisor/obras"): "rota:/revisor/obras",
+    ("GET", "/revisor/obras/{obra_id}"): "rota:/revisor/obras",
+    ("POST", "/revisor/obras/{obra_id}/revisar"): "rota:/revisor/obras",
+    ("POST", "/revisor/obras/{obra_id}/recusar"): "rota:/revisor/obras",
+    ("POST", "/revisor/obras/{obra_id}/solicitar"): "rota:/revisor/obras",
+    ("POST", "/revisor/obras/{obra_id}/posicionar"): "rota:/revisor/obras",
+    ("GET", "/obras"): "rota:/obras",
+    ("GET", "/obras/{obra_id}"): "rota:/obras",
+    ("GET", "/aluno"): "rota:/aluno",
+    ("GET", "/aluno/licao/{study_id}"): "rota:/aluno/licao",
+    ("POST", "/aluno/licao/{study_id}"): "rota:/aluno/licao",
 }
 
 # HTTP esperado, fixo. Nao consulte pode(): o teste repetiria a matriz.
@@ -28,6 +49,17 @@ LIBERADOS = {
         Role.ALUNO,
     },
     ("GET", "/perfil/alterar-senha"): {
+        Role.ADMIN,
+        Role.REVISOR,
+        Role.COORDENADOR,
+        Role.INSTRUTOR,
+        Role.ALUNO,
+    },
+    ("GET", "/admin/obras"): {Role.ADMIN},
+    ("GET", "/admin/obras/nova"): {Role.ADMIN},
+    ("GET", "/revisor/obras"): {Role.REVISOR},
+    ("GET", "/obras"): {Role.ADMIN, Role.REVISOR},
+    ("GET", "/aluno"): {
         Role.ADMIN,
         Role.REVISOR,
         Role.COORDENADOR,
@@ -92,7 +124,10 @@ def test_rf02_inventario_e_dependencia_da_matriz(sistema):
 
 
 @pytest.mark.parametrize("papel", list(Role))
-@pytest.mark.parametrize("metodo,rota", [item for item in ESPERADO if item[0] == "GET"])
+@pytest.mark.parametrize(
+    "metodo,rota",
+    [item for item in ESPERADO if item[0] == "GET" and "{" not in item[1]],
+)
 def test_rf02_render_por_papel(sistema, papel, metodo, rota):
     client = sistema["client"]
     chave = ESPERADO[(metodo, rota)]

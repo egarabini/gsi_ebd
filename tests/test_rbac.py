@@ -79,6 +79,9 @@ FROZEN = {
         ("/admin", (Role.ADMIN, Role.REVISOR), (Role.COORDENADOR, Role.INSTRUTOR, Role.ALUNO)),
         ("/coordenador", (Role.ADMIN, Role.COORDENADOR), (Role.REVISOR, Role.INSTRUTOR, Role.ALUNO)),
         ("/revisao", (Role.ADMIN, Role.INSTRUTOR), (Role.REVISOR, Role.COORDENADOR, Role.ALUNO)),
+        ("/admin/obras", (Role.ADMIN,), (Role.REVISOR, Role.COORDENADOR, Role.INSTRUTOR, Role.ALUNO)),
+        ("/revisor/obras", (Role.REVISOR,), (Role.ADMIN, Role.COORDENADOR, Role.INSTRUTOR, Role.ALUNO)),
+        ("/obras", (Role.ADMIN, Role.REVISOR), (Role.COORDENADOR, Role.INSTRUTOR, Role.ALUNO)),
     ],
 )
 def test_matriz_de_rotas(rota, permitidos, negados):
