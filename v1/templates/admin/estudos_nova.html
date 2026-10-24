@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block titulo %}Novo estudo — Didasko{% endblock %}
+{% block conteudo %}
+<h1 data-rota="/admin/estudos/nova">Novo estudo</h1>
+<section class="cartao">
+  {% if erro %}<p class="erro" role="alert">{{ erro }}</p>{% endif %}
+  <form action="/admin/estudos/nova" method="post">
+    <input name="csrf_token" type="hidden" value="{{ csrf }}">
+    <label>Obra de origem
+      <select name="obra_id" required>
+        <option value="">Selecione</option>
+        {% for obra in obras %}
+        <option value="{{ obra.id }}">{{ obra.titulo }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Título do estudo<input name="titulo" required></label>
+    <label>Descrição<textarea name="descricao" rows="3"></textarea></label>
+    <section class="editor">
+      <h3>Capítulos</h3>
+      <fieldset>
+        <legend>Capítulo</legend>
+        <label>Ordem<input name="capitulo_ordem" type="number" value="1" required></label>
+        <label>Título<input name="capitulo_titulo" value="Capitulo 1"></label>
+        <label>Conteúdo Markdown<textarea name="capitulo_texto" rows="8">Texto do estudo.</textarea></label>
+        <label>Questões (JSON)<textarea name="capitulo_questoes" rows="3">[]</textarea></label>
+      </fieldset>
+    </section>
+    <button>Criar e abrir revisão</button>
+  </form>
+</section>
+{% endblock %}

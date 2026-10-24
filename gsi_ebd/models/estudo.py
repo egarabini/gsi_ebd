@@ -15,6 +15,7 @@ continuam servindo a licao do aluno, e a migracao e outra DEM.
 from datetime import datetime
 from typing import Optional
 
+from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 from .study import StudyStatus
@@ -75,3 +76,42 @@ class EstudoCapituloOrigem(SQLModel, table=True):
     adendo_id: Optional[int] = Field(default=None, foreign_key="adendo.id")
 
     created_at: Optional[datetime] = Field(default=None)
+
+
+class EstudoVersao(SQLModel, table=True):
+    """Versao editorial do estudo. A N liberada e imutavel; o ciclo cria a N+1."""
+
+    __table_args__ = (UniqueConstraint("estudo_id", "numero"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    estudo_id: int = Field(foreign_key="estudo.id", index=True)
+    numero: int = Field(default=1)
+    rodada: int = Field(default=0)
+    status: str = Field(default="em_revisao")
+    conteudo_hash: str = Field(default="")
+    parecer: str = Field(default="")
+    ajustes_propostos: str = Field(default="[]")
+    revisor_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    revisado_em: Optional[datetime] = Field(default=None)
+    hash_visto: str = Field(default="")
+    ajustes_descritos: str = Field(default="")
+    admin_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    liberada_em: Optional[datetime] = Field(default=None)
+    hash_liberado: str = Field(default="")
+    created_at: Optional[datetime] = Field(default=None)
+
+
+class EstudoVersaoCapitulo(SQLModel, table=True):
+    """Snapshot dos capitulos (visto/liberado). A N congelada nao muda."""
+
+    __table_args__ = (UniqueConstraint("versao_id", "momento", "rodada", "ordem"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    versao_id: int = Field(foreign_key="estudoversao.id", index=True)
+    momento: str
+    rodada: int
+    ordem: int
+    titulo: str = Field(default="")
+    conteudo_md: str = Field(default="")
+    questions_json: str = Field(default="[]")
+    item_hash: str = Field(default="")

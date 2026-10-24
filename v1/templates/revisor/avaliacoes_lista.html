@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block titulo %}Avaliações — Didasko{% endblock %}
+{% block conteudo %}
+<h1 data-rota="/revisor/avaliacoes">Avaliações</h1>
+<section class="cartao">
+  <h2>Fila de revisão</h2>
+  <ul>
+    {% for estudo in estudos %}
+    <li><a href="/revisor/avaliacoes/{{ estudo.id }}">{{ estudo.titulo }}</a> · {{ estudo.status }}</li>
+    {% else %}
+    <li>Nenhum estudo nesta fila.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

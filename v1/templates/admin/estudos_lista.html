@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block titulo %}Estudos — Didasko{% endblock %}
+{% block conteudo %}
+<h1 data-rota="/admin/estudos">Estudos</h1>
+<div class="barra">
+  <p>A obra aplicada em capítulos. O Revisor assina; o Admin libera.</p>
+  <a class="botao" href="/admin/estudos/nova">Novo estudo</a>
+</div>
+<section class="cartao">
+  <table>
+    <thead>
+      <tr><th>Estudo</th><th>Editorial</th></tr>
+    </thead>
+    <tbody>
+      {% for estudo in estudos %}
+      <tr>
+        <td><a href="/admin/estudos/{{ estudo.id }}">{{ estudo.titulo }}</a></td>
+        <td>{{ estudo.status }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="2">Nenhum estudo cadastrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -77,6 +77,10 @@
         </td>
         <td>
           {% for progresso in bloco.progressos %}{{ progresso.correct_answers }}/{{ progresso.total_questions }}{% if not loop.last %}; {% endif %}{% else %}—{% endfor %}
+          {% if bloco.respostas %}
+          ·
+          {% for resp in bloco.respostas %}{{ resp.question_key }}{% if resp.is_correct %} ok{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+          {% endif %}
         </td>
       </tr>
       {% else %}

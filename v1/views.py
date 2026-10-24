@@ -5,6 +5,9 @@ from sqlmodel import select
 
 from gsi_ebd.models import (
     Adendo,
+    Estudo,
+    EstudoCapitulo,
+    EstudoVersaoCapitulo,
     Obra,
     ObraCapitulo,
     ObraVersao,
@@ -13,6 +16,7 @@ from gsi_ebd.models import (
     ObraVersaoEvento,
 )
 from gsi_ebd.services import flow
+from gsi_ebd.services import flow_estudo
 from gsi_ebd.services.erros_fluxo import FluxoBloqueado
 from gsi_ebd.utils.rbac import itens_do_menu, pode
 
@@ -165,3 +169,80 @@ def aplicar_trabalho(session, obra, conteudo, autor):
         nota.titulo, nota.texto = item["titulo"], item["texto"]
         session.add(nota)
     session.flush()
+
+
+def obter_estudo(session, estudo_id):
+    estudo = session.get(Estudo, estudo_id)
+    if estudo is None:
+        raise HTTPException(404, "Estudo nao encontrado")
+    return estudo
+
+
+def trabalho_estudo(session, estudo):
+    return session.exec(
+        select(EstudoCapitulo).where(EstudoCapitulo.estudo_id == estudo.id).order_by(EstudoCapitulo.ordem)
+    ).all()
+
+
+def contexto_estudo(session, estudo):
+    versao = flow_estudo.versao_corrente(session, estudo)
+    caps = trabalho_estudo(session, estudo)
+    publicado = flow_estudo.versao_liberada(session, estudo)
+    pub_caps = (
+        session.exec(
+            select(EstudoVersaoCapitulo).where(
+                EstudoVersaoCapitulo.versao_id == publicado.id,
+                EstudoVersaoCapitulo.momento == "liberado",
+                EstudoVersaoCapitulo.rodada == publicado.rodada,
+            )
+        ).all()
+        if publicado
+        else []
+    )
+    acao_edicao = {"aguardando_admin": "liberar", "devolvida": "reenviar"}.get(versao.status)
+    rotulo_edicao = {"liberar": "Liberar este estudo", "reenviar": "Reenviar a revisao"}.get(
+        acao_edicao, ""
+    )
+    return {
+        "acao_edicao": acao_edicao,
+        "rotulo_edicao": rotulo_edicao,
+        "estudo": estudo,
+        "versao": versao,
+        "publicado": publicado,
+        "capitulos": caps,
+        "publicados": pub_caps,
+        "hash_esperado": flow_estudo.hash_estudo(session, estudo.id),
+        "parecer": versao.parecer,
+        "ajustes_propostos": json.loads(versao.ajustes_propostos or "[]"),
+        "obra": session.get(Obra, estudo.obra_id),
+    }
+
+
+def conteudo_estudo_form(form):
+    try:
+        ordens = form.getlist("capitulo_ordem")
+        titulos = form.getlist("capitulo_titulo")
+        textos = form.getlist("capitulo_texto")
+        questoes = form.getlist("capitulo_questoes")
+        if not (len(ordens) == len(titulos) == len(textos)):
+            raise ValueError()
+        while len(questoes) < len(ordens):
+            questoes.append("[]")
+        caps = [
+            {
+                "ordem": int(ordem),
+                "titulo": titulo,
+                "conteudo_md": texto,
+                "questions_json": (questao or "[]").strip() or "[]",
+            }
+            for ordem, titulo, texto, questao in zip(ordens, titulos, textos, questoes)
+        ]
+        if not caps or len({item["ordem"] for item in caps}) != len(caps):
+            raise ValueError()
+        return caps
+    except (ValueError, TypeError):
+        raise FluxoBloqueado("Conteudo do formulario invalido") from None
+
+
+def aplicar_trabalho_estudo(session, estudo, capitulos):
+    flow_estudo._gravar_capitulos(session, estudo.id, capitulos)

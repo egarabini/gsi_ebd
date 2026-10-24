@@ -38,6 +38,10 @@ PERMISSOES: dict[str, tuple[int, ...]] = {
     # Paineis da v1 (DEM-017 fatia 1): /admin so ADMIN; /revisor so REVISOR.
     "rota:/admin": (Role.ADMIN,),
     "rota:/revisor": (Role.REVISOR,),
+    # DEM-017 fatia 2: criacao do Estudo e avaliacoes/liberacoes.
+    "rota:/admin/estudos": (Role.ADMIN,),
+    "rota:/admin/estudos/nova": (Role.ADMIN,),
+    "rota:/revisor/avaliacoes": (Role.REVISOR,),
     "rota:/coordenador": (Role.ADMIN, Role.COORDENADOR),
     "rota:/revisao": (Role.ADMIN, Role.INSTRUTOR),
     # acoes (usadas pelos eventos dos estados)
@@ -72,10 +76,11 @@ HOME_DO_PAPEL_V1: dict[int, str] = {
 ITENS_MENU: tuple[tuple[str, str, str], ...] = (
     ("/admin", "Painel", "rota:/admin"),
     ("/admin/obras", "Obras", "rota:/admin/obras"),
-    ("/admin#estudos", "Estudos", "rota:/admin"),
+    ("/admin/estudos", "Estudos", "rota:/admin/estudos"),
     ("/admin#alunos", "Alunos", "rota:/admin"),
     ("/revisor", "Painel", "rota:/revisor"),
     ("/revisor/obras", "Revisão", "rota:/revisor/obras"),
+    ("/revisor/avaliacoes", "Avaliações", "rota:/revisor/avaliacoes"),
     ("/perfil/alterar-senha", "Alterar senha", "rota:/perfil/alterar-senha"),
 )
 

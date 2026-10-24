@@ -9,7 +9,13 @@ from .turma import (Ambiente, AmbienteEstudo, Equipe, EquipeInstrutor, Turma, Tu
 from .referencia_cruzada import ReferenciaCruzada
 from .obra import (Doutrina, Obra, ObraCapitulo, Adendo, ObraVersao,
                    ObraVersaoCapitulo, ObraVersaoAdendo, ObraVersaoEvento, VinculoObra)
-from .estudo import Estudo, EstudoCapitulo, EstudoCapituloOrigem
+from .estudo import (
+    Estudo,
+    EstudoCapitulo,
+    EstudoCapituloOrigem,
+    EstudoVersao,
+    EstudoVersaoCapitulo,
+)
 
 __all__ = [
     # Usuário
@@ -36,4 +42,5 @@ __all__ = [
     "ObraVersao", "ObraVersaoCapitulo", "ObraVersaoAdendo", "ObraVersaoEvento", "VinculoObra",
     # Estudo aplicavel (capitulos proprios + mapa de origem)
     "Estudo", "EstudoCapitulo", "EstudoCapituloOrigem",
+    "EstudoVersao", "EstudoVersaoCapitulo",
 ]
