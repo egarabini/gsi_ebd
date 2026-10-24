@@ -129,6 +129,19 @@ def test_rf02_inventario_e_dependencia_da_matriz(sistema):
     assert PERMISSOES["rota:/revisor"] == (Role.REVISOR,)
 
 
+def test_rf02_invariante_casa_v1():
+    """Mapa da v1: cada papel pode a propria casa quando a chave existe."""
+    from gsi_ebd.utils.rbac import home_do_papel, home_do_papel_v1, pode
+
+    assert home_do_papel(Role.REVISOR) == "/admin"
+    assert home_do_papel_v1(Role.REVISOR) == "/revisor"
+    for papel in Role:
+        casa = home_do_papel_v1(papel)
+        chave = "rota:" + casa
+        if chave in PERMISSOES:
+            assert pode(chave, papel), f"{papel.name} nao pode a casa v1 {casa}"
+
+
 @pytest.mark.parametrize("papel", list(Role))
 @pytest.mark.parametrize(
     "metodo,rota",

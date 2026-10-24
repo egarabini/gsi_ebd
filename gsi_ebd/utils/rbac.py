@@ -49,8 +49,17 @@ PERMISSOES: dict[str, tuple[int, ...]] = {
     "acao:revisao": (Role.ADMIN, Role.INSTRUTOR),
 }
 
-# casa de cada papel - usada no redirect de quem nao tem a rota
+# casa da v0 (Reflex) - congelada. REVISOR permanece em /admin (9.2a).
 HOME_DO_PAPEL: dict[int, str] = {
+    Role.ADMIN: "/admin",
+    Role.REVISOR: "/admin",
+    Role.COORDENADOR: "/coordenador",
+    Role.INSTRUTOR: "/revisao",
+    Role.ALUNO: "/aluno",
+}
+
+# casa da v1 (FastAPI). As chaves de PERMISSOES sao compartilhadas; o mapa nao.
+HOME_DO_PAPEL_V1: dict[int, str] = {
     Role.ADMIN: "/admin",
     Role.REVISOR: "/revisor",
     Role.COORDENADOR: "/coordenador",
@@ -67,12 +76,18 @@ ITENS_MENU: tuple[tuple[str, str, str], ...] = (
     ("/admin#alunos", "Alunos", "rota:/admin"),
     ("/revisor", "Painel", "rota:/revisor"),
     ("/revisor/obras", "Revisão", "rota:/revisor/obras"),
+    ("/perfil/alterar-senha", "Alterar senha", "rota:/perfil/alterar-senha"),
 )
 
 
 def home_do_papel(papel: int) -> str:
-    """Rota inicial do papel; desconhecido vai para o login (nunca para si mesmo)."""
+    """Casa da v0. Desconhecido vai para o login (nunca para si mesmo)."""
     return HOME_DO_PAPEL.get(papel, "/login")
+
+
+def home_do_papel_v1(papel: int) -> str:
+    """Casa da v1. O mapa da v0 (home_do_papel) permanece congelado."""
+    return HOME_DO_PAPEL_V1.get(papel, "/login")
 
 
 def pode(chave: str, papel: int) -> bool:
@@ -125,7 +140,9 @@ def guarda_rota(rota: str):
             if not getattr(self, "is_authenticated", False):
                 return rx.redirect("/login")
             papel = getattr(self, "current_user_role", -1)
-            if not pode("rota:" + rota, papel):
+            # v0: a casa do papel continua acessivel mesmo se a chave compartilhada
+            # apertou para a v1 (REVISOR em /admin). Evita 404 e loop.
+            if not pode("rota:" + rota, papel) and home_do_papel(papel) != rota:
                 return rx.redirect(home_do_papel(papel))
             return fn(self, *args, **kwargs)
 

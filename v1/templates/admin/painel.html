@@ -42,6 +42,9 @@
     <p>Estudos escolhidos:
       {% for estudo in bloco.estudos %}{{ estudo.title }}{% if not loop.last %}, {% endif %}{% else %}nenhum{% endfor %}
     </p>
+    <p>Obras vinculadas:
+      {% for obra in bloco.obras %}{{ obra.titulo }}{% if not loop.last %}, {% endif %}{% else %}nenhuma{% endfor %}
+    </p>
     {% for instrutor in bloco.instrutores %}
     <p>Instrutor {{ instrutor.usuario.nome_base or instrutor.usuario.nome_completo }} —
       alunos:
