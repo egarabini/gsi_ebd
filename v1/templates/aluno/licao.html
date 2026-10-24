@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }} — Didasko{% endblock %}
+{% block conteudo %}
+<h1>{{ estudo.title }}</h1>
+<section class="cartao">
+  <p>{{ versao.content_md }}</p>
+</section>
+{% for questao in questoes %}
+<section class="cartao">
+  <h2>{{ questao.prompt or questao.question }}</h2>
+  <form method="post" action="/aluno/licao/{{ estudo.id }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <input type="hidden" name="question_key" value="{{ questao.key }}">
+    <label>Resposta
+      <input name="answer" required>
+    </label>
+    <button>Responder</button>
+  </form>
+</section>
+{% endfor %}
+{% endblock %}

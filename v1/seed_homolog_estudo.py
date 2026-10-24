@@ -40,10 +40,12 @@ ALUNOS_FAKE = (
 
 
 def recusar_producao(url: str | None = None, ambiente: str | None = None) -> str:
-    """Recusa producao e qualquer banco que nao seja didasko_v1."""
+    """Recusa producao, ambiente vazio/desconhecido e banco que nao seja didasko_v1."""
     marcado = (ambiente if ambiente is not None else os.environ.get("DIDASKO_AMBIENTE", "")).strip().lower()
     if marcado == "producao":
         raise RuntimeError("seed de alunos fake recusado na producao")
+    if marcado != "homologacao":
+        raise RuntimeError("seed de alunos fake exige DIDASKO_AMBIENTE=homologacao")
     endereco = url if url is not None else os.environ.get("DATABASE_URL", "")
     if not endereco:
         raise RuntimeError("DATABASE_URL ausente")

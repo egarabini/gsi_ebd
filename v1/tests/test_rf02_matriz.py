@@ -34,6 +34,9 @@ ESPERADO = {
     ("POST", "/revisor/obras/{obra_id}/posicionar"): "rota:/revisor/obras",
     ("GET", "/obras"): "rota:/obras",
     ("GET", "/obras/{obra_id}"): "rota:/obras",
+    ("GET", "/aluno"): "rota:/aluno",
+    ("GET", "/aluno/licao/{study_id}"): "rota:/aluno/licao",
+    ("POST", "/aluno/licao/{study_id}"): "rota:/aluno/licao",
 }
 
 # HTTP esperado, fixo. Nao consulte pode(): o teste repetiria a matriz.
@@ -56,6 +59,13 @@ LIBERADOS = {
     ("GET", "/admin/obras/nova"): {Role.ADMIN},
     ("GET", "/revisor/obras"): {Role.REVISOR},
     ("GET", "/obras"): {Role.ADMIN, Role.REVISOR},
+    ("GET", "/aluno"): {
+        Role.ADMIN,
+        Role.REVISOR,
+        Role.COORDENADOR,
+        Role.INSTRUTOR,
+        Role.ALUNO,
+    },
 }
 
 PAPEIS_DO_LOGOUT = (

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }} — Didasko{% endblock %}
+{% block conteudo %}
+<h1 data-rota="/aluno">{{ titulo }}</h1>
+<section class="cartao">
+  <ul>
+    {% for estudo in estudos %}
+    <li><a href="/aluno/licao/{{ estudo.id }}">{{ estudo.title }}</a></li>
+    {% else %}
+    <li>Nenhum estudo liberado.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

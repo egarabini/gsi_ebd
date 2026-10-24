@@ -68,15 +68,19 @@ def csrf(resposta) -> str:
     return achado.group(1)
 
 
-def entrar(client, papel) -> str:
+def entrar_como(client, email, senha=SENHA) -> str:
     token = csrf(client.get("/login"))
     resposta = client.post(
         "/login",
-        data={"csrf_token": token, "email": f"papel{int(papel)}@example.test", "senha": SENHA},
+        data={"csrf_token": token, "email": email, "senha": senha},
         follow_redirects=False,
     )
     assert resposta.status_code == 303, resposta.text
     return csrf(client.get(resposta.headers["location"]))
+
+
+def entrar(client, papel) -> str:
+    return entrar_como(client, f"papel{int(papel)}@example.test")
 
 
 def payload(sistema, token):
