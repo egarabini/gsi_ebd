@@ -14,7 +14,7 @@ from gsi_ebd.models import (
 )
 from gsi_ebd.services import flow
 from gsi_ebd.services.erros_fluxo import FluxoBloqueado
-from gsi_ebd.utils.rbac import pode
+from gsi_ebd.utils.rbac import itens_do_menu, pode
 
 NOMES_DE_PAPEL = {
     1: "Administrador",
@@ -33,6 +33,7 @@ def render(request, nome, contexto=None, status_code=200):
         "titulo": "Didasko",
         "admin": bool(usuario and pode("rota:/admin/obras", usuario.role)),
         "revisor": bool(usuario and pode("rota:/revisor/obras", usuario.role)),
+        "menu": itens_do_menu(usuario.role) if usuario else [],
     }
     if contexto:
         dados.update(contexto)

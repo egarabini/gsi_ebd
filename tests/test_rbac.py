@@ -76,7 +76,8 @@ FROZEN = {
 @pytest.mark.parametrize(
     "rota,permitidos,negados",
     [
-        ("/admin", (Role.ADMIN, Role.REVISOR), (Role.COORDENADOR, Role.INSTRUTOR, Role.ALUNO)),
+        ("/admin", (Role.ADMIN,), (Role.REVISOR, Role.COORDENADOR, Role.INSTRUTOR, Role.ALUNO)),
+        ("/revisor", (Role.REVISOR,), (Role.ADMIN, Role.COORDENADOR, Role.INSTRUTOR, Role.ALUNO)),
         ("/coordenador", (Role.ADMIN, Role.COORDENADOR), (Role.REVISOR, Role.INSTRUTOR, Role.ALUNO)),
         ("/revisao", (Role.ADMIN, Role.INSTRUTOR), (Role.REVISOR, Role.COORDENADOR, Role.ALUNO)),
         ("/admin/obras", (Role.ADMIN,), (Role.REVISOR, Role.COORDENADOR, Role.INSTRUTOR, Role.ALUNO)),
@@ -110,25 +111,63 @@ def test_matriz_de_acoes(acao, permitidos, negados):
         assert not rbac.pode(acao, papel), f"{papel.name} NAO deveria poder {acao}"
 
 
+def test_itens_do_menu_alterar_senha_em_todos_os_papeis():
+    for papel in Role:
+        rotulos = [item["rotulo"] for item in rbac.itens_do_menu(papel)]
+        assert "Alterar senha" in rotulos, f"{papel.name} sem Alterar senha no menu"
+
+
 def test_chave_desconhecida_nega():
     assert not rbac.pode("rota:/nao-existe", Role.ADMIN)
     assert not rbac.pode("acao:nao-existe", Role.ADMIN)
     assert not rbac.pode("", Role.ADMIN)
 
 
-def test_invariante_casa_do_papel():
-    """A casa de cada papel nao pode ser NEGADA por uma guarda - senao o redirect faz loop.
+def test_casas_por_versao():
+    """Chaves compartilhadas; mapas de casa separados (DEM-017, ressalva 1)."""
+    from gsi_ebd.services.auth_service import AuthService
 
-    Rota fora de PERMISSOES nao tem guarda (ex.: /aluno e /perfil, abertas a quem
-    esta logado); a invariante so vale para as rotas guardadas.
+    assert rbac.home_do_papel(Role.REVISOR) == "/admin"
+    assert AuthService.redirect_for_role(Role.REVISOR) == "/admin"
+    assert rbac.home_do_papel_v1(Role.REVISOR) == "/revisor"
+    assert rbac.home_do_papel(Role.ADMIN) == "/admin"
+    assert rbac.home_do_papel_v1(Role.ADMIN) == "/admin"
+
+
+def test_invariante_casa_do_papel():
+    """Mapa da v0: a casa e acessivel pelo guarda (sem loop, sem 404).
+
+    A chave compartilhada rota:/admin e so ADMIN (v1); o REVISOR mesmo assim
+    entra na casa v0 /admin via o guarda. O mapa da v1 tem invariante propria.
     """
+    from types import SimpleNamespace
+
+    def entra(casa, papel):
+        @rbac.guarda_rota(casa)
+        def on_load(self):
+            return None
+
+        falso = SimpleNamespace(is_authenticated=True, current_user_role=papel)
+        return on_load(falso) is None
+
     for papel in Role:
         casa = rbac.home_do_papel(papel)
         if casa == "/login":
             continue
+        if ("rota:" + casa) not in rbac.PERMISSOES:
+            continue
+        assert entra(casa, papel), f"{papel.name} nao entra na casa v0 {casa}"
+
+
+def test_invariante_casa_do_papel_v1():
+    """Mapa da v1: a casa e permitida pela matriz quando a chave existe."""
+    for papel in Role:
+        casa = rbac.home_do_papel_v1(papel)
+        if casa == "/login":
+            continue
         chave = "rota:" + casa
         if chave in rbac.PERMISSOES:
-            assert rbac.pode(chave, papel), f"{papel.name} nao pode a propria casa {casa}"
+            assert rbac.pode(chave, papel), f"{papel.name} nao pode a casa v1 {casa}"
 
 
 # ── 3. o cliente nao escreve a propria identidade ──────────────────────────
@@ -330,7 +369,7 @@ def test_guarda_real_bloqueia_e_libera():
         for papel in Role:
             falso = SimpleNamespace(is_authenticated=True, current_user_role=papel)
             resultado = fn(falso)
-            if papel in rbac.PERMISSOES["rota:" + rota]:
+            if papel in rbac.PERMISSOES["rota:" + rota] or rbac.home_do_papel(papel) == rota:
                 assert resultado is None, f"{rota}: {papel.name} deveria passar"
             else:
                 assert _destino(resultado) == casas[papel], (
@@ -379,4 +418,4 @@ def test_guarda_rota_redireciona_e_libera():
 
     assert on_load(Anonimo()) is not None   # manda para /login
     assert on_load(Aluno()) is not None     # devolve para a casa (nunca para /admin)
-    assert on_load(Revisor()) is None       # revisor entra: 9.2a
+    assert on_load(Revisor()) is None       # revisor entra: 9.2a (casa v0 /admin)

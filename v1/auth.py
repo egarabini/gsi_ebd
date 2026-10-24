@@ -12,8 +12,7 @@ from fastapi import Depends, HTTPException, Request
 from sqlmodel import Session
 
 from gsi_ebd.models import Ambiente, User
-from gsi_ebd.services.auth_service import AuthService
-from gsi_ebd.utils.rbac import pode
+from gsi_ebd.utils.rbac import home_do_papel_v1, pode
 from v1.db import sessao
 
 # Com a flag ligada, so a troca e o logout passam (H-14).
@@ -147,12 +146,12 @@ def caminhos_da_app(app) -> set[str]:
 def destino(request: Request, usuario: User) -> str:
     """Casa do papel quando a rota ja existe na v1; senao a raiz.
 
-    As casas da matriz (/admin, /coordenador, /revisao, /aluno) nascem nos
-    marcos seguintes. Ate la, a raiz autenticada e `/`.
+    O mapa e o da v1 (home_do_papel_v1): REVISOR -> /revisor. A v0 continua
+    com HOME_DO_PAPEL (REVISOR -> /admin). Casas ainda sem rota na app caem em `/`.
     """
     if usuario.must_change_password:
         return "/perfil/alterar-senha"
-    casa = AuthService.redirect_for_role(usuario.role)
+    casa = home_do_papel_v1(usuario.role)
     if casa in caminhos_da_app(request.app):
         return casa
     return "/"

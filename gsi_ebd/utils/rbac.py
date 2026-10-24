@@ -35,8 +35,9 @@ PERMISSOES: dict[str, tuple[int, ...]] = {
     "rota:/admin/obras": (Role.ADMIN,),
     "rota:/revisor/obras": (Role.REVISOR,),
     "rota:/obras": (Role.ADMIN, Role.REVISOR),
-    # rotas guardadas (usadas pelos handlers de on_load)
-    "rota:/admin": (Role.ADMIN, Role.REVISOR),
+    # Paineis da v1 (DEM-017 fatia 1): /admin so ADMIN; /revisor so REVISOR.
+    "rota:/admin": (Role.ADMIN,),
+    "rota:/revisor": (Role.REVISOR,),
     "rota:/coordenador": (Role.ADMIN, Role.COORDENADOR),
     "rota:/revisao": (Role.ADMIN, Role.INSTRUTOR),
     # acoes (usadas pelos eventos dos estados)
@@ -48,7 +49,7 @@ PERMISSOES: dict[str, tuple[int, ...]] = {
     "acao:revisao": (Role.ADMIN, Role.INSTRUTOR),
 }
 
-# casa de cada papel - usada no redirect de quem nao tem a rota
+# casa da v0 (Reflex) - congelada. REVISOR permanece em /admin (9.2a).
 HOME_DO_PAPEL: dict[int, str] = {
     Role.ADMIN: "/admin",
     Role.REVISOR: "/admin",
@@ -57,10 +58,36 @@ HOME_DO_PAPEL: dict[int, str] = {
     Role.ALUNO: "/aluno",
 }
 
+# casa da v1 (FastAPI). As chaves de PERMISSOES sao compartilhadas; o mapa nao.
+HOME_DO_PAPEL_V1: dict[int, str] = {
+    Role.ADMIN: "/admin",
+    Role.REVISOR: "/revisor",
+    Role.COORDENADOR: "/coordenador",
+    Role.INSTRUTOR: "/revisao",
+    Role.ALUNO: "/aluno",
+}
+
+# Menu da v1 derivado da matriz: so entra o item cuja chave o papel pode.
+# (href, rotulo, chave). Sair fica no template, para quem esta autenticado.
+ITENS_MENU: tuple[tuple[str, str, str], ...] = (
+    ("/admin", "Painel", "rota:/admin"),
+    ("/admin/obras", "Obras", "rota:/admin/obras"),
+    ("/admin#estudos", "Estudos", "rota:/admin"),
+    ("/admin#alunos", "Alunos", "rota:/admin"),
+    ("/revisor", "Painel", "rota:/revisor"),
+    ("/revisor/obras", "Revisão", "rota:/revisor/obras"),
+    ("/perfil/alterar-senha", "Alterar senha", "rota:/perfil/alterar-senha"),
+)
+
 
 def home_do_papel(papel: int) -> str:
-    """Rota inicial do papel; desconhecido vai para o login (nunca para si mesmo)."""
+    """Casa da v0. Desconhecido vai para o login (nunca para si mesmo)."""
     return HOME_DO_PAPEL.get(papel, "/login")
+
+
+def home_do_papel_v1(papel: int) -> str:
+    """Casa da v1. O mapa da v0 (home_do_papel) permanece congelado."""
+    return HOME_DO_PAPEL_V1.get(papel, "/login")
 
 
 def pode(chave: str, papel: int) -> bool:
@@ -69,6 +96,15 @@ def pode(chave: str, papel: int) -> bool:
     if not permitidos:
         return False
     return papel in permitidos
+
+
+def itens_do_menu(papel: int) -> list[dict[str, str]]:
+    """Itens visiveis para o papel. Chave desconhecida ou negada nao entra."""
+    return [
+        {"href": href, "rotulo": rotulo}
+        for href, rotulo, chave in ITENS_MENU
+        if pode(chave, papel)
+    ]
 
 
 def exige(chave: str):
@@ -104,7 +140,9 @@ def guarda_rota(rota: str):
             if not getattr(self, "is_authenticated", False):
                 return rx.redirect("/login")
             papel = getattr(self, "current_user_role", -1)
-            if not pode("rota:" + rota, papel):
+            # v0: a casa do papel continua acessivel mesmo se a chave compartilhada
+            # apertou para a v1 (REVISOR em /admin). Evita 404 e loop.
+            if not pode("rota:" + rota, papel) and home_do_papel(papel) != rota:
                 return rx.redirect(home_do_papel(papel))
             return fn(self, *args, **kwargs)
 

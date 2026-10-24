@@ -14,10 +14,9 @@
     <strong>Didasko</strong>
     {% if usuario %}
     <nav aria-label="Principal">
-      {% if admin %}<a href="/admin/obras">Obras</a>{% endif %}
-      {% if revisor %}<a href="/revisor/obras">Fila de revisão</a>{% endif %}
-      {% if admin or revisor %}<a href="/obras">Catálogo</a>{% endif %}
-      <a href="/perfil/alterar-senha">Trocar a senha</a>
+      {% for item in menu %}
+      <a href="{{ item.href }}">{{ item.rotulo }}</a>
+      {% endfor %}
     </nav>
     <form method="post" action="/logout">
       <input type="hidden" name="csrf_token" value="{{ csrf }}">

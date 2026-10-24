@@ -25,7 +25,9 @@ def test_rf01_htmx_defer_anexa_o_csrf():
 def test_rf01_destino_enxerga_rota_incluida_e_cai_na_raiz(sistema):
     caminhos = caminhos_da_app(sistema["app"])
     assert "/" in caminhos and "/login" in caminhos
-    assert "/admin" not in caminhos
+    assert "/admin" in caminhos
+    assert "/revisor" in caminhos
+    assert "/coordenador" not in caminhos
 
     class _pedido:
         app = sistema["app"]
@@ -34,6 +36,10 @@ def test_rf01_destino_enxerga_rota_incluida_e_cai_na_raiz(sistema):
         must_change_password = False
         role = int(Role.ADMIN)
 
+    assert destino(_pedido(), _usuario()) == "/admin"
+    _usuario.role = int(Role.REVISOR)
+    assert destino(_pedido(), _usuario()) == "/revisor"
+    _usuario.role = int(Role.COORDENADOR)
     assert destino(_pedido(), _usuario()) == "/"
 
 

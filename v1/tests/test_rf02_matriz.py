@@ -16,6 +16,8 @@ ESPERADO = {
     ("POST", "/logout"): "rota:/logout",
     ("GET", "/perfil/alterar-senha"): "rota:/perfil/alterar-senha",
     ("POST", "/perfil/alterar-senha"): "rota:/perfil/alterar-senha",
+    ("GET", "/admin"): "rota:/admin",
+    ("GET", "/revisor"): "rota:/revisor",
     ("GET", "/admin/obras"): "rota:/admin/obras",
     ("GET", "/admin/obras/nova"): "rota:/admin/obras",
     ("POST", "/admin/obras"): "rota:/admin/obras",
@@ -55,8 +57,10 @@ LIBERADOS = {
         Role.INSTRUTOR,
         Role.ALUNO,
     },
+    ("GET", "/admin"): {Role.ADMIN},
     ("GET", "/admin/obras"): {Role.ADMIN},
     ("GET", "/admin/obras/nova"): {Role.ADMIN},
+    ("GET", "/revisor"): {Role.REVISOR},
     ("GET", "/revisor/obras"): {Role.REVISOR},
     ("GET", "/obras"): {Role.ADMIN, Role.REVISOR},
     ("GET", "/aluno"): {
@@ -120,7 +124,22 @@ def test_rf02_inventario_e_dependencia_da_matriz(sistema):
             assert chave in PERMISSOES
     assert PERMISSOES["rota:/logout"] == PAPEIS_DO_LOGOUT
     assert Role.ALUNO not in PERMISSOES["rota:/admin"]
+    assert Role.REVISOR not in PERMISSOES["rota:/admin"]
     assert Role.ADMIN in PERMISSOES["rota:/admin"]
+    assert PERMISSOES["rota:/revisor"] == (Role.REVISOR,)
+
+
+def test_rf02_invariante_casa_v1():
+    """Mapa da v1: cada papel pode a propria casa quando a chave existe."""
+    from gsi_ebd.utils.rbac import home_do_papel, home_do_papel_v1, pode
+
+    assert home_do_papel(Role.REVISOR) == "/admin"
+    assert home_do_papel_v1(Role.REVISOR) == "/revisor"
+    for papel in Role:
+        casa = home_do_papel_v1(papel)
+        chave = "rota:" + casa
+        if chave in PERMISSOES:
+            assert pode(chave, papel), f"{papel.name} nao pode a casa v1 {casa}"
 
 
 @pytest.mark.parametrize("papel", list(Role))

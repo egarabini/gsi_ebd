@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }} — Didasko{% endblock %}
+{% block conteudo %}
+<h1 data-rota="/admin">{{ titulo }}</h1>
+
+<section class="cartao" id="obras">
+  <h2>Obras disponíveis</h2>
+  <ul>
+    {% for obra in obras_disponiveis %}
+    <li><a href="/admin/obras/{{ obra.id }}">{{ obra.titulo }}</a> · {{ obra.disponibilidade }}</li>
+    {% else %}
+    <li>Nenhuma obra disponível.</li>
+    {% endfor %}
+  </ul>
+  <h2>Obras em estudo</h2>
+  <ul>
+    {% for obra in obras_em_estudo %}
+    <li><a href="/admin/obras/{{ obra.id }}">{{ obra.titulo }}</a> · {{ obra.status }}</li>
+    {% else %}
+    <li>Nenhuma obra em estudo.</li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="cartao" id="estudos">
+  <h2>Estudos</h2>
+  <ul>
+    {% for estudo in estudos %}
+    <li>{{ estudo.titulo }} · {{ estudo.status }}</li>
+    {% else %}
+    <li>Nenhum estudo cadastrado.</li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="cartao" id="coordenadores">
+  <h2>Coordenadores</h2>
+  {% for bloco in coordenadores %}
+  <article>
+    <h3>{{ bloco.usuario.nome_base or bloco.usuario.nome_completo }}</h3>
+    <p>Ambiente: {% if bloco.ambiente %}{{ bloco.ambiente.nome }}{% else %}Sem ambiente{% endif %}</p>
+    <p>Estudos escolhidos:
+      {% for estudo in bloco.estudos %}{{ estudo.title }}{% if not loop.last %}, {% endif %}{% else %}nenhum{% endfor %}
+    </p>
+    <p>Obras vinculadas:
+      {% for obra in bloco.obras %}{{ obra.titulo }}{% if not loop.last %}, {% endif %}{% else %}nenhuma{% endfor %}
+    </p>
+    {% for instrutor in bloco.instrutores %}
+    <p>Instrutor {{ instrutor.usuario.nome_base or instrutor.usuario.nome_completo }} —
+      alunos:
+      {% for aluno in instrutor.alunos %}{{ aluno.nome_base or aluno.nome_completo }}{% if not loop.last %}, {% endif %}{% else %}nenhum{% endfor %}
+    </p>
+    {% else %}
+    <p>Nenhum instrutor neste coordenador.</p>
+    {% endfor %}
+  </article>
+  {% else %}
+  <p>Nenhum coordenador cadastrado.</p>
+  {% endfor %}
+</section>
+
+<section class="cartao" id="alunos">
+  <h2>Alunos</h2>
+  <table>
+    <thead>
+      <tr><th>Aluno</th><th>A fazer</th><th>Feitos</th><th>Resultados</th></tr>
+    </thead>
+    <tbody>
+      {% for bloco in alunos %}
+      <tr>
+        <td>{{ bloco.usuario.nome_base or bloco.usuario.nome_completo }}</td>
+        <td>
+          {% for item in bloco.a_fazer %}{{ item.estudo.title if item.estudo else "estudo" }}{% if not loop.last %}, {% endif %}{% else %}—{% endfor %}
+        </td>
+        <td>
+          {% for item in bloco.feitos %}{{ item.estudo.title if item.estudo else "estudo" }}{% if not loop.last %}, {% endif %}{% else %}—{% endfor %}
+        </td>
+        <td>
+          {% for progresso in bloco.progressos %}{{ progresso.correct_answers }}/{{ progresso.total_questions }}{% if not loop.last %}; {% endif %}{% else %}—{% endfor %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">Nenhum aluno cadastrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

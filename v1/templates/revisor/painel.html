@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }} — Didasko{% endblock %}
+{% block conteudo %}
+<h1 data-rota="/revisor">{{ titulo }}</h1>
+
+<section class="cartao" id="fila">
+  <h2>Fila de revisão</h2>
+  <ul>
+    {% for obra in fila %}
+    <li><a href="/revisor/obras/{{ obra.id }}">{{ obra.titulo }}</a> · {{ obra.status }}</li>
+    {% else %}
+    <li>Nenhuma obra nesta fila.</li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="cartao" id="historico">
+  <h2>Histórico de avaliações e liberações</h2>
+  <ul>
+    {% for item in historico %}
+    <li>
+      {{ item.evento.tipo }}
+      · {% if item.obra %}{{ item.obra.titulo }}{% else %}obra{% endif %}
+      · {% if item.autor %}{{ item.autor.nome_base or item.autor.nome_completo }}{% endif %}
+    </li>
+    {% else %}
+    <li>Nenhuma avaliação registrada.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}
