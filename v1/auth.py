@@ -147,8 +147,8 @@ def caminhos_da_app(app) -> set[str]:
 def destino(request: Request, usuario: User) -> str:
     """Casa do papel quando a rota ja existe na v1; senao a raiz.
 
-    As casas da matriz (/admin, /coordenador, /revisao, /aluno) nascem nos
-    marcos seguintes. Ate la, a raiz autenticada e `/`.
+    Casas da v1 ja existentes: /admin (ADMIN) e /revisor (REVISOR). As demais
+    (/coordenador, /revisao) caem na raiz autenticada `/` ate nascerem.
     """
     if usuario.must_change_password:
         return "/perfil/alterar-senha"

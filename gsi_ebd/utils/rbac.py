@@ -35,8 +35,9 @@ PERMISSOES: dict[str, tuple[int, ...]] = {
     "rota:/admin/obras": (Role.ADMIN,),
     "rota:/revisor/obras": (Role.REVISOR,),
     "rota:/obras": (Role.ADMIN, Role.REVISOR),
-    # rotas guardadas (usadas pelos handlers de on_load)
-    "rota:/admin": (Role.ADMIN, Role.REVISOR),
+    # Paineis da v1 (DEM-017 fatia 1): /admin so ADMIN; /revisor so REVISOR.
+    "rota:/admin": (Role.ADMIN,),
+    "rota:/revisor": (Role.REVISOR,),
     "rota:/coordenador": (Role.ADMIN, Role.COORDENADOR),
     "rota:/revisao": (Role.ADMIN, Role.INSTRUTOR),
     # acoes (usadas pelos eventos dos estados)
@@ -51,11 +52,22 @@ PERMISSOES: dict[str, tuple[int, ...]] = {
 # casa de cada papel - usada no redirect de quem nao tem a rota
 HOME_DO_PAPEL: dict[int, str] = {
     Role.ADMIN: "/admin",
-    Role.REVISOR: "/admin",
+    Role.REVISOR: "/revisor",
     Role.COORDENADOR: "/coordenador",
     Role.INSTRUTOR: "/revisao",
     Role.ALUNO: "/aluno",
 }
+
+# Menu da v1 derivado da matriz: so entra o item cuja chave o papel pode.
+# (href, rotulo, chave). Sair fica no template, para quem esta autenticado.
+ITENS_MENU: tuple[tuple[str, str, str], ...] = (
+    ("/admin", "Painel", "rota:/admin"),
+    ("/admin/obras", "Obras", "rota:/admin/obras"),
+    ("/admin#estudos", "Estudos", "rota:/admin"),
+    ("/admin#alunos", "Alunos", "rota:/admin"),
+    ("/revisor", "Painel", "rota:/revisor"),
+    ("/revisor/obras", "Revisão", "rota:/revisor/obras"),
+)
 
 
 def home_do_papel(papel: int) -> str:
@@ -69,6 +81,15 @@ def pode(chave: str, papel: int) -> bool:
     if not permitidos:
         return False
     return papel in permitidos
+
+
+def itens_do_menu(papel: int) -> list[dict[str, str]]:
+    """Itens visiveis para o papel. Chave desconhecida ou negada nao entra."""
+    return [
+        {"href": href, "rotulo": rotulo}
+        for href, rotulo, chave in ITENS_MENU
+        if pode(chave, papel)
+    ]
 
 
 def exige(chave: str):

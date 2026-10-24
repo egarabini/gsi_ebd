@@ -76,7 +76,8 @@ FROZEN = {
 @pytest.mark.parametrize(
     "rota,permitidos,negados",
     [
-        ("/admin", (Role.ADMIN, Role.REVISOR), (Role.COORDENADOR, Role.INSTRUTOR, Role.ALUNO)),
+        ("/admin", (Role.ADMIN,), (Role.REVISOR, Role.COORDENADOR, Role.INSTRUTOR, Role.ALUNO)),
+        ("/revisor", (Role.REVISOR,), (Role.ADMIN, Role.COORDENADOR, Role.INSTRUTOR, Role.ALUNO)),
         ("/coordenador", (Role.ADMIN, Role.COORDENADOR), (Role.REVISOR, Role.INSTRUTOR, Role.ALUNO)),
         ("/revisao", (Role.ADMIN, Role.INSTRUTOR), (Role.REVISOR, Role.COORDENADOR, Role.ALUNO)),
         ("/admin/obras", (Role.ADMIN,), (Role.REVISOR, Role.COORDENADOR, Role.INSTRUTOR, Role.ALUNO)),
@@ -313,7 +314,7 @@ def test_guarda_real_bloqueia_e_libera():
 
     casas = {
         Role.ADMIN: "/admin",
-        Role.REVISOR: "/admin",
+        Role.REVISOR: "/revisor",
         Role.COORDENADOR: "/coordenador",
         Role.INSTRUTOR: "/revisao",
         Role.ALUNO: "/aluno",
@@ -379,4 +380,5 @@ def test_guarda_rota_redireciona_e_libera():
 
     assert on_load(Anonimo()) is not None   # manda para /login
     assert on_load(Aluno()) is not None     # devolve para a casa (nunca para /admin)
-    assert on_load(Revisor()) is None       # revisor entra: 9.2a
+    assert on_load(Revisor()) is not None   # DEM-017: /admin so ADMIN; revisor vai a /revisor
+    assert _destino(on_load(Revisor())) == "/revisor"
