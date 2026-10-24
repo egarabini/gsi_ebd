@@ -230,11 +230,12 @@ def test_menu_admin_revisor_e_anonimo(sistema):
     admin = client.get("/admin").text
     assert 'href="/admin"' in admin
     assert 'href="/admin/obras"' in admin
-    assert 'href="/admin#estudos"' in admin
+    assert 'href="/admin/estudos"' in admin
     assert 'href="/admin#alunos"' in admin
     assert 'href="/perfil/alterar-senha"' in admin
     assert ">Sair<" in admin
     assert 'href="/revisor/obras"' not in admin
+    assert 'href="/revisor/avaliacoes"' not in admin
 
     entrar(client, Role.REVISOR)
     revisor = client.get("/revisor").text
@@ -243,7 +244,8 @@ def test_menu_admin_revisor_e_anonimo(sistema):
     assert 'href="/perfil/alterar-senha"' in revisor
     assert ">Sair<" in revisor
     assert 'href="/admin/obras"' not in revisor
-    assert 'href="/admin#estudos"' not in revisor
+    assert 'href="/admin/estudos"' not in revisor
+    assert 'href="/revisor/avaliacoes"' in revisor
     assert 'href="/admin#alunos"' not in revisor
     assert 'href="/admin"' not in revisor
 
@@ -256,6 +258,7 @@ def test_menu_deriva_da_matriz(sistema, monkeypatch):
     pagina = client.get("/admin/obras").text
     assert 'href="/admin/obras"' in pagina
     assert 'href="/admin#estudos"' not in pagina
+    assert 'href="/admin/estudos"' in pagina
     assert 'href="/admin#alunos"' not in pagina
 
 

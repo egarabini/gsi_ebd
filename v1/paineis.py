@@ -19,6 +19,7 @@ from gsi_ebd.models import (
     Turma,
     TurmaMembro,
     User,
+    UserResponse,
     VinculoObra,
 )
 
@@ -43,6 +44,7 @@ def resumo_admin(session: Session) -> dict:
     membros = list(session.exec(select(TurmaMembro)))
     atribuicoes = list(session.exec(select(StudyAssignment)))
     progressos = list(session.exec(select(Progress)))
+    respostas = list(session.exec(select(UserResponse)))
 
     escolhas_por_amb = defaultdict(list)
     for escolha in escolhas:
@@ -116,6 +118,9 @@ def resumo_admin(session: Session) -> dict:
     prog_por_aluno = defaultdict(list)
     for item in progressos:
         prog_por_aluno[item.user_id].append(item)
+    resp_por_aluno = defaultdict(list)
+    for item in respostas:
+        resp_por_aluno[item.user_id].append(item)
 
     alunos = []
     for aluno in session.exec(select(User).where(User.role == int(Role.ALUNO)).order_by(User.id)):
@@ -130,6 +135,7 @@ def resumo_admin(session: Session) -> dict:
                 "feitos": feitos,
                 "a_fazer": a_fazer,
                 "progressos": prog_por_aluno.get(aluno.id, []),
+                "respostas": resp_por_aluno.get(aluno.id, []),
             }
         )
 

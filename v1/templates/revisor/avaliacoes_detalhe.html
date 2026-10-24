@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }} — Didasko{% endblock %}
+{% block conteudo %}
+<h1>{{ titulo }}</h1>
+{% if erro %}<p class="erro" role="alert">{{ erro }}</p>{% endif %}
+<p>Obra de origem: {{ obra.titulo if obra else "—" }} · versão {{ versao.numero }} · {{ versao.status }}</p>
+<section class="cartao">
+  <h2>Capítulos</h2>
+  {% for cap in capitulos %}
+  <article>
+    <h3>{{ cap.ordem }}. {{ cap.titulo }}</h3>
+    <pre>{{ cap.conteudo_md }}</pre>
+  </article>
+  {% endfor %}
+</section>
+<section class="cartao">
+  <h2>Parecer do revisor</h2>
+  <form method="post" action="/revisor/avaliacoes/{{ estudo.id }}/revisar">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <input type="hidden" name="versao_id" value="{{ versao.id }}">
+    <input type="hidden" name="hash_esperado" value="{{ hash_esperado }}">
+    <label>Parecer<textarea name="parecer" required rows="4"></textarea></label>
+    <label>Ajustes propostos (um por linha)<textarea name="ajustes" rows="4"></textarea></label>
+    <button>Assinar parecer</button>
+    <button formaction="/revisor/avaliacoes/{{ estudo.id }}/recusar" class="secundario">Recusar</button>
+  </form>
+</section>
+{% endblock %}
